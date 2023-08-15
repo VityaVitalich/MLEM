@@ -1,3 +1,7 @@
+# Data Files
+experiments/rosbank/data/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
