@@ -4,7 +4,8 @@ import ml_collections
 def data_configs():
     config = ml_collections.ConfigDict()
 
-    # data
+    ########## DATA ##############
+
     config.train_path = '~/event_seq/experiments/rosbank/data/train_trx.parquet'
     config.client_list_shuffle_seed = 0xAB0BA #seed for splitting data to train and validation
     config.valid_size = 0.05 #validation size 
@@ -26,12 +27,23 @@ def data_configs():
         "amount": "identity"
       }
 
+    # train specific parameters
+    train = config.train = ml_collections.ConfigDict()
+    # validation specific
+    val = config.val = ml_collections.ConfigDict()
+
     #splitters
-    config.split_strategy = {
+    config.train.split_strategy = {
         "split_strategy": "SampleSlices",
         "split_count": 5,
         "cnt_min": 15,
         "cnt_max": 150
       }
+    
+
+    #dropout
+    train.dropout = 0.05
+    train.max_seq_len = 100
+    
 
     return config
