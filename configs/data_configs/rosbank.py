@@ -18,10 +18,10 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "mcc": {"in": 100, "out": 24},
-        "channel_type": {"in": 4, "out": 4},
-        "currency": {"in": 4, "out": 4},
-        "trx_category": {"in": 10, "out": 4},
+        "mcc": {"in": 100, "out": 24, 'max_value': 400},
+        "channel_type": {"in": 4, "out": 4, 'max_value': 400},
+        "currency": {"in": 4, "out": 4, 'max_value': 400},
+        "trx_category": {"in": 10, "out": 4, 'max_value': 400},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
