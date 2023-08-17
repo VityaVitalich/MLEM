@@ -1,12 +1,12 @@
-from make_datasets_spark import DatasetConverter
-
-import pyspark.sql.functions as F
 import logging
 
+import pyspark.sql.functions as F
 
-FILE_NAME_TRAIN = 'train.csv'
-FILE_NAME_TEST = 'test.csv'
-COL_EVENT_TIME = 'TRDATETIME'
+from make_datasets_spark import DatasetConverter
+
+FILE_NAME_TRAIN = "train.csv"
+FILE_NAME_TEST = "test.csv"
+COL_EVENT_TIME = "TRDATETIME"
 
 logger = logging.getLogger(__name__)
 
@@ -26,15 +26,15 @@ class LocalDatasetConverter(DatasetConverter):
         df = df_train.union(df_test)
 
         # event_time mapping
-        df = df.withColumn('_et_day', F.substring(F.col(COL_EVENT_TIME), 1, 7))
-        df = df.withColumn('_et_day', F.unix_timestamp('_et_day', 'ddMMMyy'))
+        df = df.withColumn("_et_day", F.substring(F.col(COL_EVENT_TIME), 1, 7))
+        df = df.withColumn("_et_day", F.unix_timestamp("_et_day", "ddMMMyy"))
 
-        df = df.withColumn('_et_time', F.substring(F.col(COL_EVENT_TIME), 9, 8))
-        df = df.withColumn('_et_time', F.unix_timestamp('_et_time', 'HH:mm:ss'))
+        df = df.withColumn("_et_time", F.substring(F.col(COL_EVENT_TIME), 9, 8))
+        df = df.withColumn("_et_time", F.unix_timestamp("_et_time", "HH:mm:ss"))
 
-        df = df.withColumn('event_time', F.col('_et_day') + F.col('_et_time'))
-        df = df.withColumn('event_time', F.col('event_time') / (24 * 60 * 60))
-        df = df.drop('_et_day', '_et_time')
+        df = df.withColumn("event_time", F.col("_et_day") + F.col("_et_time"))
+        df = df.withColumn("event_time", F.col("event_time") / (24 * 60 * 60))
+        df = df.drop("_et_day", "_et_time")
 
         for col in df.columns:
             df = df.withColumnRenamed(col, col.lower())
@@ -48,5 +48,5 @@ class LocalDatasetConverter(DatasetConverter):
         return df_target
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     LocalDatasetConverter().run()
