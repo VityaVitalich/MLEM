@@ -1,13 +1,18 @@
 import ml_collections
 
 
-def data_configs():
+def model_configs():
     config = ml_collections.ConfigDict()
 
-    ########## DATA ##############
-    
-    config.preprocessor_path = None
-    config.features_emb_dim = 16
+    ########## Embeddings ##############
 
+    config.features_emb_dim = 16
+    config.num_ref_points = 64
+    config.latent_dim = 2
+    config.ref_point_dim = 16
+    config.time_emb_dim = 16
+    config.num_heads_enc = 2
+    config.linear_hidden_dim = 32
+    config.device = "cpu"
 
     return config
