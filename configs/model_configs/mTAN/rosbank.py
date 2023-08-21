@@ -13,6 +13,7 @@ def model_configs():
     config.time_emb_dim = 16
     config.num_heads_enc = 2
     config.linear_hidden_dim = 32
+    config.k_iwae = 1
     config.device = "cpu"
 
     return config

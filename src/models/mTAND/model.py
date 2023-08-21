@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .model_utils import multiTimeAttention
+from .model_utils import multiTimeAttention, sample_z
 
 
 class enc_mtan_rnn(nn.Module):
@@ -69,6 +69,67 @@ class enc_mtan_rnn(nn.Module):
         return out
 
 
+class dec_mtan_rnn(nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        query,
+        latent_dim=2,
+        nhidden=16,
+        embed_time=16,
+        num_heads=1,
+        linear_hidden_dim=50,
+        learn_emb=False,
+        device="cpu",
+    ):
+        super(dec_mtan_rnn, self).__init__()
+        self.embed_time = embed_time
+        self.dim = input_dim
+        self.device = device
+        self.nhidden = nhidden
+        self.query = query
+        self.learn_emb = learn_emb
+        self.att = multiTimeAttention(2 * nhidden, 2 * nhidden, embed_time, num_heads)
+        self.gru_rnn = nn.GRU(latent_dim, nhidden, bidirectional=True, batch_first=True)
+        self.z0_to_obs = nn.Sequential(
+            nn.Linear(2 * nhidden, linear_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(linear_hidden_dim, input_dim),
+        )
+        if learn_emb:
+            self.periodic = nn.Linear(1, embed_time - 1)
+            self.linear = nn.Linear(1, 1)
+
+    def learn_time_embedding(self, tt):
+        tt = tt.to(self.device)
+        tt = tt.unsqueeze(-1)
+        out2 = torch.sin(self.periodic(tt))
+        out1 = self.linear(tt)
+        return torch.cat([out1, out2], -1)
+
+    def fixed_time_embedding(self, pos):
+        d_model = self.embed_time
+        pe = torch.zeros(pos.shape[0], pos.shape[1], d_model)
+        position = 48.0 * pos.unsqueeze(2)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * -(np.log(10.0) / d_model))
+        pe[:, :, 0::2] = torch.sin(position * div_term)
+        pe[:, :, 1::2] = torch.cos(position * div_term)
+        return pe
+
+    def forward(self, z, time_steps):
+        out, _ = self.gru_rnn(z)
+        time_steps = time_steps.cpu()
+        if self.learn_emb:
+            query = self.learn_time_embedding(time_steps).to(self.device)
+            key = self.learn_time_embedding(self.query.unsqueeze(0)).to(self.device)
+        else:
+            query = self.fixed_time_embedding(time_steps).to(self.device)
+            key = self.fixed_time_embedding(self.query.unsqueeze(0)).to(self.device)
+        out = self.att(query, key, out)
+        out = self.z0_to_obs(out)
+        return out
+
+
 class FeatureProcessor(nn.Module):
     def __init__(self, model_conf, data_conf):
         super(FeatureProcessor, self).__init__()
@@ -92,10 +153,10 @@ class FeatureProcessor(nn.Module):
 
         for key, values in padded_batch.payload.items():
             if key in self.emb_names:
-                numeric_values.append(self.embed_layers[key](values))
+                numeric_values.append(self.embed_layers[key](values.long()))
             else:
                 if key == "event_time":
-                    time_steps = values
+                    time_steps = values.float()
                 else:
                     numeric_values.append(values.unsqueeze(-1).float())
 
@@ -104,7 +165,7 @@ class FeatureProcessor(nn.Module):
 
 
 class MegaEncoder(nn.Module):
-    def __init__(self, model_conf, data_conf):
+    def __init__(self, model_conf, data_conf, ref_points):
         super(MegaEncoder, self).__init__()
         self.model_conf = model_conf
         self.data_conf = data_conf
@@ -115,11 +176,7 @@ class MegaEncoder(nn.Module):
         all_numeric_size = len(self.data_conf.features.numeric_values)
         self.input_dim = all_emb_size + all_numeric_size
 
-        self.preprocessor = FeatureProcessor(
-            model_conf=self.model_conf, data_conf=self.data_conf
-        )
-
-        self.ref_points = torch.linspace(0.0, 1.0, self.model_conf.num_ref_points)
+        self.ref_points = ref_points
         self.encoder = enc_mtan_rnn(
             self.input_dim,
             self.ref_points,
@@ -132,8 +189,75 @@ class MegaEncoder(nn.Module):
             device=self.model_conf.device,
         )
 
-    def forward(self, padded_batch):
-        x, time_steps = self.preprocessor(padded_batch)
-        out = self.encoder(x, time_steps.float())
+    def forward(self, x, time_steps):
+        enc_out = self.encoder(x, time_steps)
+        return enc_out
+
+
+class MegaDecoder(nn.Module):
+    def __init__(self, model_conf, data_conf, ref_points):
+        super(MegaDecoder, self).__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        all_emb_size = self.model_conf.features_emb_dim * len(
+            self.data_conf.features.embeddings
+        )
+        all_numeric_size = len(self.data_conf.features.numeric_values)
+        self.input_dim = all_emb_size + all_numeric_size
+
+        self.ref_points = ref_points
+        self.decoder = dec_mtan_rnn(
+            self.input_dim,
+            self.ref_points,
+            latent_dim=self.model_conf.latent_dim,
+            nhidden=self.model_conf.ref_point_dim,
+            embed_time=self.model_conf.time_emb_dim,
+            num_heads=self.model_conf.num_heads_enc,
+            linear_hidden_dim=self.model_conf.linear_hidden_dim,
+            learn_emb=True,
+            device=self.model_conf.device,
+        )
+
+    def forward(self, z, time_steps):
+        out = self.decoder(z, time_steps)
 
         return out
+
+
+class MegaNet(nn.Module):
+    def __init__(self, data_conf, model_conf):
+        super(MegaNet, self).__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.ref_points = torch.linspace(0.0, 1.0, self.model_conf.num_ref_points)
+
+        self.preprocessor = FeatureProcessor(
+            model_conf=self.model_conf, data_conf=self.data_conf
+        )
+        self.encoder = MegaEncoder(
+            model_conf=model_conf, data_conf=data_conf, ref_points=self.ref_points
+        )
+        self.decoder = MegaDecoder(
+            model_conf=model_conf, data_conf=data_conf, ref_points=self.ref_points
+        )
+
+    def forward(self, padded_batch):
+        x, time_steps = self.preprocessor(padded_batch)
+        enc_out = self.encoder(x, time_steps)
+
+        qz_mean, qz_logvar = torch.split(enc_out, 2, dim=-1)
+
+        z = sample_z(qz_mean, qz_logvar, self.model_conf.k_iwae)
+
+        dec_out = self.decoder(z, time_steps)
+
+        return {"decoder_output": dec_out, "z": z, "time_steps": time_steps}
+
+    def loss(self, output):
+        """
+        output: Dict that is outputed from forward method
+        """
+
+        return None

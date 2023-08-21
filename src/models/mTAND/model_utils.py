@@ -5,6 +5,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def sample_z(mean, logvar, k_iwae):
+    epsilon = torch.randn(k_iwae, mean.shape[0], mean.shape[1], mean.shape[2])
+    z = epsilon * torch.exp(0.5 * logvar) + mean  # same as in mTAN
+    z = z.view(-1, mean.shape[1], mean.shape[2])
+    return z
+
+
 class multiTimeAttention(nn.Module):
     def __init__(self, input_dim, nhidden=16, embed_time=16, num_heads=1):
         super(multiTimeAttention, self).__init__()
