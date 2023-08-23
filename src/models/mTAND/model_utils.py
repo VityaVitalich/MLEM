@@ -3,13 +3,55 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 
-def sample_z(mean, logvar, k_iwae):
+def sample_z(mean, logstd, k_iwae):
     epsilon = torch.randn(k_iwae, mean.shape[0], mean.shape[1], mean.shape[2])
-    z = epsilon * torch.exp(0.5 * logvar) + mean  # same as in mTAN
+    z = epsilon * torch.exp(logstd) + mean  # modified
     z = z.view(-1, mean.shape[1], mean.shape[2])
     return z
+
+
+def get_normal_KL(mean_1, log_std_1, mean_2=None, log_std_2=None):
+    """
+    This function should return the value of KL(p1 || p2),
+    where p1 = Normal(mean_1, exp(log_std_1)), p2 = Normal(mean_2, exp(log_std_2) ** 2).
+    If mean_2 and log_std_2 are None values, we will use standard normal distribution.
+    Note that we consider the case of diagonal covariance matrix.
+    """
+    if mean_2 is None:
+        mean_2 = torch.zeros_like(mean_1)
+    if log_std_2 is None:
+        log_std_2 = torch.zeros_like(log_std_1)
+    # ====
+    # https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
+    # https://stats.stackexchange.com/questions/60680/kl-divergence-between-two-multivariate-gaussians
+
+    sigma_1 = torch.exp(log_std_1)
+    sigma_2 = torch.exp(log_std_2)
+
+    out = torch.log(sigma_2 / sigma_1)
+    out += (sigma_1**2 + (mean_1 - mean_2) ** 2) / (2 * (sigma_2**2))
+    out -= 1 / 2
+
+    return out
+
+
+def get_normal_nll(x, mean, log_std):
+    """
+    This function should return the negative log likelihood log p(x),
+    where p(x) = Normal(x | mean, exp(log_std) ** 2).
+    Note that we consider the case of diagonal covariance matrix.
+    """
+    # ====
+    sigma = torch.exp(log_std.float())
+
+    out = (((x - mean) / sigma) ** 2) / 2
+    out += log_std
+    out += torch.log(torch.sqrt(torch.tensor(2 * np.pi)))
+
+    return out
 
 
 class multiTimeAttention(nn.Module):

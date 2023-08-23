@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .model_utils import multiTimeAttention, sample_z
+from .model_utils import multiTimeAttention, sample_z, get_normal_KL, get_normal_nll
 
 
 class enc_mtan_rnn(nn.Module):
@@ -247,17 +247,53 @@ class MegaNet(nn.Module):
         x, time_steps = self.preprocessor(padded_batch)
         enc_out = self.encoder(x, time_steps)
 
-        qz_mean, qz_logvar = torch.split(enc_out, 2, dim=-1)
+        qz_mean, qz_logstd = torch.split(enc_out, self.model_conf.latent_dim, dim=-1)
 
-        z = sample_z(qz_mean, qz_logvar, self.model_conf.k_iwae)
+        z = sample_z(qz_mean, qz_logstd, self.model_conf.k_iwae)
 
-        dec_out = self.decoder(z, time_steps)
+        iwae_steps = (
+            time_steps[None, :, :]
+            .repeat(self.model_conf.k_iwae, 1, 1)
+            .view(-1, time_steps.shape[1])
+        )
+        dec_out = self.decoder(z, iwae_steps)
+        dec_out = dec_out.view(
+            self.model_conf.k_iwae,
+            time_steps.shape[0],
+            dec_out.shape[1],
+            dec_out.shape[2],
+        )
 
-        return {"decoder_output": dec_out, "z": z, "time_steps": time_steps}
+        return {
+            "x_recon": dec_out,
+            "z": z,
+            "x": x,
+            "time_steps": time_steps,
+            "mu": qz_mean,
+            "log_std": qz_logstd,
+        }
 
     def loss(self, output):
         """
         output: Dict that is outputed from forward method
+        should contain
+        1) reconstructed x
+        2) initial x
+        3) mu from latent
+        4) log_std from latent
         """
 
-        return None
+        kl_loss = get_normal_KL(output["mu"], output["log_std"])
+        batch_kl_loss = kl_loss.sum([1, 2])
+
+        noise_std_ = torch.zeros(output["x_recon"].size()) + self.model_conf.noise_std
+        noise_logvar = torch.log(noise_std_)  # mTAN multiplies by constant 2
+        recon_loss = get_normal_nll(output["x"], output["x_recon"], noise_logvar)
+        batch_recon_loss = recon_loss.sum([1, 2])
+
+        return {
+            "elbo_loss": batch_recon_loss.mean()
+            + self.model_conf.kl_weight * batch_kl_loss.mean(),
+            "kl_loss": batch_kl_loss.mean(),
+            "recon_loss": batch_recon_loss.mean(),
+        }
