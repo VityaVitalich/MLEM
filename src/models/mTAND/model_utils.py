@@ -89,13 +89,15 @@ class multiTimeAttention(nn.Module):
         p_attn = F.softmax(scores, dim=-2)
         if dropout is not None:
             p_attn = dropout(p_attn)
-        # p_attn should be: bs, num_time_emb,  num_heads, ref_points, time_steps, input_dim
+
+        # p_attn should be:
+        #       (bs, num_time_emb, num_heads, ref_points, time_steps, input_dim)
         # sum over time steps dimension
         return (p_attn * value.unsqueeze(1).unsqueeze(1)).sum(-2), p_attn
 
     def forward(self, query, key, value, mask=None, dropout=None):
         "Compute 'Scaled Dot Product Attention'"
-        batch, seq_len, dim = value.size()
+        batch, _, dim = value.size()
         num_ref_points = query.size()[2]
         if mask is not None:
             # Same mask applied to all h heads.

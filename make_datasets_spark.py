@@ -274,7 +274,7 @@ class DatasetConverter:
 
     def update_with_target(self, features, df_target, col_client_id, col_target):
         col_list = [F.col(col_client_id).alias(col_client_id)]
-        if type(col_target) is list:
+        if isinstance(col_target, list):
             for col in col_target:
                 col_list.append(F.col(col).alias(f"target_{col}"))
         else:

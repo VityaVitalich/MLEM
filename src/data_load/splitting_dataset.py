@@ -58,7 +58,7 @@ class ConvertingTrxDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.delegate[idx]
-        if type(item) is list:
+        if isinstance(item, list):
             return [self._one_item(t) for t in item]
         else:
             return self._one_item(item)
@@ -99,7 +99,7 @@ class DropoutTrxDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.core_dataset[idx]
-        if type(item) is list:
+        if isinstance(item, list):
             return [self._one_item(t) for t in item]
         else:
             return self._one_item(item)
