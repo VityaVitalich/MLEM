@@ -1,9 +1,10 @@
+[tool.ruff]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
 select = ["E", "F"]
 ignore = []
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
-fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
+fixable = ["ALL"]
 unfixable = []
 
 # Exclude a variety of commonly ignored directories.
@@ -12,6 +13,9 @@ exclude = [
     ".direnv",
     ".eggs",
     ".git",
+    ".github",
+    ".vim",
+    ".vscode",
     ".git-rewrite",
     ".hg",
     ".mypy_cache",
@@ -27,6 +31,7 @@ exclude = [
     "buck-out",
     "build",
     "dist",
+    "data",
     "node_modules",
     "venv",
     "data",
@@ -41,3 +46,20 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Assume Python 3.8
 target-version = "py38"
+
+[tool.pyright]
+exclude = [
+    ".git",
+    ".github",
+    ".vim",
+    ".vscode",
+    "data",
+    "experiments",
+    "make_datasets.py",
+    "make_datasets_spark.py"
+]
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+pythonPlatform = "Linux"

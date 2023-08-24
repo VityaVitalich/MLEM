@@ -37,7 +37,7 @@ class enc_mtan_rnn(nn.Module):
 
         periodic = []
         linear_time = []
-        for i in range(self.num_time_emb):
+        for _ in range(self.num_time_emb):
             periodic.append(nn.Linear(1, embed_time - 1))
             linear_time.append(nn.Linear(1, 1))
         self.periodic = nn.ModuleList(periodic)
@@ -105,7 +105,7 @@ class dec_mtan_rnn(nn.Module):
 
         periodic = []
         linear_time = []
-        for i in range(self.num_time_emb):
+        for _ in range(self.num_time_emb):
             periodic.append(nn.Linear(1, embed_time - 1))
             linear_time.append(nn.Linear(1, 1))
         self.periodic = nn.ModuleList(periodic)
@@ -160,17 +160,16 @@ class FeatureProcessor(nn.Module):
     def forward(self, padded_batch):
         numeric_values = []
 
+        time_steps = padded_batch.pop("event_time").float()
         for key, values in padded_batch.payload.items():
             if key in self.emb_names:
-                numeric_values.append(self.embed_layers[key](values.long()))
+                feat = self.embed_layers[key](values.long())
             else:
-                if key == "event_time":
-                    time_steps = values.float()
-                else:
-                    numeric_values.append(values.unsqueeze(-1).float())
+                # TODO: repeat the numerical feature?
+                feat = values.unsqueeze(-1).float()
+            numeric_values.append(feat)
 
-        x = torch.cat(numeric_values, dim=-1)
-        return x, time_steps
+        return torch.cat(numeric_values, dim=-1), time_steps
 
 
 class MegaEncoder(nn.Module):

@@ -30,7 +30,7 @@ class SampleRandom(AbsSplit):
 
         lengths = np.random.randint(self.cnt_min, self.cnt_max, self.split_count)
         splits = []
-        for i, leng in enumerate(lengths):
+        for leng in lengths:
             rand_perm = np.random.permutation(date_len)
             splits.append(np.sort(date_range[rand_perm][:leng]))
         return splits
