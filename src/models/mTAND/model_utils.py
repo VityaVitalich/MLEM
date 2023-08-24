@@ -45,6 +45,7 @@ def get_normal_nll(x, mean, log_std):
     Note that we consider the case of diagonal covariance matrix.
     """
     # ====
+    # https://en.wikipedia.org/wiki/Multivariate_normal_distribution#Likelihood_function
     sigma = torch.exp(log_std.float())
 
     out = (((x - mean) / sigma) ** 2) / 2
@@ -55,7 +56,9 @@ def get_normal_nll(x, mean, log_std):
 
 
 class multiTimeAttention(nn.Module):
-    def __init__(self, input_dim, nhidden=16, embed_time=16, num_heads=1):
+    def __init__(
+        self, input_dim, nhidden=16, embed_time=16, num_heads=1, num_time_emb=1
+    ):
         super(multiTimeAttention, self).__init__()
         assert embed_time % num_heads == 0
         self.embed_time = embed_time
@@ -63,6 +66,7 @@ class multiTimeAttention(nn.Module):
         self.h = num_heads
         self.dim = input_dim
         self.nhidden = nhidden
+        self.num_time_emb = num_time_emb
         self.linears = nn.ModuleList(
             [
                 nn.Linear(embed_time, embed_time),
@@ -75,28 +79,40 @@ class multiTimeAttention(nn.Module):
         "Compute 'Scaled Dot Product Attention'"
         dim = value.size(-1)
         d_k = query.size(-1)
+        # transposed so time embedding dimension of ref points matches time steps
         scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+        # repeated to match dimension of input values
         scores = scores.unsqueeze(-1).repeat_interleave(dim, dim=-1)
         if mask is not None:
             scores = scores.masked_fill(mask.unsqueeze(-3) == 0, -1e9)
+        # softmax over input time points
         p_attn = F.softmax(scores, dim=-2)
         if dropout is not None:
             p_attn = dropout(p_attn)
-        return torch.sum(p_attn * value.unsqueeze(-3), -2), p_attn
+        # p_attn should be: bs, num_time_emb,  num_heads, ref_points, time_steps, input_dim
+        # sum over time steps dimension
+        return (p_attn * value.unsqueeze(1).unsqueeze(1)).sum(-2), p_attn
 
     def forward(self, query, key, value, mask=None, dropout=None):
         "Compute 'Scaled Dot Product Attention'"
         batch, seq_len, dim = value.size()
+        num_ref_points = query.size()[2]
         if mask is not None:
             # Same mask applied to all h heads.
             mask = mask.unsqueeze(1)
         value = value.unsqueeze(1)
 
         query, key = [
-            linear(x).view(x.size(0), -1, self.h, self.embed_time_k).transpose(1, 2)
+            # divided to  bs, num_time_emb, num_heads, L, dim_head after transpose
+            linear(x)
+            .view(x.size(0), self.num_time_emb, -1, self.h, self.embed_time_k)
+            .transpose(2, 3)
             for linear, x in (zip(self.linears, (query, key)))
         ]
         x, _ = self.attention(query, key, value, mask, dropout)
-        x = x.transpose(1, 2).contiguous().view(batch, -1, self.h * dim)
+        # dimensions are bs, num_time_emb, num_ref_points, num_head * input_dim
+        # transpose applied to flatten last 2 dimensions
+        x = x.transpose(2, 3).contiguous().view(batch, -1, num_ref_points, self.h * dim)
 
-        return self.linears[-1](x)
+        # out linear layer followed by summation over num_time_emb dimension
+        return self.linears[-1](x).sum(1)

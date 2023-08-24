@@ -15,7 +15,7 @@ class enc_mtan_rnn(nn.Module):
         embed_time=16,
         num_heads=1,
         linear_hidden_dim=50,
-        learn_emb=False,
+        num_time_emb=3,
         device="cuda",
     ):
         super(enc_mtan_rnn, self).__init__()
@@ -24,46 +24,51 @@ class enc_mtan_rnn(nn.Module):
         self.device = device
         self.nhidden = nhidden
         self.query = query
-        self.learn_emb = learn_emb
         self.linear_hidden_dim = linear_hidden_dim
-        self.att = multiTimeAttention(input_dim, nhidden, embed_time, num_heads)
+        self.num_time_emb = num_time_emb
+        self.att = multiTimeAttention(
+            input_dim, nhidden, embed_time, num_heads, num_time_emb
+        )
         self.gru_rnn = nn.GRU(nhidden, nhidden, bidirectional=True, batch_first=True)
         self.hiddens_to_z0 = nn.Sequential(
             nn.Linear(2 * nhidden, self.linear_hidden_dim),
             nn.ReLU(),
             nn.Linear(self.linear_hidden_dim, latent_dim * 2),
         )
-        if learn_emb:
-            self.periodic = nn.Linear(1, embed_time - 1)
-            self.linear = nn.Linear(1, 1)
 
-    def learn_time_embedding(self, tt):
+        periodic = []
+        linear_time = []
+        for i in range(self.num_time_emb):
+            periodic.append(nn.Linear(1, embed_time - 1))
+            linear_time.append(nn.Linear(1, 1))
+        self.periodic = nn.ModuleList(periodic)
+        self.linear_time = nn.ModuleList(linear_time)
+
+    def learn_time_embedding(self, tt, emb_index):
         tt = tt.to(self.device)
         tt = tt.unsqueeze(-1)
-        out2 = torch.sin(self.periodic(tt))
-        out1 = self.linear(tt)
+        out2 = torch.sin(self.periodic[emb_index](tt))
+        out1 = self.linear_time[emb_index](tt)
         return torch.cat([out1, out2], -1)
-
-    def fixed_time_embedding(self, pos):
-        d_model = self.embed_time
-        pe = torch.zeros(pos.shape[0], pos.shape[1], d_model)
-        position = 48.0 * pos.unsqueeze(2)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * -(np.log(10.0) / d_model))
-        pe[:, :, 0::2] = torch.sin(position * div_term)
-        pe[:, :, 1::2] = torch.cos(position * div_term)
-        return pe
 
     def forward(self, x, time_steps):
         time_steps = time_steps.cpu()
-        mask = x[:, :, self.dim :]
-        mask = torch.cat((mask, mask), 2)
-        if self.learn_emb:
-            key = self.learn_time_embedding(time_steps).to(self.device)
-            query = self.learn_time_embedding(self.query.unsqueeze(0)).to(self.device)
-        else:
-            key = self.fixed_time_embedding(time_steps).to(self.device)
-            query = self.fixed_time_embedding(self.query.unsqueeze(0)).to(self.device)
-        out = self.att(query, key, x, mask=None)
+
+        keys = []
+        querys = []
+        for emb_index in range(self.num_time_emb):
+            keys.append(self.learn_time_embedding(time_steps, emb_index).unsqueeze(1))
+            # first unsqueezed to match batch dimension of time steps
+            # second unsqueeze to keys and querys to concat over num_time_emb
+            querys.append(
+                self.learn_time_embedding(self.query.unsqueeze(0), emb_index).unsqueeze(
+                    1
+                )
+            )
+        keys = torch.cat(keys, dim=1).to(self.device)
+        querys = torch.cat(querys, dim=1).to(self.device)
+
+        out = self.att(querys, keys, x, mask=None)
         out, _ = self.gru_rnn(out)
         out = self.hiddens_to_z0(out)
         return out
@@ -79,7 +84,7 @@ class dec_mtan_rnn(nn.Module):
         embed_time=16,
         num_heads=1,
         linear_hidden_dim=50,
-        learn_emb=False,
+        num_time_emb=3,
         device="cpu",
     ):
         super(dec_mtan_rnn, self).__init__()
@@ -88,44 +93,49 @@ class dec_mtan_rnn(nn.Module):
         self.device = device
         self.nhidden = nhidden
         self.query = query
-        self.learn_emb = learn_emb
-        self.att = multiTimeAttention(2 * nhidden, 2 * nhidden, embed_time, num_heads)
+        self.num_time_emb = num_time_emb
+        self.att = multiTimeAttention(
+            2 * nhidden, 2 * nhidden, embed_time, num_heads, num_time_emb
+        )
         self.gru_rnn = nn.GRU(latent_dim, nhidden, bidirectional=True, batch_first=True)
         self.z0_to_obs = nn.Sequential(
             nn.Linear(2 * nhidden, linear_hidden_dim),
             nn.ReLU(),
             nn.Linear(linear_hidden_dim, input_dim),
         )
-        if learn_emb:
-            self.periodic = nn.Linear(1, embed_time - 1)
-            self.linear = nn.Linear(1, 1)
 
-    def learn_time_embedding(self, tt):
+        periodic = []
+        linear_time = []
+        for i in range(self.num_time_emb):
+            periodic.append(nn.Linear(1, embed_time - 1))
+            linear_time.append(nn.Linear(1, 1))
+        self.periodic = nn.ModuleList(periodic)
+        self.linear_time = nn.ModuleList(linear_time)
+
+    def learn_time_embedding(self, tt, emb_index):
         tt = tt.to(self.device)
         tt = tt.unsqueeze(-1)
-        out2 = torch.sin(self.periodic(tt))
-        out1 = self.linear(tt)
+        out2 = torch.sin(self.periodic[emb_index](tt))
+        out1 = self.linear_time[emb_index](tt)
         return torch.cat([out1, out2], -1)
-
-    def fixed_time_embedding(self, pos):
-        d_model = self.embed_time
-        pe = torch.zeros(pos.shape[0], pos.shape[1], d_model)
-        position = 48.0 * pos.unsqueeze(2)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * -(np.log(10.0) / d_model))
-        pe[:, :, 0::2] = torch.sin(position * div_term)
-        pe[:, :, 1::2] = torch.cos(position * div_term)
-        return pe
 
     def forward(self, z, time_steps):
         out, _ = self.gru_rnn(z)
         time_steps = time_steps.cpu()
-        if self.learn_emb:
-            query = self.learn_time_embedding(time_steps).to(self.device)
-            key = self.learn_time_embedding(self.query.unsqueeze(0)).to(self.device)
-        else:
-            query = self.fixed_time_embedding(time_steps).to(self.device)
-            key = self.fixed_time_embedding(self.query.unsqueeze(0)).to(self.device)
-        out = self.att(query, key, out)
+
+        keys = []
+        querys = []
+        for emb_index in range(self.num_time_emb):
+            keys.append(
+                self.learn_time_embedding(self.query.unsqueeze(0), emb_index).unsqueeze(
+                    1
+                )
+            )
+            querys.append(self.learn_time_embedding(time_steps, emb_index).unsqueeze(1))
+        keys = torch.cat(keys, dim=1).to(self.device)
+        querys = torch.cat(querys, dim=1).to(self.device)
+
+        out = self.att(querys, keys, out)
         out = self.z0_to_obs(out)
         return out
 
@@ -185,7 +195,7 @@ class MegaEncoder(nn.Module):
             embed_time=self.model_conf.time_emb_dim,
             num_heads=self.model_conf.num_heads_enc,
             linear_hidden_dim=self.model_conf.linear_hidden_dim,
-            learn_emb=True,
+            num_time_emb=self.model_conf.num_time_emb,
             device=self.model_conf.device,
         )
 
@@ -215,7 +225,7 @@ class MegaDecoder(nn.Module):
             embed_time=self.model_conf.time_emb_dim,
             num_heads=self.model_conf.num_heads_enc,
             linear_hidden_dim=self.model_conf.linear_hidden_dim,
-            learn_emb=True,
+            num_time_emb=self.model_conf.num_time_emb,
             device=self.model_conf.device,
         )
 

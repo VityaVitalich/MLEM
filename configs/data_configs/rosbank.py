@@ -6,7 +6,7 @@ def data_configs():
 
     ########## DATA ##############
 
-    config.train_path = "~/event_seq/experiments/rosbank/data/train_subset.parquet"
+    config.train_path = "~/event_seq/experiments/rosbank/data/train_trx.parquet"
     config.client_list_shuffle_seed = (
         0xAB0BA  # seed for splitting data to train and validation
     )
