@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 
-from .model_utils import multiTimeAttention, sample_z, get_normal_KL, get_normal_nll
+from .model_utils import MultiTimeAttention, sample_z, get_normal_kl, get_normal_nll
 
 
-class enc_mtan_rnn(nn.Module):
+class EncMtanRnn(nn.Module):
     def __init__(
         self,
         input_dim,
@@ -17,7 +17,7 @@ class enc_mtan_rnn(nn.Module):
         num_time_emb=3,
         device="cuda",
     ):
-        super(enc_mtan_rnn, self).__init__()
+        super().__init__()
         self.embed_time = embed_time
         self.dim = input_dim
         self.device = device
@@ -25,7 +25,7 @@ class enc_mtan_rnn(nn.Module):
         self.query = query
         self.linear_hidden_dim = linear_hidden_dim
         self.num_time_emb = num_time_emb
-        self.att = multiTimeAttention(
+        self.att = MultiTimeAttention(
             input_dim, nhidden, embed_time, num_heads, num_time_emb
         )
         self.gru_rnn = nn.GRU(nhidden, nhidden, bidirectional=True, batch_first=True)
@@ -73,7 +73,7 @@ class enc_mtan_rnn(nn.Module):
         return out
 
 
-class dec_mtan_rnn(nn.Module):
+class DecMtanRnn(nn.Module):
     def __init__(
         self,
         input_dim,
@@ -86,14 +86,14 @@ class dec_mtan_rnn(nn.Module):
         num_time_emb=3,
         device="cpu",
     ):
-        super(dec_mtan_rnn, self).__init__()
+        super().__init__()
         self.embed_time = embed_time
         self.dim = input_dim
         self.device = device
         self.nhidden = nhidden
         self.query = query
         self.num_time_emb = num_time_emb
-        self.att = multiTimeAttention(
+        self.att = MultiTimeAttention(
             2 * nhidden, 2 * nhidden, embed_time, num_heads, num_time_emb
         )
         self.gru_rnn = nn.GRU(latent_dim, nhidden, bidirectional=True, batch_first=True)
@@ -141,7 +141,7 @@ class dec_mtan_rnn(nn.Module):
 
 class FeatureProcessor(nn.Module):
     def __init__(self, model_conf, data_conf):
-        super(FeatureProcessor, self).__init__()
+        super().__init__()
         self.model_conf = model_conf
         self.data_conf = data_conf
 
@@ -160,7 +160,7 @@ class FeatureProcessor(nn.Module):
     def forward(self, padded_batch):
         numeric_values = []
 
-        time_steps = padded_batch.pop("event_time").float()
+        time_steps = padded_batch.payload.pop("event_time").float()
         for key, values in padded_batch.payload.items():
             if key in self.emb_names:
                 feat = self.embed_layers[key](values.long())
@@ -174,7 +174,7 @@ class FeatureProcessor(nn.Module):
 
 class MegaEncoder(nn.Module):
     def __init__(self, model_conf, data_conf, ref_points):
-        super(MegaEncoder, self).__init__()
+        super().__init__()
         self.model_conf = model_conf
         self.data_conf = data_conf
 
@@ -185,7 +185,7 @@ class MegaEncoder(nn.Module):
         self.input_dim = all_emb_size + all_numeric_size
 
         self.ref_points = ref_points
-        self.encoder = enc_mtan_rnn(
+        self.encoder = EncMtanRnn(
             self.input_dim,
             self.ref_points,
             latent_dim=self.model_conf.latent_dim,
@@ -204,7 +204,7 @@ class MegaEncoder(nn.Module):
 
 class MegaDecoder(nn.Module):
     def __init__(self, model_conf, data_conf, ref_points):
-        super(MegaDecoder, self).__init__()
+        super().__init__()
         self.model_conf = model_conf
         self.data_conf = data_conf
 
@@ -215,7 +215,7 @@ class MegaDecoder(nn.Module):
         self.input_dim = all_emb_size + all_numeric_size
 
         self.ref_points = ref_points
-        self.decoder = dec_mtan_rnn(
+        self.decoder = DecMtanRnn(
             self.input_dim,
             self.ref_points,
             latent_dim=self.model_conf.latent_dim,
@@ -235,7 +235,7 @@ class MegaDecoder(nn.Module):
 
 class MegaNet(nn.Module):
     def __init__(self, data_conf, model_conf):
-        super(MegaNet, self).__init__()
+        super().__init__()
         self.model_conf = model_conf
         self.data_conf = data_conf
 
@@ -291,7 +291,7 @@ class MegaNet(nn.Module):
         4) log_std from latent
         """
 
-        kl_loss = get_normal_KL(output["mu"], output["log_std"])
+        kl_loss = get_normal_kl(output["mu"], output["log_std"])
         batch_kl_loss = kl_loss.sum([1, 2])
 
         noise_std_ = torch.zeros(output["x_recon"].size()) + self.model_conf.noise_std

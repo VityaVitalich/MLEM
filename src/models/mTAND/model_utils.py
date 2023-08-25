@@ -13,7 +13,7 @@ def sample_z(mean, logstd, k_iwae):
     return z
 
 
-def get_normal_KL(mean_1, log_std_1, mean_2=None, log_std_2=None):
+def get_normal_kl(mean_1, log_std_1, mean_2=None, log_std_2=None):
     """
     This function should return the value of KL(p1 || p2),
     where p1 = Normal(mean_1, exp(log_std_1)), p2 = Normal(mean_2, exp(log_std_2) ** 2).
@@ -55,11 +55,11 @@ def get_normal_nll(x, mean, log_std):
     return out
 
 
-class multiTimeAttention(nn.Module):
+class MultiTimeAttention(nn.Module):
     def __init__(
         self, input_dim, nhidden=16, embed_time=16, num_heads=1, num_time_emb=1
     ):
-        super(multiTimeAttention, self).__init__()
+        super().__init__()
         assert embed_time % num_heads == 0
         self.embed_time = embed_time
         self.embed_time_k = embed_time // num_heads

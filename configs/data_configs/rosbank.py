@@ -1,4 +1,5 @@
 import ml_collections
+import os
 
 
 def data_configs():
@@ -6,7 +7,9 @@ def data_configs():
 
     ########## DATA ##############
 
-    config.train_path = "~/event_seq/experiments/rosbank/data/train_trx.parquet"
+    config.train_path = os.getenv("EVENT_SEQ_TRAIN_PATH")\
+        or input("Path to train parquet file: ")
+
     config.client_list_shuffle_seed = (
         0xAB0BA  # seed for splitting data to train and validation
     )
