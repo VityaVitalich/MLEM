@@ -13,7 +13,7 @@ def sample_z(mean, logstd, k_iwae):
     return z
 
 
-def get_normal_KL(mean_1, log_std_1, mean_2=None, log_std_2=None):
+def get_normal_kl(mean_1, log_std_1, mean_2=None, log_std_2=None):
     """
     This function should return the value of KL(p1 || p2),
     where p1 = Normal(mean_1, exp(log_std_1)), p2 = Normal(mean_2, exp(log_std_2) ** 2).
@@ -55,11 +55,11 @@ def get_normal_nll(x, mean, log_std):
     return out
 
 
-class multiTimeAttention(nn.Module):
+class MultiTimeAttention(nn.Module):
     def __init__(
         self, input_dim, nhidden=16, embed_time=16, num_heads=1, num_time_emb=1
     ):
-        super(multiTimeAttention, self).__init__()
+        super().__init__()
         assert embed_time % num_heads == 0
         self.embed_time = embed_time
         self.embed_time_k = embed_time // num_heads
@@ -89,13 +89,15 @@ class multiTimeAttention(nn.Module):
         p_attn = F.softmax(scores, dim=-2)
         if dropout is not None:
             p_attn = dropout(p_attn)
-        # p_attn should be: bs, num_time_emb,  num_heads, ref_points, time_steps, input_dim
+
+        # p_attn should be:
+        #       (bs, num_time_emb, num_heads, ref_points, time_steps, input_dim)
         # sum over time steps dimension
         return (p_attn * value.unsqueeze(1).unsqueeze(1)).sum(-2), p_attn
 
     def forward(self, query, key, value, mask=None, dropout=None):
         "Compute 'Scaled Dot Product Attention'"
-        batch, seq_len, dim = value.size()
+        batch, _, dim = value.size()
         num_ref_points = query.size()[2]
         if mask is not None:
             # Same mask applied to all h heads.

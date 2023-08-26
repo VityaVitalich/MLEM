@@ -210,9 +210,9 @@ def split_dataset(all_data, test_size, data_path, target_files, col_client_id, s
     Random(salt).shuffle(s_clients)
 
     # split client list
-    Nrows_test = int(len(s_clients) * test_size)
-    s_clients_train = s_clients[:-Nrows_test]
-    s_clients_test = s_clients[-Nrows_test:]
+    nrows_test = int(len(s_clients) * test_size)
+    s_clients_train = s_clients[:-nrows_test]
+    s_clients_test = s_clients[-nrows_test:]
 
     # split data
     labeled_train = [rec for rec in all_data if rec[col_client_id] in s_clients_train]

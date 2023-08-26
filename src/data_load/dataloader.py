@@ -63,7 +63,7 @@ def padded_collate(batch):
         for k, v in x.items():
             new_x_[k].append(v)
 
-    lengths = torch.IntTensor([len(e) for e in next(iter(new_x_.values()))])
+    lengths = torch.LongTensor([len(e) for e in next(iter(new_x_.values()))])
 
     new_x = {
         k: torch.nn.utils.rnn.pad_sequence(v, batch_first=True)
@@ -102,4 +102,4 @@ class PaddedBatch:
             k: v.to(device=device, non_blocking=non_blocking)
             for k, v in self._payload.items()
         }
-        return PaddedBatch(payload, length)
+        return PaddedBatch(payload, length)  # type: ignore

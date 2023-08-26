@@ -1,6 +1,7 @@
 # Data Files
-experiments/rosbank/data/
+data/
 .vscode/
+.vim
 
 
 # Byte-compiled / optimized / DLL files

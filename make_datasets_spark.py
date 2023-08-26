@@ -274,7 +274,7 @@ class DatasetConverter:
 
     def update_with_target(self, features, df_target, col_client_id, col_target):
         col_list = [F.col(col_client_id).alias(col_client_id)]
-        if type(col_target) is list:
+        if isinstance(col_target, list):
             for col in col_target:
                 col_list.append(F.col(col).alias(f"target_{col}"))
         else:
@@ -306,9 +306,9 @@ class DatasetConverter:
         Random(salt).shuffle(s_clients)
 
         # split client list
-        Nrows_test = int(len(s_clients) * test_size)
-        s_clients_train = s_clients[:-Nrows_test]
-        s_clients_test = s_clients[-Nrows_test:]
+        nrows_test = int(len(s_clients) * test_size)
+        s_clients_train = s_clients[:-nrows_test]
+        s_clients_test = s_clients[-nrows_test:]
 
         s_clients_train = spark.createDataFrame(
             [(i,) for i in s_clients_train], [col_client_id]

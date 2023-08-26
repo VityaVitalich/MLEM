@@ -58,7 +58,7 @@ class ConvertingTrxDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.delegate[idx]
-        if type(item) is list:
+        if isinstance(item, list):
             return [self._one_item(t) for t in item]
         else:
             return self._one_item(item)
@@ -83,7 +83,13 @@ class ConvertingTrxDataset(Dataset):
 
 
 class DropoutTrxDataset(Dataset):
-    def __init__(self, dataset: Dataset, trx_dropout, seq_len, with_target=True):
+    def __init__(
+        self, 
+        dataset: ConvertingTrxDataset, 
+        trx_dropout, 
+        seq_len, 
+        with_target=True,
+    ):
         self.core_dataset = dataset
         self.trx_dropout = trx_dropout
         self.max_seq_len = seq_len
@@ -99,16 +105,13 @@ class DropoutTrxDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.core_dataset[idx]
-        if type(item) is list:
+        if isinstance(item, list):
             return [self._one_item(t) for t in item]
         else:
             return self._one_item(item)
 
     def _one_item(self, item):
-        if self.with_target:
-            x, y = item
-        else:
-            x = item
+        x = item[0] if self.with_target else item
 
         seq_len = len(next(iter(x.values())))
 
@@ -124,7 +127,7 @@ class DropoutTrxDataset(Dataset):
         new_x = {k: v[idx] for k, v in x.items()}
 
         if self.with_target:
-            return new_x, y
+            return new_x, item[1]
         else:
             return new_x
 
