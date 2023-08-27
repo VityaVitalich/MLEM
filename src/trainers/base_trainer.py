@@ -317,16 +317,38 @@ class BaseTrainer:
 
     def compute_metrics(
         self, 
-        model_output: List[Any], 
-        ground_truth: List[Any],
+        model_outputs: List[Any], 
+        ground_truths: List[Any],
     ) -> Dict[str, Any]:
+        """Compute metrics based on model output.
+
+        The function is used to compute model metrics. For further logging and
+        and checkpoint tracking. Any metrics could be logged, but only scalar metrics
+        are used to track checkpoints.
+
+        Args:
+            model_outputs: as is stacked model outputs during train or validation stage.
+            ground_truths: as is stacked collected labels during train or validation
+                stage.
+
+        Returns:
+            A dict of metric name and metric value(s).
+        """
         ...
 
     def compute_loss(
         self, 
-        model_output: List[Any], 
-        ground_truth: List[Any],
+        model_output: Any, 
+        ground_truth: Any,
     ) -> torch.Tensor:
+        """Compute loss for backward.
+
+        The function is called every iteration in training loop to compute loss.
+
+        Args:
+            model_output: raw model output as is.
+            ground_truth: raw ground truth label from dataloader.
+        """
         ...
 
     def log_metrics(
