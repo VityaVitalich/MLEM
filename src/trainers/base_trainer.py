@@ -12,7 +12,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("event_seq")
 
 
 class _CyclicalLoader:
@@ -73,6 +73,7 @@ class BaseTrainer:
         ckpt_dir: Union[str, os.PathLike, None] = None,
         ckpt_replace: bool = False,
         ckpt_track_metric: str = "epoch",
+        ckpt_resume: Union[str, os.PathLike, None] = None,
         device: str = "cpu",
         metrics_on_train: bool = False,
     ):
@@ -96,6 +97,7 @@ class BaseTrainer:
             ckpt_track_metric: if `ckpt_replace` is `True`, the best checkpoint is 
                 determined based on `track_metric`. All metrcs except loss are assumed
                 to be better if the value is higher.
+            ckpt_resume: path to the checkpoint to resume training from.
             device: device to train and validate on.
             metrics_on_train: wether to compute metrics on train set.
         """
@@ -111,6 +113,7 @@ class BaseTrainer:
         self._ckpt_dir = ckpt_dir
         self._ckpt_replace = ckpt_replace
         self._ckpt_track_metric = ckpt_track_metric
+        self._ckpt_resume = ckpt_resume
         self._device = device
         self._metrics_on_train = metrics_on_train
 
@@ -254,7 +257,7 @@ class BaseTrainer:
         assert self._opt is not None, "Set an optimizer first"
         assert self._train_loader is not None, "Set a train loader first"
 
-        logger.info("train")
+        logger.info("Epoch %04d: train started", self._last_epoch + 1)
         self._model.train()
 
         loss_ema = 0.0
@@ -275,7 +278,7 @@ class BaseTrainer:
             loss_np = loss.item()
             losses.append(loss_np)
             loss_ema = loss_np if i == 0 else 0.9 * loss_ema + 0.1 * loss_np
-            pbar.set_description(f"Loss: {loss_ema:.4g}")
+            pbar.set_postfix_str(f"Loss: {loss_ema:.4g}")
 
             self._opt.step()
 
@@ -290,15 +293,26 @@ class BaseTrainer:
             self._opt.zero_grad()
 
         self._loss_values = losses
+        logger.info(
+            "Epoch %04d: avg train loss = %.4g", 
+            self._last_epoch + 1,
+            np.mean(losses)
+        )
+
         if self._metrics_on_train:
             self._metric_values = self.compute_metrics(preds, gts)
+            logger.info(
+                "Epoch %04d: train metrics: %s", 
+                self._last_epoch + 1,
+                str(self._metric_values),
+            )
 
-        logger.info("train finished")
+        logger.info("Epoch %04d: train finished", self._last_epoch + 1)
 
     def validate(self) -> None:
         assert self._val_loader is not None, "Set a val loader first"
 
-        logger.info("validation")
+        logger.info("Epoch %04d: validation started", self._last_epoch + 1)
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
@@ -309,7 +323,12 @@ class BaseTrainer:
                 preds.append(pred)
 
         self._metric_values = self.compute_metrics(preds, gts)
-        logger.info("validation finished")
+        logger.info(
+            "Epoch %04d: validation metrics: %s", 
+            self._last_epoch + 1,
+            str(self._metric_values),
+        )
+        logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
 
 
     def compute_metrics(
@@ -383,6 +402,11 @@ class BaseTrainer:
         assert self._val_loader is not None, "Set a val loader to run full cycle"
 
         logger.info("run %s started", self._run_name)
+
+        if self._ckpt_resume is not None:
+            logger.info("Resuming from checkpoint '%s'", str(self._ckpt_resume))
+            self.load_ckpt(self._ckpt_resume)
+
         self._model.to(self._device)
 
         if self._iters_per_epoch is None:
@@ -408,7 +432,6 @@ class BaseTrainer:
             if self._sched:
                 self._sched.step()
 
-            self._last_epoch += 1
             iterations = list(range(
                 self._last_iter - self._iters_per_epoch, 
                 self._last_iter + 1,
@@ -417,7 +440,7 @@ class BaseTrainer:
             self.log_metrics(
                 "train",
                 self._metric_values, 
-                self._last_epoch, 
+                self._last_epoch + 1,
                 self._loss_values, 
                 iterations,
             )
@@ -427,11 +450,12 @@ class BaseTrainer:
             self.log_metrics(
                 "val",
                 self._metric_values, 
-                self._last_epoch, 
+                self._last_epoch + 1,
             )
 
+            self._last_epoch += 1
             self.save_ckpt()
             self._metric_values = None
             self._loss_values = None
 
-        logger.info("run %s finished successfully", self._run_name)
+        logger.info("run '%s' finished successfully", self._run_name)

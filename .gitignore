@@ -1,6 +1,8 @@
 # Data Files
 data/
+logs/
 ckpt/
+checkpoints/
 .vscode/
 .vim
 
