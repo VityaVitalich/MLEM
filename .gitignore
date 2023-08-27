@@ -1,5 +1,6 @@
 # Data Files
 data/
+ckpt/
 .vscode/
 .vim
 
