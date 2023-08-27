@@ -1,4 +1,5 @@
 import ml_collections
+from pathlib import Path
 
 
 def data_configs():
@@ -6,7 +7,14 @@ def data_configs():
 
     ########## DATA ##############
 
-    config.train_path = "../../experiments/rosbank/data/train_trx.parquet"
+    config.train_path = Path(__file__)\
+        .parent\
+        .parent\
+        .parent\
+        / "experiments"\
+        / "rosbank"\
+        / "data"\
+        / "train_trx.parquet"
 
     config.client_list_shuffle_seed = (
         0xAB0BA  # seed for splitting data to train and validation
