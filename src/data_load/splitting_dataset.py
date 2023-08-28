@@ -29,7 +29,7 @@ class SplittingDataset(Dataset):
 
         if self.target_col:
             target = row[self.target_col]
-            target = np.array([-1]) if target is SENTINEL else np.int(target)
+            target = np.array([-1]) if target is SENTINEL else np.int_(target)
             return data, target
         return data
 

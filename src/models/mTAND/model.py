@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .model_utils import (MultiTimeAttention, get_normal_kl, get_normal_nll,
-                          sample_z)
+from .model_utils import MultiTimeAttention, get_normal_kl, get_normal_nll, sample_z
 
 
 class EncMtanRnn(nn.Module):
@@ -160,17 +159,20 @@ class FeatureProcessor(nn.Module):
 
     def forward(self, padded_batch):
         numeric_values = []
+        categoric_values = []
 
         time_steps = padded_batch.payload.pop("event_time").float()
         for key, values in padded_batch.payload.items():
             if key in self.emb_names:
-                feat = self.embed_layers[key](values.long())
+                categoric_values.append(self.embed_layers[key](values.long()))
             else:
                 # TODO: repeat the numerical feature?
-                feat = values.unsqueeze(-1).float()
-            numeric_values.append(feat)
+                numeric_values.append(values.unsqueeze(-1).float())
 
-        return torch.cat(numeric_values, dim=-1), time_steps
+        categoric_tensor = torch.cat(categoric_values, dim=-1)
+        numeric_tensor = torch.cat(numeric_values, dim=-1)
+
+        return torch.cat([categoric_tensor, numeric_tensor], dim=-1), time_steps
 
 
 class MegaEncoder(nn.Module):
@@ -308,6 +310,59 @@ class MegaNet(nn.Module):
         }
 
 
+class EmbeddingPredictor(nn.Module):
+    def __init__(self, model_conf, data_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.criterion = nn.CrossEntropyLoss(reduction="none")
+
+        self.emb_names = list(self.data_conf.features.embeddings.keys())
+        self.num_embeds = len(self.emb_names)
+        self.categorical_len = self.num_embeds * self.model_conf.features_emb_dim
+
+        self.init_embed_predictors()
+
+    def init_embed_predictors(self):
+        self.embed_predictors = nn.ModuleDict()
+
+        for name in self.emb_names:
+            vocab_size = self.data_conf.features.embeddings[name]["max_value"]
+            self.embed_predictors[name] = nn.Embedding(
+                self.model_conf.features_emb_dim, vocab_size
+            )
+
+    def forward(self, x_recon):
+        k_iwae, batch_size, seq_len, out_dim = x_recon.size()
+
+        resized_x = x_recon[:, :, :, : self.categorical_len].view(
+            k_iwae * batch_size,
+            seq_len,
+            self.num_embeds,
+            self.model_conf.features_emb_dim,
+        )
+
+        embeddings_distribution = {}
+        for i, name in enumerate(self.emb_names):
+            embeddings_distribution[name] = self.embed_predictors[name](
+                resized_x[:, :, i, :]
+            )
+
+        return embeddings_distribution
+
+    def loss(self, embedding_distribution, padded_batch):
+        embed_losses = {}
+        for name, dist in embedding_distribution.items():
+            embed_losses[name] = (
+                self.criterion(dist.permute(0, 2, 1), padded_batch.payload[name])
+                .sum(dim=1)
+                .mean()
+            )
+
+        return embed_losses
+
+
 class MegaNetCE(nn.Module):
     def __init__(self, data_conf, model_conf):
         super().__init__()
@@ -317,6 +372,10 @@ class MegaNetCE(nn.Module):
         self.ref_points = torch.linspace(0.0, 1.0, self.model_conf.num_ref_points)
 
         self.preprocessor = FeatureProcessor(
+            model_conf=self.model_conf, data_conf=self.data_conf
+        )
+
+        self.embedding_predictor = EmbeddingPredictor(
             model_conf=self.model_conf, data_conf=self.data_conf
         )
         self.encoder = MegaEncoder(
@@ -347,6 +406,8 @@ class MegaNetCE(nn.Module):
             dec_out.shape[2],
         )
 
+        emb_dist = self.embedding_predictor(dec_out)
+
         return {
             "x_recon": dec_out,
             "z": z,
@@ -354,6 +415,8 @@ class MegaNetCE(nn.Module):
             "time_steps": time_steps,
             "mu": qz_mean,
             "log_std": qz_logstd,
+            "input_batch": padded_batch,
+            "emb_dist": emb_dist,
         }
 
     def loss(self, output):
@@ -364,6 +427,8 @@ class MegaNetCE(nn.Module):
         2) initial x
         3) mu from latent
         4) log_std from latent
+        5) padded batch from forward
+        6) logits of predicted embeddings
         """
 
         kl_loss = get_normal_kl(output["mu"], output["log_std"])
@@ -374,9 +439,27 @@ class MegaNetCE(nn.Module):
         recon_loss = get_normal_nll(output["x"], output["x_recon"], noise_logvar)
         batch_recon_loss = recon_loss.sum([1, 2])
 
-        return {
+        cross_entropy_losses = self.embedding_predictor.loss(
+            output["emb_dist"], output["input_batch"]
+        )
+
+        total_ce_loss = torch.mean(
+            torch.cat([value for _, value in cross_entropy_losses.items()])
+        )
+
+        losses_dict = {
             "elbo_loss": batch_recon_loss.mean()
             + self.model_conf.kl_weight * batch_kl_loss.mean(),
             "kl_loss": batch_kl_loss.mean(),
             "recon_loss": batch_recon_loss.mean(),
+            "total_CE_loss": total_ce_loss(),
         }
+
+        total_loss = (
+            losses_dict["elbo_loss"] + self.model_conf.CE_weight * total_ce_loss
+        )
+
+        losses_dict["total_loss"] = total_loss
+        losses_dict.update(cross_entropy_losses)
+
+        return losses_dict

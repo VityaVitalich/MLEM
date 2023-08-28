@@ -8,9 +8,12 @@ from torch.utils.data import DataLoader
 
 from ..data_load import split_strategy
 from .data_utils import prepare_data
-from .splitting_dataset import (ConvertingTrxDataset,  # TargetDataset
-                                DropoutTrxDataset, SplittingDataset,
-                                TargetEnumeratorDataset)
+from .splitting_dataset import (
+    ConvertingTrxDataset,  # TargetDataset
+    DropoutTrxDataset,
+    SplittingDataset,
+    TargetEnumeratorDataset,
+)
 
 
 def create_data_loaders(conf):

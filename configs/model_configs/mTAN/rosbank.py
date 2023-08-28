@@ -24,11 +24,12 @@ def model_configs():
     # number of time embeddings
     config.num_time_emb = 3
     # number of iwae samples
-    config.k_iwae = 7
+    config.k_iwae = 1
     # noise to diagonal matrix of output distribution
     config.noise_std = 0.5
     # weight of kl term in loss
     config.kl_weight = 0.1
+    config.CE_weight = 0.5
     config.device = "cpu"
 
     return config
