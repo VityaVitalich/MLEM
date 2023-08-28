@@ -58,7 +58,12 @@ def prepare_embeddings(seq, conf, is_train):
         for e_name, e_params in conf.features.embeddings.items():
             feature_arrays[e_name] = feature_arrays[e_name].clip(0, e_params["in"] - 1)
 
-        feature_arrays["event_time"] = rec["event_time"]
+        normed_time = (np.array(rec["event_time"]) - conf.min_time) / (
+            conf.max_time - conf.min_time
+        )
+        # print(normed_time)
+        feature_arrays["event_time"] = normed_time
+        rec["event_time"] = normed_time
 
         rec["feature_arrays"] = feature_arrays
         yield rec

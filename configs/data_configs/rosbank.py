@@ -1,5 +1,6 @@
-import ml_collections
 from pathlib import Path
+
+import ml_collections
 
 
 def data_configs():
@@ -7,14 +8,13 @@ def data_configs():
 
     ########## DATA ##############
 
-    config.train_path = Path(__file__)\
-        .parent\
-        .parent\
-        .parent\
-        / "experiments"\
-        / "rosbank"\
-        / "data"\
+    config.train_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "rosbank"
+        / "data"
         / "train_trx.parquet"
+    )
 
     config.client_list_shuffle_seed = (
         0xAB0BA  # seed for splitting data to train and validation
@@ -35,6 +35,13 @@ def data_configs():
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
     features.numeric_values = {"amount": "identity"}
+
+    # name of target col
+    features.target_col = "target_target_flag"
+
+    ### TIME ###
+    config.max_time = 17623.972627314815
+    config.min_time = 17081.0
 
     # train specific parameters
     train = config.train = ml_collections.ConfigDict()

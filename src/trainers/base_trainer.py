@@ -1,16 +1,14 @@
-from typing import Literal, Union, Dict, Any, List
-import os
-from pathlib import Path
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Literal, Union
 
-from tqdm.autonotebook import tqdm
 import numpy as np
-
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-
+from tqdm.autonotebook import tqdm
 
 logger = logging.getLogger("event_seq")
 
@@ -53,14 +51,15 @@ def _grad_norm(params):
     for p in params:
         param_norm = p.grad.detach().data.norm(2)
         total_sq_norm += param_norm.item() ** 2
-    return total_sq_norm ** 0.5
+    return total_sq_norm**0.5
 
 
 class BaseTrainer:
     """A base class for all trainers."""
 
     def __init__(
-        self, *,
+        self,
+        *,
         model: nn.Module,
         optimizer: Union[torch.optim.Optimizer, None] = None,
         lr_scheduler: Union[torch.optim.lr_scheduler.LRScheduler, None] = None,
@@ -94,18 +93,20 @@ class BaseTrainer:
             ckpt_dir: path to the directory, where checkpoints are saved.
             ckpt_replace: if `replace` is `True`, only the last and the best checkpoint
                 are kept in `ckpt_dir`.
-            ckpt_track_metric: if `ckpt_replace` is `True`, the best checkpoint is 
+            ckpt_track_metric: if `ckpt_replace` is `True`, the best checkpoint is
                 determined based on `track_metric`. All metrcs except loss are assumed
                 to be better if the value is higher.
             ckpt_resume: path to the checkpoint to resume training from.
             device: device to train and validate on.
             metrics_on_train: wether to compute metrics on train set.
         """
-        assert (total_iters is None) ^ (total_epochs is None),\
-            "Exactly one of `total_iters` and `total_epochs` shoud be passed."
+        assert (total_iters is None) ^ (
+            total_epochs is None
+        ), "Exactly one of `total_iters` and `total_epochs` shoud be passed."
 
-        self._run_name = run_name if run_name is not None\
-            else datetime.now().strftime("%F_%T")
+        self._run_name = (
+            run_name if run_name is not None else datetime.now().strftime("%F_%T")
+        )
 
         self._total_iters = total_iters
         self._total_epochs = total_epochs
@@ -131,26 +132,32 @@ class BaseTrainer:
         self._last_epoch = 0
 
     @property
-    def model(self) -> Union[nn.Module, None]: return self._model
+    def model(self) -> Union[nn.Module, None]:
+        return self._model
 
     @property
-    def train_loader(self) -> Union[DataLoader, None]: return self._train_loader
+    def train_loader(self) -> Union[DataLoader, None]:
+        return self._train_loader
 
     @property
-    def val_loader(self) -> Union[DataLoader, None]: return self._val_loader
+    def val_loader(self) -> Union[DataLoader, None]:
+        return self._val_loader
 
     @property
-    def optimizer(self) -> Union[torch.optim.Optimizer, None]: return self._opt
+    def optimizer(self) -> Union[torch.optim.Optimizer, None]:
+        return self._opt
 
     @property
     def lr_scheduler(self) -> Union[torch.optim.lr_scheduler.LRScheduler, None]:
         return self._sched
 
     @property
-    def run_name(self): return self._run_name
+    def run_name(self):
+        return self._run_name
 
     @property
-    def device(self) -> str: return self._device
+    def device(self) -> str:
+        return self._device
 
     def save_ckpt(self, ckpt_path: Union[str, os.PathLike, None] = None) -> None:
         """Save model, optimizer and scheduler states.
@@ -159,14 +166,16 @@ class BaseTrainer:
             ckpt_path: path to checkpoints. If `ckpt_path` is a directory, the
                 checkpoint will be saved there with epoch, loss an metrics in the
                 filename. All scalar metrics returned from `compute_metrics` are used to
-                construct a filename. If full path is specified, the checkpoint will be 
+                construct a filename. If full path is specified, the checkpoint will be
                 saved exectly there. If `None` `ckpt_dir` from construct is used with
                 subfolder named `run_name` from Trainer's constructor.
         """
 
         if ckpt_path is None and self._ckpt_dir is None:
-            logger.warning("`ckpt_path` was not passned to `save_ckpt` and `ckpt_dir` "
-                           "was not set in Trainer. No checkpoint will be saved.")
+            logger.warning(
+                "`ckpt_path` was not passned to `save_ckpt` and `ckpt_dir` "
+                "was not set in Trainer. No checkpoint will be saved."
+            )
             return
 
         if ckpt_path is None:
@@ -217,6 +226,7 @@ class BaseTrainer:
                     v = -float(kv[1]) if k == "loss" else float(kv[1])
                     metrics[k] = v
                 return metrics[key]
+
             return key_extractor
 
         all_ckpt = list(ckpt_path.glob("*.ckpt"))
@@ -225,7 +235,6 @@ class BaseTrainer:
         for p in all_ckpt:
             if p != last_ckpt and p != best_ckpt:
                 p.unlink()
-
 
     def load_ckpt(self, ckpt_fname: Union[str, os.PathLike]) -> None:
         """Load model, optimizer and scheduler states.
@@ -240,14 +249,18 @@ class BaseTrainer:
             self._model.load_state_dict(ckpt["model"])
         if "opt" in ckpt:
             if self._opt is None:
-                logger.warning("optimizer was not passes, discarding optimizer state "
-                               "in the checkpoint")
+                logger.warning(
+                    "optimizer was not passes, discarding optimizer state "
+                    "in the checkpoint"
+                )
             else:
                 self._opt.load_state_dict(ckpt["opt"])
         if "sched" in ckpt:
             if self._sched is None:
-                logger.warning("scheduler was not passes, discarding scheduler state "
-                               "in the checkpoint")
+                logger.warning(
+                    "scheduler was not passes, discarding scheduler state "
+                    "in the checkpoint"
+                )
             else:
                 self._sched.load_state_dict(ckpt["sched"])
         self._last_iter = ckpt["last_iter"]
@@ -284,25 +297,23 @@ class BaseTrainer:
 
             self._last_iter += 1
             logger.debug(
-                "iter: %d,\tloss value: %4g,\tgrad norm: %4g", 
+                "iter: %d,\tloss value: %4g,\tgrad norm: %4g",
                 self._last_iter,
                 loss.item(),
                 _grad_norm(self._model.parameters()),
             )
-            
+
             self._opt.zero_grad()
 
         self._loss_values = losses
         logger.info(
-            "Epoch %04d: avg train loss = %.4g", 
-            self._last_epoch + 1,
-            np.mean(losses)
+            "Epoch %04d: avg train loss = %.4g", self._last_epoch + 1, np.mean(losses)
         )
 
         if self._metrics_on_train:
             self._metric_values = self.compute_metrics(preds, gts)
             logger.info(
-                "Epoch %04d: train metrics: %s", 
+                "Epoch %04d: train metrics: %s",
                 self._last_epoch + 1,
                 str(self._metric_values),
             )
@@ -324,16 +335,15 @@ class BaseTrainer:
 
         self._metric_values = self.compute_metrics(preds, gts)
         logger.info(
-            "Epoch %04d: validation metrics: %s", 
+            "Epoch %04d: validation metrics: %s",
             self._last_epoch + 1,
             str(self._metric_values),
         )
         logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
 
-
     def compute_metrics(
-        self, 
-        model_outputs: List[Any], 
+        self,
+        model_outputs: List[Any],
         ground_truths: List[Any],
     ) -> Dict[str, Any]:
         """Compute metrics based on model output.
@@ -353,8 +363,8 @@ class BaseTrainer:
         raise NotImplementedError
 
     def compute_loss(
-        self, 
-        model_output: Any, 
+        self,
+        model_output: Any,
         ground_truth: Any,
     ) -> torch.Tensor:
         """Compute loss for backward.
@@ -368,9 +378,9 @@ class BaseTrainer:
         raise NotImplementedError
 
     def log_metrics(
-        self, 
+        self,
         phase: Literal["train", "val"],
-        metrics: Union[Dict[str, Any], None] = None, 
+        metrics: Union[Dict[str, Any], None] = None,
         epoch: Union[int, None] = None,
         losses: Union[List[float], None] = None,
         iterations: Union[List[int], None] = None,
@@ -423,25 +433,26 @@ class BaseTrainer:
         self._cyc_train_loader.set_iters_per_epoch(self._iters_per_epoch)
 
         while self._last_iter < self._total_iters:
-
             train_iters = min(
-                self._total_iters - self._last_iter, 
+                self._total_iters - self._last_iter,
                 self._iters_per_epoch,
             )
             self.train(train_iters)
             if self._sched:
                 self._sched.step()
 
-            iterations = list(range(
-                self._last_iter - self._iters_per_epoch, 
-                self._last_iter + 1,
-            ))
+            iterations = list(
+                range(
+                    self._last_iter - self._iters_per_epoch,
+                    self._last_iter + 1,
+                )
+            )
 
             self.log_metrics(
                 "train",
-                self._metric_values, 
+                self._metric_values,
                 self._last_epoch + 1,
-                self._loss_values, 
+                self._loss_values,
                 iterations,
             )
             self._metric_values = None
@@ -449,7 +460,7 @@ class BaseTrainer:
             self.validate()
             self.log_metrics(
                 "val",
-                self._metric_values, 
+                self._metric_values,
                 self._last_epoch + 1,
             )
 

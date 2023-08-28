@@ -6,12 +6,14 @@ import torch
 from torch.utils.data import Dataset
 
 logger = logging.getLogger(__name__)
+SENTINEL = None
 
 
 class SplittingDataset(Dataset):
-    def __init__(self, base_dataset, splitter):
+    def __init__(self, base_dataset, splitter, target_col=None):
         self.base_dataset = base_dataset
         self.splitter = splitter
+        self.target_col = target_col
 
     def __len__(self):
         return len(self.base_dataset)
@@ -24,6 +26,11 @@ class SplittingDataset(Dataset):
 
         indexes = self.splitter.split(local_date)
         data = [{k: v[ix] for k, v in feature_arrays.items()} for ix in indexes]
+
+        if self.target_col:
+            target = row[self.target_col]
+            target = np.array([-1]) if target is SENTINEL else np.int(target)
+            return data, target
         return data
 
 
@@ -37,6 +44,19 @@ class TargetEnumeratorDataset(Dataset):
     def __getitem__(self, idx):
         row = self.base_dataset[idx]
         data = [(x, idx) for x in row]
+        return data
+
+
+class TargetDataset(Dataset):
+    def __init__(self, base_dataset):
+        self.base_dataset = base_dataset
+
+    def __len__(self):
+        return len(self.base_dataset)
+
+    def __getitem__(self, idx):
+        row, target = self.base_dataset[idx]
+        data = [(x, target) for x in row]
         return data
 
 
@@ -84,10 +104,10 @@ class ConvertingTrxDataset(Dataset):
 
 class DropoutTrxDataset(Dataset):
     def __init__(
-        self, 
-        dataset: ConvertingTrxDataset, 
-        trx_dropout, 
-        seq_len, 
+        self,
+        dataset: ConvertingTrxDataset,
+        trx_dropout,
+        seq_len,
         with_target=True,
     ):
         self.core_dataset = dataset

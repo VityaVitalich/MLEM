@@ -8,21 +8,21 @@ from torch.utils.data import DataLoader
 
 from ..data_load import split_strategy
 from .data_utils import prepare_data
-from .splitting_dataset import (
-    ConvertingTrxDataset,
-    DropoutTrxDataset,
-    SplittingDataset,
-    TargetEnumeratorDataset,
-)
+from .splitting_dataset import (ConvertingTrxDataset,  # TargetDataset
+                                DropoutTrxDataset, SplittingDataset,
+                                TargetEnumeratorDataset)
 
 
 def create_data_loaders(conf):
     train_data, valid_data = prepare_data(conf)
 
     train_dataset = SplittingDataset(
-        train_data, split_strategy.create(**conf.train.split_strategy)
+        train_data,
+        split_strategy.create(**conf.train.split_strategy),
+        # conf.features.target_col,
     )
     train_dataset = TargetEnumeratorDataset(train_dataset)
+    # train_dataset = TargetDataset(train_dataset)
     train_dataset = ConvertingTrxDataset(train_dataset)
     # не уверен что нам нужна история с дропаутом точек.
     # Но это выглядит неплохой аугментацией в целом
@@ -39,9 +39,12 @@ def create_data_loaders(conf):
     )
 
     valid_dataset = SplittingDataset(
-        valid_data, split_strategy.create(**conf.val.split_strategy)
+        valid_data,
+        split_strategy.create(**conf.val.split_strategy),
+        # conf.features.target_col,
     )
     valid_dataset = TargetEnumeratorDataset(valid_dataset)
+    # valid_dataset = TargetDataset(valid_dataset)
     valid_dataset = ConvertingTrxDataset(valid_dataset)
     valid_dataset = DropoutTrxDataset(
         valid_dataset, trx_dropout=0.0, seq_len=conf.val.max_seq_len
