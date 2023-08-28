@@ -1,3 +1,12 @@
+# Data Files
+data/
+logs/
+ckpt/
+checkpoints/
+.vscode/
+.vim
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
