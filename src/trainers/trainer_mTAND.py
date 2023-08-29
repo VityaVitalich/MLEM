@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class MtandTrainer(BaseTrainer):
     def compute_metrics(
-        self, 
+        self,
         model_outputs: List[Any],
         ground_truths: List[Any],  # pyright: ignore unused
     ) -> Dict[str, Any]:
@@ -36,8 +36,8 @@ class MtandTrainer(BaseTrainer):
         return {k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]}
 
     def compute_loss(
-        self, 
-        model_output: Any, 
+        self,
+        model_output: Any,
         ground_truth: Any,  # pyright: ignore unused
     ) -> torch.Tensor:
         """Compute loss for backward.
@@ -53,9 +53,9 @@ class MtandTrainer(BaseTrainer):
         return losses["elbo_loss"]
 
     def log_metrics(
-        self, 
+        self,
         phase: Literal["train", "val"],
-        metrics: Union[Dict[str, Any], None] = None, 
+        metrics: Union[Dict[str, Any], None] = None,
         epoch: Union[int, None] = None,
         losses: Union[List[float], None] = None,  # pyright: ignore unused
         iterations: Union[List[int], None] = None,  # pyright: ignore unused

@@ -30,24 +30,23 @@ if __name__ == "__main__":
     parser.add_argument("--device", help="torch device to run on", default="cpu")
     parser.add_argument(
         "--log-dir",
-        help="directory to write log file to", 
+        help="directory to write log file to",
         default="./logs",
     )
     parser.add_argument(
-        "--total-epochs", 
-        help="total number of epochs to train", 
-        type=int, 
-        required=True
+        "--total-epochs",
+        help="total number of epochs to train",
+        type=int,
+        required=True,
     )
     parser.add_argument(
-        "--resume", 
-        help="path to checkpoint to resume from", 
+        "--resume",
+        help="path to checkpoint to resume from",
         default=None,
     )
     args = parser.parse_args()
 
     run_name = args.run_name or f"mtand_{datetime.now():%F_%T}"
-
 
     ### SETUP LOGGING ###
     ch = logging.StreamHandler()
@@ -72,12 +71,11 @@ if __name__ == "__main__":
     logger.addHandler(ch)
     logger.addHandler(fh)
 
-
     ### TRAINING SETUP ###
     conf = data_configs()
     model_conf = model_configs()
 
-    train_loader, valid_loader = create_data_loaders(conf) 
+    train_loader, valid_loader = create_data_loaders(conf)
     net = MegaNet(model_conf=model_conf, data_conf=conf)
     opt = torch.optim.Adam(net.parameters(), lr=3e-4, weight_decay=1e-4)
     trainer = MtandTrainer(
@@ -94,7 +92,6 @@ if __name__ == "__main__":
         iters_per_epoch=100,
         device=args.device,
     )
-
 
     ### RUN TRAINING ###
     trainer.run()

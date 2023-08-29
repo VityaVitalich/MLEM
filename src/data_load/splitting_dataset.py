@@ -84,10 +84,10 @@ class ConvertingTrxDataset(Dataset):
 
 class DropoutTrxDataset(Dataset):
     def __init__(
-        self, 
-        dataset: ConvertingTrxDataset, 
-        trx_dropout, 
-        seq_len, 
+        self,
+        dataset: ConvertingTrxDataset,
+        trx_dropout,
+        seq_len,
         with_target=True,
     ):
         self.core_dataset = dataset
