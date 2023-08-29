@@ -329,7 +329,7 @@ class EmbeddingPredictor(nn.Module):
 
         for name in self.emb_names:
             vocab_size = self.data_conf.features.embeddings[name]["max_value"]
-            self.embed_predictors[name] = nn.Embedding(
+            self.embed_predictors[name] = nn.Linear(
                 self.model_conf.features_emb_dim, vocab_size
             )
 
@@ -355,8 +355,8 @@ class EmbeddingPredictor(nn.Module):
         embed_losses = {}
         for name, dist in embedding_distribution.items():
             embed_losses[name] = (
-                self.criterion(dist.permute(0, 2, 1), padded_batch.payload[name])
-                .sum(dim=1)
+                self.criterion(dist.permute(0, 2, 1), padded_batch.payload[name].long())
+                .mean(dim=1)
                 .mean()
             )
 
@@ -443,8 +443,8 @@ class MegaNetCE(nn.Module):
             output["emb_dist"], output["input_batch"]
         )
 
-        total_ce_loss = torch.mean(
-            torch.cat([value for _, value in cross_entropy_losses.items()])
+        total_ce_loss = torch.sum(
+            torch.cat([value.unsqueeze(0) for _, value in cross_entropy_losses.items()])
         )
 
         losses_dict = {
@@ -452,7 +452,7 @@ class MegaNetCE(nn.Module):
             + self.model_conf.kl_weight * batch_kl_loss.mean(),
             "kl_loss": batch_kl_loss.mean(),
             "recon_loss": batch_recon_loss.mean(),
-            "total_CE_loss": total_ce_loss(),
+            "total_CE_loss": total_ce_loss,
         }
 
         total_loss = (
