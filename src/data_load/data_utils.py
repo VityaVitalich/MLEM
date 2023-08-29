@@ -98,3 +98,14 @@ def prepare_data(conf):
     valid_data = [rec for i, rec in enumerate(data) if i in valid_ix]
 
     return train_data, valid_data
+
+
+def prepare_test_data(conf):
+    data = read_pyarrow_file(conf.test_path)
+    data = tqdm(data)
+
+    data = prepare_embeddings(data, conf, is_train=False)
+    data = shuffle_client_list_reproducible(conf, data)
+    data = list(data)
+
+    return data

@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from ..data_load import split_strategy
-from .data_utils import prepare_data
+from .data_utils import prepare_data, prepare_test_data
 from .splitting_dataset import (
     ConvertingTrxDataset,  # TargetDataset
     DropoutTrxDataset,
@@ -61,6 +61,29 @@ def create_data_loaders(conf):
     )
 
     return train_loader, valid_loader
+
+
+def create_test_loader(conf):
+    test_data = prepare_test_data(conf)
+
+    test_dataset = SplittingDataset(
+        test_data,
+        split_strategy.create(**conf.test.split_strategy),
+        # conf.features.target_col,
+    )
+    test_dataset = TargetEnumeratorDataset(test_dataset)
+    # valid_dataset = TargetDataset(valid_dataset)
+    test_dataset = ConvertingTrxDataset(test_dataset)
+
+    test_loader = DataLoader(
+        dataset=test_dataset,
+        shuffle=False,
+        collate_fn=collate_splitted_rows,
+        num_workers=conf.test.num_workers,
+        batch_size=conf.test.batch_size,
+    )
+
+    return test_loader
 
 
 def padded_collate(batch):
