@@ -98,9 +98,10 @@ def padded_collate(batch):
         k: torch.nn.utils.rnn.pad_sequence(v, batch_first=True)
         for k, v in new_x_.items()
     }
-    new_y = torch.tensor([y for _, y in batch])
+    new_idx = torch.tensor([y[0] for _, y in batch])
+    new_y = torch.tensor([y[1] for _, y in batch])
 
-    return PaddedBatch(new_x, lengths), new_y
+    return PaddedBatch(new_x, lengths), (new_idx, new_y)
 
 
 def collate_splitted_rows(batch):

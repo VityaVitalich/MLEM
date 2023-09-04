@@ -29,7 +29,7 @@ class SplittingDataset(Dataset):
 
         if self.target_col:
             target = row[self.target_col]
-            target = np.array([-1]) if target is SENTINEL else np.int_(target)
+            target = -1 if target is SENTINEL else int(target)
             return data, target
         return data
 
@@ -42,8 +42,12 @@ class TargetEnumeratorDataset(Dataset):
         return len(self.base_dataset)
 
     def __getitem__(self, idx):
-        row = self.base_dataset[idx]
-        data = [(x, idx) for x in row]
+        if self.base_dataset.target_col is SENTINEL:
+            row = self.base_dataset[idx]
+            data = [(x, idx) for x in row]
+        else:
+            row, target = self.base_dataset[idx]
+            data = [(x, (idx, target)) for x in row]
         return data
 
 

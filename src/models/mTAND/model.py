@@ -284,7 +284,7 @@ class MegaNet(nn.Module):
             "log_std": qz_logstd,
         }
 
-    def loss(self, output):
+    def loss(self, output, ground_truth):
         """
         output: Dict that is outputed from forward method
         should contain
@@ -292,6 +292,8 @@ class MegaNet(nn.Module):
         2) initial x
         3) mu from latent
         4) log_std from latent
+
+        ground truth is a Tuple with idx at first pos and label at second
         """
 
         kl_loss = get_normal_kl(output["mu"], output["log_std"])
@@ -303,10 +305,132 @@ class MegaNet(nn.Module):
         batch_recon_loss = recon_loss.sum([1, 2])
 
         return {
-            "elbo_loss": batch_recon_loss.mean()
+            "total_loss": batch_recon_loss.mean()
             + self.model_conf.kl_weight * batch_kl_loss.mean(),
             "kl_loss": batch_kl_loss.mean(),
             "recon_loss": batch_recon_loss.mean(),
+        }
+
+
+class Classifier(nn.Module):
+    def __init__(self, model_conf, data_conf):
+        super().__init__()
+
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.gru = nn.GRU(
+            self.model_conf.latent_dim,
+            self.model_conf.classifier_gru_hidden_dim,
+            batch_first=True,
+        )
+        self.net = nn.Sequential(
+            nn.Linear(
+                self.model_conf.classifier_gru_hidden_dim,
+                self.model_conf.classifier_linear_hidden_dim,
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                self.model_conf.classifier_linear_hidden_dim,
+                self.model_conf.classifier_linear_hidden_dim,
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                self.model_conf.classifier_linear_hidden_dim, self.data_conf.num_classes
+            ),
+        )
+
+    def forward(self, z):
+        _, out = self.gru(z)
+        return self.net(out.squeeze(0))
+
+
+class MegaNetSupervised(nn.Module):
+    def __init__(self, data_conf, model_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.ref_points = torch.linspace(0.0, 1.0, self.model_conf.num_ref_points)
+
+        self.preprocessor = FeatureProcessor(
+            model_conf=self.model_conf, data_conf=self.data_conf
+        )
+        self.encoder = MegaEncoder(
+            model_conf=model_conf, data_conf=data_conf, ref_points=self.ref_points
+        )
+        self.decoder = MegaDecoder(
+            model_conf=model_conf, data_conf=data_conf, ref_points=self.ref_points
+        )
+
+        self.classifier = Classifier(
+            model_conf=self.model_conf, data_conf=self.data_conf
+        )
+
+    def forward(self, padded_batch):
+        x, time_steps = self.preprocessor(padded_batch)
+        enc_out = self.encoder(x, time_steps)
+
+        qz_mean, qz_logstd = torch.split(enc_out, self.model_conf.latent_dim, dim=-1)
+
+        z = sample_z(qz_mean, qz_logstd, self.model_conf.k_iwae)
+
+        iwae_steps = (
+            time_steps[None, :, :]
+            .repeat(self.model_conf.k_iwae, 1, 1)
+            .view(-1, time_steps.shape[1])
+        )
+        dec_out = self.decoder(z, iwae_steps)
+        dec_out = dec_out.view(
+            self.model_conf.k_iwae,
+            time_steps.shape[0],
+            dec_out.shape[1],
+            dec_out.shape[2],
+        )
+
+        classifier_out = self.classifier(z)
+
+        return {
+            "x_recon": dec_out,
+            "z": z,
+            "x": x,
+            "time_steps": time_steps,
+            "mu": qz_mean,
+            "log_std": qz_logstd,
+            "y_pred": classifier_out,
+        }
+
+    def loss(self, output, ground_truth):
+        """
+        output: Dict that is outputed from forward method
+        should contain
+        1) reconstructed x
+        2) initial x
+        3) mu from latent
+        4) log_std from latent
+
+        ground truth is a Tuple with idx at first pos and label at second
+        """
+
+        kl_loss = get_normal_kl(output["mu"], output["log_std"])
+        batch_kl_loss = kl_loss.sum([1, 2])
+
+        noise_std_ = torch.zeros(output["x_recon"].size()) + self.model_conf.noise_std
+        noise_logvar = torch.log(noise_std_)  # mTAN multiplies by constant 2
+        recon_loss = get_normal_nll(output["x"], output["x_recon"], noise_logvar)
+        batch_recon_loss = recon_loss.sum([1, 2])
+
+        classification_loss = nn.functional.cross_entropy(
+            output["y_pred"], ground_truth[1]
+        )
+
+        return {
+            "total_loss": batch_recon_loss.mean()
+            + self.model_conf.kl_weight * batch_kl_loss.mean()
+            + self.model_conf.classification_weight * classification_loss,
+            "kl_loss": batch_kl_loss.mean(),
+            "recon_loss": batch_recon_loss.mean(),
+            "classification_loss": classification_loss,
         }
 
 
@@ -419,7 +543,7 @@ class MegaNetCE(nn.Module):
             "emb_dist": emb_dist,
         }
 
-    def loss(self, output):
+    def loss(self, output, ground_truth):
         """
         output: Dict that is outputed from forward method
         should contain

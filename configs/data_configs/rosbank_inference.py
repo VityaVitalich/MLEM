@@ -13,7 +13,7 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "data"
-        / "train_trx.parquet"
+        / "train_trx_supervised.parquet"
     )
     config.test_path = (
         Path(__file__).parent.parent.parent
@@ -45,6 +45,7 @@ def data_configs():
 
     # name of target col
     features.target_col = "target_target_flag"
+    config.num_classes = 2
 
     ### TIME ###
     config.max_time = 17623.972627314815

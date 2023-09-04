@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Literal, Union
+from typing import Any, Dict, List, Literal, Union, Tuple
 
 import numpy as np
 import torch
@@ -37,7 +37,7 @@ class MtandTrainer(BaseTrainer):
     def compute_loss(
         self,
         model_output: Any,
-        ground_truth: Any,  # pyright: ignore unused
+        ground_truth: Tuple[int, int],  # pyright: ignore unused
     ) -> torch.Tensor:
         """Compute loss for backward.
 
@@ -45,11 +45,11 @@ class MtandTrainer(BaseTrainer):
 
         Args:
             model_output: raw model output as is.
-            ground_truth: raw ground truth label from dataloader.
+            ground_truth: tuple of raw idx and raw ground truth label from dataloader.
         """
         assert isinstance(self.model, MegaNet)
-        losses = self.model.loss(model_output)
-        return losses["elbo_loss"]
+        losses = self.model.loss(model_output, ground_truth)
+        return losses["total_loss"]
 
     def log_metrics(
         self,

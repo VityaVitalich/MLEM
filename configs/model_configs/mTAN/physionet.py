@@ -26,7 +26,7 @@ def model_configs():
     # number of iwae samples
     config.k_iwae = 1
     # noise to diagonal matrix of output distribution
-    config.noise_std = 0.5
+    config.noise_std = 0.01
     # weight of kl term in loss
     config.kl_weight = 0.1
     config.CE_weight = 0.5
