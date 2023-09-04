@@ -493,7 +493,9 @@ class MegaNetCE(nn.Module):
         self.model_conf = model_conf
         self.data_conf = data_conf
 
-        self.ref_points = torch.linspace(0.0, 1.0, self.model_conf.num_ref_points)
+        self.register_buffer(
+            "ref_points", torch.linspace(0.0, 1.0, self.model_conf.num_ref_points)
+        )
 
         self.preprocessor = FeatureProcessor(
             model_conf=self.model_conf, data_conf=self.data_conf

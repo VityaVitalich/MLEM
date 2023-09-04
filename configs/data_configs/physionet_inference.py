@@ -121,8 +121,9 @@ def data_configs():
         Path(__file__).parent.parent.parent
         / "experiments"
         / "physionet"
-        / "data"
-        / "test_chkp.pth"
+        / "ckpt"
+        / "physionet_ce_5000_kl_5_2023-08-31_04:07:04/"
+        / "epoch: 0023 - elbo_loss: 1.117e+06 - kl_loss: 142.9 - recon_loss: 1.116e+06 - total_CE_loss: 0.2021 - total_loss: 1.118e+06 - Gender: 0.007226 - ICUType: 0.007357 - MechVent: 0.1875 - loss: 1.767e+06.ckpt"
     )
 
     config.train_embed_path = (

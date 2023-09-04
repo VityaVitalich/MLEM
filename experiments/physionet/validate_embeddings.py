@@ -1,15 +1,16 @@
 from lightgbm import LGBMClassifier
+from sklearn.neural_network import MLPClassifier
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 import sys
 
-sys.path.append("../../")
+sys.path.append(".")
 from src.create_embeddings import create_embeddings
 from configs.data_configs.physionet_inference import data_configs
 from configs.model_configs.mTAN.physionet import model_configs
 
 params = {
-    "n_estimators": 500,
+    "n_estimators": 50,
     "boosting_type": "gbdt",
     "objective": "binary",
     "metric": "auc",
@@ -17,7 +18,7 @@ params = {
     "subsample_freq": 1,
     "learning_rate": 0.02,
     "feature_fraction": 0.75,
-    "max_depth": 6,
+    "max_depth": 3,
     "lambda_l1": 1,
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
@@ -48,6 +49,8 @@ if __name__ == "__main__":
     test = test_embeds.join(test_y)
 
     model = LGBMClassifier(**params)
+    # model = LGBMClassifier()
+    # model = MLPClassifier()
 
     model.fit(
         train.drop(columns=[conf.features.target_col]), train[conf.features.target_col]

@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 import sys
 
-sys.path.append("../../")
+sys.path.append(".")
 from src.create_embeddings import create_embeddings
 from configs.data_configs.rosbank_inference import data_configs
 from configs.model_configs.mTAN.rosbank import model_configs
@@ -17,7 +17,7 @@ params = {
     "subsample_freq": 1,
     "learning_rate": 0.02,
     "feature_fraction": 0.75,
-    "max_depth": 6,
+    "max_depth": 3,
     "lambda_l1": 1,
     "lambda_l2": 1,
     "min_data_in_leaf": 50,

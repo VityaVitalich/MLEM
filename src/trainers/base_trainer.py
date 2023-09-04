@@ -62,7 +62,7 @@ class BaseTrainer:
         *,
         model: nn.Module,
         optimizer: Union[torch.optim.Optimizer, None] = None,
-        lr_scheduler: Union[torch.optim.lr_scheduler.LRScheduler, None] = None,
+        lr_scheduler: Union[torch.optim.lr_scheduler._LRScheduler, None] = None,
         train_loader: Union[DataLoader, None] = None,
         val_loader: Union[DataLoader, None] = None,
         run_name: Union[str, None] = None,
@@ -119,6 +119,7 @@ class BaseTrainer:
         self._metrics_on_train = metrics_on_train
 
         self._model = model
+        self._model.to(device)
         self._opt = optimizer
         self._sched = lr_scheduler
         self._train_loader = train_loader
@@ -148,7 +149,7 @@ class BaseTrainer:
         return self._opt
 
     @property
-    def lr_scheduler(self) -> Union[torch.optim.lr_scheduler.LRScheduler, None]:
+    def lr_scheduler(self) -> Union[torch.optim.lr_scheduler._LRScheduler, None]:
         return self._sched
 
     @property

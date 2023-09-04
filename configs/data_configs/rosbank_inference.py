@@ -83,8 +83,11 @@ def data_configs():
         Path(__file__).parent.parent.parent
         / "experiments"
         / "rosbank"
-        / "data"
-        / "test_chkp/test_model.pth"
+        / "ckpt"
+        # / "mtand_2023-08-28_18:03:27"
+        # / "epoch: 0126 - elbo_loss: 578.6 - kl_loss: 3.609 - recon_loss: 578.3 - loss: 561.1.ckpt"
+        / "ce_loss_large_kl_large_ce_2023-08-30_07:34:02"
+        / "epoch: 0119 - elbo_loss: 582.2 - kl_loss: 1.606 - recon_loss: 574.2 - total_CE_loss: 2.229 - total_loss: 693.6 - channel_type: 0.3199 - currency: 0.05696 - mcc: 1.499 - trx_category: 0.3526 - loss: 680.9.ckpt"
     )
 
     config.train_embed_path = (

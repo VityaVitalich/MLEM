@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Literal, Union, Tuple
 import numpy as np
 import torch
 
-from ..models.mTAND.model import MegaNet
+from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class MtandTrainer(BaseTrainer):
         Returns:
             A dict of metric name and metric value(s).
         """
-        assert isinstance(self.model, MegaNet)
+        assert isinstance(self.model, MegaNetCE)
         loss_dicts = [self.model.loss(it) for it in model_outputs]
         return {k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]}
 
