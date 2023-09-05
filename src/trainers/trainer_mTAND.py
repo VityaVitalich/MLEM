@@ -30,7 +30,7 @@ class MtandTrainer(BaseTrainer):
         Returns:
             A dict of metric name and metric value(s).
         """
-        assert isinstance(self.model, MegaNetCE)
+        # assert isinstance(self.model, MegaNetCE)
         loss_dicts = [self.model.loss(it) for it in model_outputs]
         return {k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]}
 
@@ -47,7 +47,7 @@ class MtandTrainer(BaseTrainer):
             model_output: raw model output as is.
             ground_truth: tuple of raw idx and raw ground truth label from dataloader.
         """
-        assert isinstance(self.model, MegaNet)
+        # assert isinstance(self.model, MegaNet)
         losses = self.model.loss(model_output, ground_truth)
         return losses["total_loss"]
 
@@ -78,3 +78,30 @@ class MtandTrainer(BaseTrainer):
         """
         if metrics is not None:
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
+
+
+class MtandTrainerSupervised(MtandTrainer):
+    def compute_metrics(
+        self,
+        model_outputs: List[Any],
+        ground_truths: List[Any],  # pyright: ignore unused
+    ) -> Dict[str, Any]:
+        """Compute metrics based on model output.
+
+        The function is used to compute model metrics. For further logging and
+        and checkpoint tracking. Any metrics could be logged, but only scalar metrics
+        are used to track checkpoints.
+
+        Args:
+            model_outputs: as is stacked model outputs during train or validation stage.
+            ground_truths: as is stacked collected labels during train or validation
+                stage.
+
+        Returns:
+            A dict of metric name and metric value(s).
+        """
+        # assert isinstance(self.model, MegaNetCE)
+        loss_dicts = [
+            self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
+        ]
+        return {k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]}

@@ -351,7 +351,9 @@ class MegaNetSupervised(nn.Module):
         self.model_conf = model_conf
         self.data_conf = data_conf
 
-        self.ref_points = torch.linspace(0.0, 1.0, self.model_conf.num_ref_points)
+        self.ref_points = torch.linspace(0.0, 1.0, self.model_conf.num_ref_points).to(
+            self.model_conf.device
+        )
 
         self.preprocessor = FeatureProcessor(
             model_conf=self.model_conf, data_conf=self.data_conf
@@ -561,7 +563,9 @@ class MegaNetCE(nn.Module):
         batch_kl_loss = kl_loss.sum([1, 2])
 
         noise_std_ = torch.zeros(output["x_recon"].size()) + self.model_conf.noise_std
-        noise_logvar = torch.log(noise_std_)  # mTAN multiplies by constant 2
+        noise_logvar = torch.log(noise_std_).to(
+            self.model_conf.device
+        )  # mTAN multiplies by constant 2
         recon_loss = get_normal_nll(output["x"], output["x_recon"], noise_logvar)
         batch_recon_loss = recon_loss.sum([1, 2])
 

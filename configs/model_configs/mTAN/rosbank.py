@@ -16,7 +16,7 @@ def model_configs():
     # in fact is the dimension of output linear in attention
     config.ref_point_dim = 32
     # dim of each time emb
-    config.time_emb_dim = 8
+    config.time_emb_dim = 16
     # number of heads in mTAN attention
     config.num_heads_enc = 2
     # dim in FF layer after attention
@@ -33,8 +33,8 @@ def model_configs():
     # noise to diagonal matrix of output distribution
     config.noise_std = 0.01
     # weight of kl term in loss
-    config.kl_weight = 5.0
-    config.CE_weight = 50
-    config.device = "cuda:3"
+    config.kl_weight = 4.0
+    config.CE_weight = 0
+    config.device = "cuda"
 
     return config

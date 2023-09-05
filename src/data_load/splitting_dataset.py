@@ -91,7 +91,7 @@ class ConvertingTrxDataset(Dataset):
         if self.with_target:
             x, y = item
             x = {k: torch.from_numpy(self.to_torch_compatible(v)) for k, v in x.items()}
-            return x, y
+            return x, torch.tensor(y)
         else:
             item = {
                 k: torch.from_numpy(self.to_torch_compatible(v))

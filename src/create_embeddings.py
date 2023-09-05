@@ -34,7 +34,9 @@ def create_embeddings(data_inference_conf, model_conf):
     train_loader, valid_loader = create_data_loaders(data_inference_conf)
     test_loader = create_test_loader(data_inference_conf)
 
-    net = MegaNetCE(model_conf=model_conf, data_conf=data_inference_conf).to(model_conf.device)
+    net = MegaNetCE(model_conf=model_conf, data_conf=data_inference_conf).to(
+        model_conf.device
+    )
 
     ckpt = torch.load(data_inference_conf.ckpt_path)
     net.load_state_dict(ckpt["model"])

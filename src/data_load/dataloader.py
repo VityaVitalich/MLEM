@@ -22,7 +22,7 @@ def create_data_loaders(conf):
     train_dataset = SplittingDataset(
         train_data,
         split_strategy.create(**conf.train.split_strategy),
-        # conf.features.target_col,
+        conf.features.target_col,
     )
     train_dataset = TargetEnumeratorDataset(train_dataset)
     # train_dataset = TargetDataset(train_dataset)
@@ -44,7 +44,7 @@ def create_data_loaders(conf):
     valid_dataset = SplittingDataset(
         valid_data,
         split_strategy.create(**conf.val.split_strategy),
-        # conf.features.target_col,
+        conf.features.target_col,
     )
     valid_dataset = TargetEnumeratorDataset(valid_dataset)
     # valid_dataset = TargetDataset(valid_dataset)
@@ -101,7 +101,9 @@ def padded_collate(batch):
     new_idx = torch.tensor([y[0] for _, y in batch])
     new_y = torch.tensor([y[1] for _, y in batch])
 
-    return PaddedBatch(new_x, lengths), (new_idx, new_y)
+    return PaddedBatch(new_x, lengths), torch.cat(
+        [new_idx.unsqueeze(0), new_y.unsqueeze(0)], dim=0
+    )
 
 
 def collate_splitted_rows(batch):

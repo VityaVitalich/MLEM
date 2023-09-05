@@ -13,7 +13,7 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "data"
-        / "train_trx.parquet"
+        / "train_trx_supervised.parquet"
     )
 
     config.client_list_shuffle_seed = (
@@ -38,6 +38,7 @@ def data_configs():
 
     # name of target col
     features.target_col = "target_target_flag"
+    config.num_classes = 2
 
     ### TIME ###
     config.max_time = 17623.972627314815
@@ -49,29 +50,32 @@ def data_configs():
     val = config.val = ml_collections.ConfigDict()
 
     # splitters
-    train.split_strategy = {
-        "split_strategy": "SampleSlices",
-        "split_count": 5,
-        "cnt_min": 15,
-        "cnt_max": 150,
-    }
-    val.split_strategy = {
-        "split_strategy": "SampleSlices",
-        "split_count": 5,
-        "cnt_min": 15,
-        "cnt_max": 150,
-    }
+    # train.split_strategy = {
+    #     "split_strategy": "SampleSlices",
+    #     "split_count": 5,
+    #     "cnt_min": 15,
+    #     "cnt_max": 150,
+    # }
+    # val.split_strategy = {
+    #     "split_strategy": "SampleSlices",
+    #     "split_count": 5,
+    #     "cnt_min": 15,
+    #     "cnt_max": 150,
+    # }
+
+    train.split_strategy = {"split_strategy": "NoSplit"}
+    val.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
     train.dropout = 0.05
-    train.max_seq_len = 100
+    train.max_seq_len = 700
 
-    val.max_seq_len = 100
+    val.max_seq_len = 700
 
     train.num_workers = 1
     val.num_workers = 1
 
-    train.batch_size = 4
-    val.batch_size = 4
+    train.batch_size = 16
+    val.batch_size = 16
 
     return config

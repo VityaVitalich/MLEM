@@ -329,7 +329,7 @@ class BaseTrainer:
         preds, gts = [], []
         with torch.no_grad():
             for inp, gt in tqdm(self._val_loader):
-                gts.append(gt)
+                gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 pred = self._model(inp)
                 preds.append(pred)
