@@ -68,9 +68,9 @@ def data_configs():
 
     # dropout
     train.dropout = 0.05
-    train.max_seq_len = 700
+    train.max_seq_len = 784
 
-    val.max_seq_len = 700
+    val.max_seq_len = 784
 
     train.num_workers = 1
     val.num_workers = 1

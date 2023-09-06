@@ -427,7 +427,8 @@ class MegaNetSupervised(nn.Module):
         )
 
         return {
-            "total_loss": batch_recon_loss.mean()
+            "total_loss": self.model_conf.reconstruction_weight
+            * batch_recon_loss.mean()
             + self.model_conf.kl_weight * batch_kl_loss.mean()
             + self.model_conf.classification_weight * classification_loss,
             "kl_loss": batch_kl_loss.mean(),

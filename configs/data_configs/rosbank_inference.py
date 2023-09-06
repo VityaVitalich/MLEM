@@ -84,10 +84,11 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "ckpt"
-        # / "mtand_2023-08-28_18:03:27"
-        # / "epoch: 0126 - elbo_loss: 578.6 - kl_loss: 3.609 - recon_loss: 578.3 - loss: 561.1.ckpt"
-        / "ce_loss_large_kl_large_ce_2023-08-30_07:34:02"
-        / "epoch: 0119 - elbo_loss: 582.2 - kl_loss: 1.606 - recon_loss: 574.2 - total_CE_loss: 2.229 - total_loss: 693.6 - channel_type: 0.3199 - currency: 0.05696 - mcc: 1.499 - trx_category: 0.3526 - loss: 680.9.ckpt"
+        / "noVAE_2023-09-05_17:19:44"
+        / "epoch: 0008 - total_loss: 0.5632 - kl_loss: 207.4 - recon_loss: 3.254e+07 - classification_loss: 0.5632 - loss: 0.5746.ckpt"
+        # / "epoch: 0005 - total_loss: 0.5295 - kl_loss: 271.8 - recon_loss: 2.917e+07 - classification_loss: 0.5295 - loss: 0.5866.ckpt"
+        #  / "epoch: 0150 - total_loss: 5.802e+05 - kl_loss: 232.8 - recon_loss: 5.792e+05 - classification_loss: 0.6229 - loss: 5.875e+05.ckpt"
+        # / "epoch: 0114 - total_loss: 5.809e+05 - kl_loss: 265.8 - recon_loss: 5.798e+05 - classification_loss: 0.5719 - loss: 5.871e+05.ckpt"
     )
 
     config.train_embed_path = (

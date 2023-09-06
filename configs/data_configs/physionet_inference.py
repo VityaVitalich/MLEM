@@ -13,7 +13,7 @@ def data_configs():
         / "experiments"
         / "physionet"
         / "data"
-        / "train_trx.parquet"
+        / "train_trx_supervised.parquet"
     )
     config.test_path = (
         Path(__file__).parent.parent.parent
@@ -83,6 +83,7 @@ def data_configs():
 
     # name of target col
     features.target_col = "target"
+    config.num_classes = 2
 
     ### TIME ###
     config.max_time = 1.0
@@ -112,18 +113,20 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 4
-    val.batch_size = 4
-    test.batch_size = 4
+    train.batch_size = 16
+    val.batch_size = 16
+    test.batch_size = 16
 
     ### Path to trained model ###
     config.ckpt_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
         / "physionet"
+        / "experiments"
+        / "physionet"
         / "ckpt"
-        / "physionet_ce_5000_kl_5_2023-08-31_04:07:04/"
-        / "epoch: 0023 - elbo_loss: 1.117e+06 - kl_loss: 142.9 - recon_loss: 1.116e+06 - total_CE_loss: 0.2021 - total_loss: 1.118e+06 - Gender: 0.007226 - ICUType: 0.007357 - MechVent: 0.1875 - loss: 1.767e+06.ckpt"
+        / "noVAE_2023-09-06_08:04:54"
+        / "epoch: 0010 - total_loss: 0.2825 - kl_loss: 316.8 - recon_loss: 1.112e+10 - classification_loss: 0.2825 - loss: 0.3407.ckpt"
     )
 
     config.train_embed_path = (

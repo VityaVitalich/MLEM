@@ -26,15 +26,16 @@ def model_configs():
     # number of hidden gru
     config.classifier_gru_hidden_dim = 16
     config.classifier_linear_hidden_dim = 300
-    config.classification_weight = 100
 
     # number of iwae samples
     config.k_iwae = 1
     # noise to diagonal matrix of output distribution
     config.noise_std = 0.01
     # weight of kl term in loss
-    config.kl_weight = 4.0
+    config.kl_weight = 0.0
     config.CE_weight = 0
+    config.reconstruction_weight = 0
+    config.classification_weight = 1
     config.device = "cuda"
 
     return config

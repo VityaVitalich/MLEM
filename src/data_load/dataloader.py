@@ -69,7 +69,7 @@ def create_test_loader(conf):
     test_dataset = SplittingDataset(
         test_data,
         split_strategy.create(**conf.test.split_strategy),
-        # conf.features.target_col,
+        conf.features.target_col,
     )
     test_dataset = TargetEnumeratorDataset(test_dataset)
     # valid_dataset = TargetDataset(valid_dataset)
