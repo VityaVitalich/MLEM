@@ -9,22 +9,22 @@ def model_configs():
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
     # number of reference points on encoder
-    config.num_ref_points = 64
+    config.num_ref_points = 128
     # latent dimension for mu and sigma
     config.latent_dim = 2
     # dimension of reference points after mTAN layer
     # in fact is the dimension of output linear in attention
-    config.ref_point_dim = 32
+    config.ref_point_dim = 128
     # dim of each time emb
     config.time_emb_dim = 16
     # number of heads in mTAN attention
-    config.num_heads_enc = 2
+    config.num_heads_enc = 1
     # dim in FF layer after attention
-    config.linear_hidden_dim = 16
+    config.linear_hidden_dim = 50
     # number of time embeddings
     config.num_time_emb = 1
     # number of hidden gru
-    config.classifier_gru_hidden_dim = 16
+    config.classifier_gru_hidden_dim = 64
     config.classifier_linear_hidden_dim = 300
 
     # number of iwae samples
@@ -37,5 +37,8 @@ def model_configs():
     config.reconstruction_weight = 0
     config.classification_weight = 1
     config.device = "cuda"
+
+    config.lr = 0.0001
+    config.weight_decay = 0
 
     return config

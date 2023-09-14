@@ -17,9 +17,9 @@ def data_configs():
     )
 
     config.client_list_shuffle_seed = (
-        0xAB0BA  # seed for splitting data to train and validation
+        0  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.05  # validation size
+    config.valid_size = 0.1  # validation size
     config.col_id = "user"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -29,7 +29,7 @@ def data_configs():
     features.embeddings = {
         "Gender": {"in": 3, "out": 24, "max_value": 4},
         "ICUType": {"in": 5, "out": 4, "max_value": 5},
-        "MechVent": {"in": 2, "out": 4, "max_value": 3},
+        "MechVent": {"in": 2, "out": 4, "max_value": 4},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
@@ -104,7 +104,7 @@ def data_configs():
     val.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.0
     train.max_seq_len = 200
 
     val.max_seq_len = 200
@@ -112,7 +112,7 @@ def data_configs():
     train.num_workers = 1
     val.num_workers = 1
 
-    train.batch_size = 16
-    val.batch_size = 16
+    train.batch_size = 128
+    val.batch_size = 128
 
     return config

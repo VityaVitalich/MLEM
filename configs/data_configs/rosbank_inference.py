@@ -74,9 +74,9 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 4
-    val.batch_size = 4
-    test.batch_size = 4
+    train.batch_size = 256
+    val.batch_size = 256
+    test.batch_size = 256
 
     ### Path to trained model ###
     config.ckpt_path = (
@@ -84,11 +84,8 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "ckpt"
-        / "noVAE_2023-09-05_17:19:44"
-        / "epoch: 0008 - total_loss: 0.5632 - kl_loss: 207.4 - recon_loss: 3.254e+07 - classification_loss: 0.5632 - loss: 0.5746.ckpt"
-        # / "epoch: 0005 - total_loss: 0.5295 - kl_loss: 271.8 - recon_loss: 2.917e+07 - classification_loss: 0.5295 - loss: 0.5866.ckpt"
-        #  / "epoch: 0150 - total_loss: 5.802e+05 - kl_loss: 232.8 - recon_loss: 5.792e+05 - classification_loss: 0.6229 - loss: 5.875e+05.ckpt"
-        # / "epoch: 0114 - total_loss: 5.809e+05 - kl_loss: 265.8 - recon_loss: 5.798e+05 - classification_loss: 0.5719 - loss: 5.871e+05.ckpt"
+        / "mTAND_supervised_repr_2023-09-12_15:21:33"
+        / "epoch: 0044 - total_loss: 0.5326 - roc_auc: 0.8112 - loss: 0.5472.ckpt"
     )
 
     config.train_embed_path = (

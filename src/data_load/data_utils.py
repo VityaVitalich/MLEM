@@ -105,7 +105,7 @@ def prepare_test_data(conf):
     data = tqdm(data)
 
     data = prepare_embeddings(data, conf, is_train=False)
-    data = shuffle_client_list_reproducible(conf, data)
+    #   data = shuffle_client_list_reproducible(conf, data)
     data = list(data)
 
     return data

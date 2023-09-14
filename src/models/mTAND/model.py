@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+from ..preprocessors import FeatureProcessor
 from .model_utils import MultiTimeAttention, get_normal_kl, get_normal_nll, sample_z
 
 
@@ -73,6 +74,67 @@ class EncMtanRnn(nn.Module):
         return out
 
 
+class EncMtanRnnClassification(nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        query,
+        latent_dim=2,
+        nhidden=16,
+        embed_time=16,
+        num_heads=1,
+        linear_hidden_dim=50,
+        num_time_emb=3,
+        device="cuda",
+    ):
+        super().__init__()
+        self.embed_time = embed_time
+        self.dim = input_dim
+        self.device = device
+        self.nhidden = nhidden
+        self.query = query
+        self.linear_hidden_dim = linear_hidden_dim
+        self.num_time_emb = num_time_emb
+        self.att = MultiTimeAttention(
+            input_dim, nhidden, embed_time, num_heads, num_time_emb
+        )
+
+        periodic = []
+        linear_time = []
+        for _ in range(self.num_time_emb):
+            periodic.append(nn.Linear(1, embed_time - 1))
+            linear_time.append(nn.Linear(1, 1))
+        self.periodic = nn.ModuleList(periodic)
+        self.linear_time = nn.ModuleList(linear_time)
+
+    def learn_time_embedding(self, tt, emb_index):
+        tt = tt.to(self.device)
+        tt = tt.unsqueeze(-1)
+        out2 = torch.sin(self.periodic[emb_index](tt))
+        out1 = self.linear_time[emb_index](tt)
+        return torch.cat([out1, out2], -1)
+
+    def forward(self, x, time_steps):
+        time_steps = time_steps.cpu()
+
+        keys = []
+        querys = []
+        for emb_index in range(self.num_time_emb):
+            keys.append(self.learn_time_embedding(time_steps, emb_index).unsqueeze(1))
+            # first unsqueezed to match batch dimension of time steps
+            # second unsqueeze to keys and querys to concat over num_time_emb
+            querys.append(
+                self.learn_time_embedding(self.query.unsqueeze(0), emb_index).unsqueeze(
+                    1
+                )
+            )
+        keys = torch.cat(keys, dim=1).to(self.device)
+        querys = torch.cat(querys, dim=1).to(self.device)
+
+        out = self.att(querys, keys, x, mask=None)
+        return out
+
+
 class DecMtanRnn(nn.Module):
     def __init__(
         self,
@@ -137,42 +199,6 @@ class DecMtanRnn(nn.Module):
         out = self.att(querys, keys, out)
         out = self.z0_to_obs(out)
         return out
-
-
-class FeatureProcessor(nn.Module):
-    def __init__(self, model_conf, data_conf):
-        super().__init__()
-        self.model_conf = model_conf
-        self.data_conf = data_conf
-
-        self.emb_names = list(self.data_conf.features.embeddings.keys())
-        self.init_embed_layers()
-
-    def init_embed_layers(self):
-        self.embed_layers = nn.ModuleDict()
-
-        for name in self.emb_names:
-            vocab_size = self.data_conf.features.embeddings[name]["max_value"]
-            self.embed_layers[name] = nn.Embedding(
-                vocab_size, self.model_conf.features_emb_dim
-            )
-
-    def forward(self, padded_batch):
-        numeric_values = []
-        categoric_values = []
-
-        time_steps = padded_batch.payload.pop("event_time").float()
-        for key, values in padded_batch.payload.items():
-            if key in self.emb_names:
-                categoric_values.append(self.embed_layers[key](values.long()))
-            else:
-                # TODO: repeat the numerical feature?
-                numeric_values.append(values.unsqueeze(-1).float())
-
-        categoric_tensor = torch.cat(categoric_values, dim=-1)
-        numeric_tensor = torch.cat(numeric_values, dim=-1)
-
-        return torch.cat([categoric_tensor, numeric_tensor], dim=-1), time_steps
 
 
 class MegaEncoder(nn.Module):
@@ -361,9 +387,6 @@ class MegaNetSupervised(nn.Module):
         self.encoder = MegaEncoder(
             model_conf=model_conf, data_conf=data_conf, ref_points=self.ref_points
         )
-        self.decoder = MegaDecoder(
-            model_conf=model_conf, data_conf=data_conf, ref_points=self.ref_points
-        )
 
         self.classifier = Classifier(
             model_conf=self.model_conf, data_conf=self.data_conf
@@ -377,23 +400,22 @@ class MegaNetSupervised(nn.Module):
 
         z = sample_z(qz_mean, qz_logstd, self.model_conf.k_iwae)
 
-        iwae_steps = (
-            time_steps[None, :, :]
-            .repeat(self.model_conf.k_iwae, 1, 1)
-            .view(-1, time_steps.shape[1])
-        )
-        dec_out = self.decoder(z, iwae_steps)
-        dec_out = dec_out.view(
-            self.model_conf.k_iwae,
-            time_steps.shape[0],
-            dec_out.shape[1],
-            dec_out.shape[2],
-        )
+        # iwae_steps = (
+        #     time_steps[None, :, :]
+        #     .repeat(self.model_conf.k_iwae, 1, 1)
+        #     .view(-1, time_steps.shape[1])
+        # )
+        # dec_out = self.decoder(z, iwae_steps)
+        # dec_out = dec_out.view(
+        #     self.model_conf.k_iwae,
+        #     time_steps.shape[0],
+        #     dec_out.shape[1],
+        #     dec_out.shape[2],
+        # )
 
         classifier_out = self.classifier(z)
 
         return {
-            "x_recon": dec_out,
             "z": z,
             "x": x,
             "time_steps": time_steps,
@@ -414,27 +436,97 @@ class MegaNetSupervised(nn.Module):
         ground truth is a Tuple with idx at first pos and label at second
         """
 
-        kl_loss = get_normal_kl(output["mu"], output["log_std"])
-        batch_kl_loss = kl_loss.sum([1, 2])
-
-        noise_std_ = torch.zeros(output["x_recon"].size()) + self.model_conf.noise_std
-        noise_logvar = torch.log(noise_std_)  # mTAN multiplies by constant 2
-        recon_loss = get_normal_nll(output["x"], output["x_recon"], noise_logvar)
-        batch_recon_loss = recon_loss.sum([1, 2])
-
         classification_loss = nn.functional.cross_entropy(
             output["y_pred"], ground_truth[1]
         )
 
+        return {"total_loss": classification_loss}
+
+
+class MegaNetClassifier(nn.Module):
+    def __init__(self, data_conf, model_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.loss_fn = nn.CrossEntropyLoss()
+        self.ref_points = torch.linspace(0.0, 1.0, self.model_conf.num_ref_points).to(
+            self.model_conf.device
+        )
+
+        self.preprocessor = FeatureProcessor(
+            model_conf=self.model_conf, data_conf=self.data_conf
+        )
+
+        all_emb_size = self.model_conf.features_emb_dim * len(
+            self.data_conf.features.embeddings
+        )
+        all_numeric_size = len(self.data_conf.features.numeric_values)
+        self.input_dim = all_emb_size + all_numeric_size
+
+        self.encoder = EncMtanRnnClassification(
+            self.input_dim,
+            self.ref_points,
+            latent_dim=self.model_conf.latent_dim,
+            nhidden=self.model_conf.ref_point_dim,
+            embed_time=self.model_conf.time_emb_dim,
+            num_heads=self.model_conf.num_heads_enc,
+            linear_hidden_dim=self.model_conf.linear_hidden_dim,
+            num_time_emb=self.model_conf.num_time_emb,
+            device=self.model_conf.device,
+        )
+
+        self.gru = nn.GRU(
+            self.model_conf.ref_point_dim,
+            self.model_conf.classifier_gru_hidden_dim,
+            batch_first=True,
+        )
+        self.net = nn.Sequential(
+            # nn.BatchNorm1d(self.model_conf.classifier_gru_hidden_dim),
+            # nn.LayerNorm(self.model_conf.classifier_gru_hidden_dim),
+            nn.Linear(
+                self.model_conf.classifier_gru_hidden_dim,
+                self.model_conf.classifier_linear_hidden_dim,
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                self.model_conf.classifier_linear_hidden_dim,
+                self.model_conf.classifier_linear_hidden_dim,
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                self.model_conf.classifier_linear_hidden_dim, self.data_conf.num_classes
+            ),
+        )
+
+    def forward(self, padded_batch):
+        x, time_steps = self.preprocessor(padded_batch)
+        enc_out = self.encoder(x, time_steps)
+
+        all_hiddens, out = self.gru(enc_out)
+
+        class_out = self.net(out.squeeze(0))
         return {
-            "total_loss": self.model_conf.reconstruction_weight
-            * batch_recon_loss.mean()
-            + self.model_conf.kl_weight * batch_kl_loss.mean()
-            + self.model_conf.classification_weight * classification_loss,
-            "kl_loss": batch_kl_loss.mean(),
-            "recon_loss": batch_recon_loss.mean(),
-            "classification_loss": classification_loss,
+            "x": x,
+            "time_steps": time_steps,
+            "y_pred": class_out,
         }
+
+    def loss(self, output, ground_truth):
+        """
+        output: Dict that is outputed from forward method
+        should contain
+        1) reconstructed x
+        2) initial x
+        3) mu from latent
+        4) log_std from latent
+
+        ground truth is a Tuple with idx at first pos and label at second
+        """
+
+        classification_loss = self.loss_fn(output["y_pred"], ground_truth[1])
+
+        return {"total_loss": classification_loss}
 
 
 class EmbeddingPredictor(nn.Module):

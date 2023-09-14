@@ -35,7 +35,7 @@ def create_data_loaders(conf):
 
     train_loader = DataLoader(
         dataset=train_dataset,
-        shuffle=True,
+        shuffle=False,
         collate_fn=collate_splitted_rows,
         num_workers=conf.train.num_workers,
         batch_size=conf.train.batch_size,
@@ -94,10 +94,20 @@ def padded_collate(batch):
 
     lengths = torch.LongTensor([len(e) for e in next(iter(new_x_.values()))])
 
-    new_x = {
-        k: torch.nn.utils.rnn.pad_sequence(v, batch_first=True)
-        for k, v in new_x_.items()
-    }
+    new_x = {}
+    for k, v in new_x_.items():
+        if k == "event_time":
+            new_x[k] = torch.nn.utils.rnn.pad_sequence(
+                v, batch_first=True, padding_value=-1.0
+            )
+        else:
+            new_x[k] = torch.nn.utils.rnn.pad_sequence(
+                v, batch_first=True, padding_value=0.0
+            )
+    # new_x = {
+    #     k: torch.nn.utils.rnn.pad_sequence(v, batch_first=True)
+    #     for k, v in new_x_.items()
+    # }
     new_idx = torch.tensor([y[0] for _, y in batch])
     new_y = torch.tensor([y[1] for _, y in batch])
 

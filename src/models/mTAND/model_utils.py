@@ -10,7 +10,7 @@ def sample_z(mean, logstd, k_iwae):
     epsilon = torch.randn(k_iwae, mean.shape[0], mean.shape[1], mean.shape[2]).to(
         logstd.device
     )
-    z = epsilon * torch.exp(logstd) + mean  # modified
+    z = epsilon * torch.exp(0.5 * logstd) + mean  # modified
     z = z.view(-1, mean.shape[1], mean.shape[2])
     return z
 

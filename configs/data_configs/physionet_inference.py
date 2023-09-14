@@ -36,7 +36,7 @@ def data_configs():
     features.embeddings = {
         "Gender": {"in": 3, "out": 24, "max_value": 4},
         "ICUType": {"in": 5, "out": 4, "max_value": 5},
-        "MechVent": {"in": 2, "out": 4, "max_value": 3},
+        "MechVent": {"in": 2, "out": 4, "max_value": 4},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
@@ -113,20 +113,18 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 16
-    val.batch_size = 16
-    test.batch_size = 16
+    train.batch_size = 128
+    val.batch_size = 128
+    test.batch_size = 128
 
     ### Path to trained model ###
     config.ckpt_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
         / "physionet"
-        / "experiments"
-        / "physionet"
         / "ckpt"
-        / "noVAE_2023-09-06_08:04:54"
-        / "epoch: 0010 - total_loss: 0.2825 - kl_loss: 316.8 - recon_loss: 1.112e+10 - classification_loss: 0.2825 - loss: 0.3407.ckpt"
+        / "GRU_128hi64N_2023-09-13_15:33:10"
+        / "epoch: 0082 - total_loss: 0.3216 - roc_auc: 0.8108 - loss: 0.2721.ckpt"
     )
 
     config.train_embed_path = (

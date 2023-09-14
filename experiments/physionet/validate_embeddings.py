@@ -55,7 +55,7 @@ if __name__ == "__main__":
     model.fit(
         train.drop(columns=[conf.features.target_col]), train[conf.features.target_col]
     )
-    y_pred = model.predict(test.drop(columns=[conf.features.target_col]))
+    y_pred = model.predict_proba(test.drop(columns=[conf.features.target_col]))
 
     auc_score = roc_auc_score(test_y, y_pred)
 

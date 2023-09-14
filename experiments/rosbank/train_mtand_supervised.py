@@ -8,8 +8,8 @@ import sys
 
 sys.path.append("../../")
 
-from configs.data_configs.physionet import data_configs
-from configs.model_configs.mTAN.physionet import model_configs
+from configs.data_configs.rosbank import data_configs
+from configs.model_configs.mTAN.rosbank import model_configs
 from src.data_load.dataloader import create_data_loaders
 from src.models.mTAND.model import MegaNetClassifier
 from src.trainers.trainer_mTAND import MtandTrainerSupervised
@@ -79,7 +79,6 @@ if __name__ == "__main__":
     conf = data_configs()
     model_conf = model_configs()
 
-    torch.manual_seed(conf.client_list_shuffle_seed)
     train_loader, valid_loader = create_data_loaders(conf)
     net = MegaNetClassifier(model_conf=model_conf, data_conf=conf)
     opt = torch.optim.Adam(
