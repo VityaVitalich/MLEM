@@ -89,7 +89,7 @@ if __name__ == "__main__":
     train_loader, valid_loader = create_data_loaders(conf)
     test_loader = create_test_loader(conf)
 
-    model = getattr(event_seq.src.models.base_models, model_conf.model_name)
+    model = getattr(src.models.base_models, model_conf.model_name)
     net = model(model_conf=model_conf, data_conf=conf)
     opt = torch.optim.Adam(
         net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay

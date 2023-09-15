@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     ### Create loaders and train ###
     train_loader, valid_loader = create_data_loaders(conf)
-    test_loader = create_test_loader(conf)_
+    test_loader = create_test_loader(conf)
 
     model = getattr(src.models.mTAND.model, model_conf.model_name)
     net = model(model_conf=model_conf, data_conf=conf)
