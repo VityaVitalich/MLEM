@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Union
+from typing import Any, Dict, List, Literal, Union, Tuple
 
 import numpy as np
 import torch
@@ -75,6 +75,7 @@ class BaseTrainer:
         ckpt_resume: Union[str, os.PathLike, None] = None,
         device: str = "cpu",
         metrics_on_train: bool = False,
+        model_conf: Dict[str, Any] = None,
     ):
         """Initialize trainer.
 
@@ -99,6 +100,7 @@ class BaseTrainer:
             ckpt_resume: path to the checkpoint to resume training from.
             device: device to train and validate on.
             metrics_on_train: wether to compute metrics on train set.
+            model_conf: Model configs from configs/ dir
         """
         assert (total_iters is None) ^ (
             total_epochs is None
@@ -117,6 +119,7 @@ class BaseTrainer:
         self._ckpt_resume = ckpt_resume
         self._device = device
         self._metrics_on_train = metrics_on_train
+        self._model_conf = model_conf
 
         self._model = model
         self._model.to(device)
@@ -325,14 +328,7 @@ class BaseTrainer:
         assert self._val_loader is not None, "Set a val loader first"
 
         logger.info("Epoch %04d: validation started", self._last_epoch + 1)
-        self._model.eval()
-        preds, gts = [], []
-        with torch.no_grad():
-            for inp, gt in tqdm(self._val_loader):
-                gts.append(gt.to(self._device))
-                inp = inp.to(self._device)
-                pred = self._model(inp)
-                preds.append(pred)
+        preds, gts = self.predict(self._val_loader)
 
         self._metric_values = self.compute_metrics(preds, gts)
         logger.info(
@@ -341,6 +337,18 @@ class BaseTrainer:
             str(self._metric_values),
         )
         logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
+
+    def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+        self._model.eval()
+        preds, gts = [], []
+        with torch.no_grad():
+            for inp, gt in tqdm(loader):
+                gts.append(gt.to(self._device))
+                inp = inp.to(self._device)
+                pred = self._model(inp)
+                preds.append(pred)
+
+        return preds, gts
 
     def compute_metrics(
         self,
@@ -413,6 +421,7 @@ class BaseTrainer:
         assert self._val_loader is not None, "Set a val loader to run full cycle"
 
         logger.info("run %s started", self._run_name)
+        logger.info("using following model configs: \n%s", str(self._model_conf))
 
         if self._ckpt_resume is not None:
             logger.info("Resuming from checkpoint '%s'", str(self._ckpt_resume))
@@ -471,3 +480,46 @@ class BaseTrainer:
             self._loss_values = None
 
         logger.info("run '%s' finished successfully", self._run_name)
+
+    def load_best_model(self) -> None:
+        """
+        Loads the best model to self._model according to the track metric.
+        """
+
+        assert self._ckpt_dir is not None
+        ckpt_path = Path(self._ckpt_dir) / self._run_name
+
+        ckpt_path = Path(ckpt_path)
+
+        def make_key_extractor(key):
+            def key_extractor(p: Path) -> float:
+                metrics = {}
+                for it in p.stem.split(" - "):
+                    kv = it.split(": ")
+                    assert len(kv) == 2, f"Failed to parse filename: {p.name}"
+                    k = kv[0]
+                    v = -float(kv[1]) if k == "loss" else float(kv[1])
+                    metrics[k] = v
+                return metrics[key]
+
+            return key_extractor
+
+        all_ckpt = list(ckpt_path.glob("*.ckpt"))
+        best_ckpt = max(all_ckpt, key=make_key_extractor(self._ckpt_track_metric))
+
+        self.load_ckpt(best_ckpt)
+
+    def test(self, test_loader: DataLoader) -> None:
+        """
+        Logs test metrics with self.compute_metrics
+        """
+
+        logger.info("Test started")
+        preds, gts = self.predict(test_loader)
+
+        self._metric_values = self.compute_metrics(preds, gts)
+        logger.info(
+            "Test metrics: %s",
+            str(self._metric_values),
+        )
+        logger.info("Test finished")

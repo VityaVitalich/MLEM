@@ -6,6 +6,7 @@ def model_configs():
 
     ########## Embeddings ##############
 
+    config.model_name = "SimpleClassifier"
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
     # number of reference points on encoder
@@ -24,10 +25,10 @@ def model_configs():
     # number of time embeddings
     config.num_time_emb = 1
     # number of hidden gru
-    config.classifier_gru_hidden_dim = 64
+    config.classifier_gru_hidden_dim = 8
     config.classifier_linear_hidden_dim = 300
     # transformer number of layers
-    config.num_enc_layers = 2
+    config.num_enc_layers = 1
 
     # number of iwae samples
     config.k_iwae = 1
@@ -43,4 +44,5 @@ def model_configs():
     config.lr = 3e-3
     config.weight_decay = 1e-3
 
+    config.comments = ""
     return config

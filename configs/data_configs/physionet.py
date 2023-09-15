@@ -16,6 +16,14 @@ def data_configs():
         / "train_trx_supervised.parquet"
     )
 
+    config.test_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "physionet"
+        / "data"
+        / "test_trx.parquet"
+    )
+
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
@@ -86,6 +94,8 @@ def data_configs():
     train = config.train = ml_collections.ConfigDict()
     # validation specific
     val = config.val = ml_collections.ConfigDict()
+    # test params
+    test = config.test = ml_collections.ConfigDict()
 
     # splitters
     # train.split_strategy = {
@@ -102,17 +112,22 @@ def data_configs():
     # }
     train.split_strategy = {"split_strategy": "NoSplit"}
     val.split_strategy = {"split_strategy": "NoSplit"}
+    test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
     train.dropout = 0.15
-    train.max_seq_len = 200
 
+    # seq len
+    train.max_seq_len = 200
     val.max_seq_len = 200
+    test.max_seq_len = 200
 
     train.num_workers = 1
     val.num_workers = 1
+    test.num_workers = 1
 
-    train.batch_size = 128
-    val.batch_size = 128
+    train.batch_size = 32
+    val.batch_size = 32
+    test.batch_size = 32
 
     return config

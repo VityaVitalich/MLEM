@@ -4,17 +4,17 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 import sys
 
-sys.path.append(".")
+sys.path.append("../../")
 from src.create_embeddings import create_embeddings
 from configs.data_configs.physionet_inference import data_configs
 from configs.model_configs.mTAN.physionet import model_configs
 
 params = {
-    "n_estimators": 50,
+    "n_estimators": 100,
     "boosting_type": "gbdt",
     "objective": "binary",
     "metric": "auc",
-    "subsample": 0.5,
+    "subsample": 0.2,
     "subsample_freq": 1,
     "learning_rate": 0.02,
     "feature_fraction": 0.75,
@@ -34,7 +34,7 @@ params = {
 if __name__ == "__main__":
     conf = data_configs()
     model_conf = model_configs()
-    create_embeddings(conf, model_conf)
+    #  create_embeddings(conf, model_conf)
 
     train_embeds = pd.read_csv(conf.train_embed_path, index_col=0)
     test_embeds = pd.read_csv(conf.test_embed_path, index_col=0)
@@ -57,6 +57,6 @@ if __name__ == "__main__":
     )
     y_pred = model.predict_proba(test.drop(columns=[conf.features.target_col]))
 
-    auc_score = roc_auc_score(test_y, y_pred)
+    auc_score = roc_auc_score(test_y, y_pred[:, 1])
 
     print(auc_score)

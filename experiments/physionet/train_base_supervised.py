@@ -5,14 +5,16 @@ from pathlib import Path
 
 import torch
 import sys
+import random
+import numpy as np
 
 sys.path.append("../../")
 
 from configs.data_configs.physionet import data_configs
 from configs.model_configs.mTAN.physionet import model_configs
-from src.data_load.dataloader import create_data_loaders
+from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_Simple import SimpleTrainerSupervised
-from src.models.mTAND.base_models import SimpleClassifier
+import src.models.base_models
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -77,9 +79,18 @@ if __name__ == "__main__":
     ### TRAINING SETUP ###
     conf = data_configs()
     model_conf = model_configs()
+
+    ### Fix randomness ###
     torch.manual_seed(conf.client_list_shuffle_seed)
+    random.seed(conf.client_list_shuffle_seed)
+    np.random.seed(conf.client_list_shuffle_seed)
+
+    ### Create loaders and train ###
     train_loader, valid_loader = create_data_loaders(conf)
-    net = SimpleClassifier(model_conf=model_conf, data_conf=conf)
+    test_loader = create_test_loader(conf)
+
+    model = getattr(event_seq.src.models.base_models, model_conf.model_name)
+    net = model(model_conf=model_conf, data_conf=conf)
     opt = torch.optim.Adam(
         net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
     )
@@ -96,7 +107,11 @@ if __name__ == "__main__":
         metrics_on_train=False,
         total_epochs=args.total_epochs,
         device=args.device,
+        model_conf=model_conf,
     )
 
     ### RUN TRAINING ###
     trainer.run()
+
+    trainer.load_best_model()
+    trainer.test(test_loader)

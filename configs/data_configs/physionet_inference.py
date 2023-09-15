@@ -132,6 +132,7 @@ def data_configs():
         / "experiments"
         / "physionet"
         / "data"
+        / "embeds"
         / "train_embed.csv"
     )
     config.valid_embed_path = (
@@ -139,6 +140,7 @@ def data_configs():
         / "experiments"
         / "physionet"
         / "data"
+        / "embeds"
         / "valid_embed.csv"
     )
     config.test_embed_path = (
@@ -146,6 +148,7 @@ def data_configs():
         / "experiments"
         / "physionet"
         / "data"
+        / "embeds"
         / "test_embed.csv"
     )
 
