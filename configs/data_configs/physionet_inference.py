@@ -123,8 +123,8 @@ def data_configs():
         / "experiments"
         / "physionet"
         / "ckpt"
-        / "GRU_128hi64N_2023-09-13_15:33:10"
-        / "epoch: 0082 - total_loss: 0.3216 - roc_auc: 0.8108 - loss: 0.2721.ckpt"
+        / "Enc_2head_2layer_LN_GRU64+LN_2023-09-14_16:46:52"
+        / "epoch: 0085 - total_loss: 0.32 - roc_auc: 0.8194 - loss: 0.2477.ckpt"
     )
 
     config.train_embed_path = (

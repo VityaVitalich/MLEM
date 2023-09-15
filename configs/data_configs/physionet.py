@@ -104,7 +104,7 @@ def data_configs():
     val.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.0
+    train.dropout = 0.15
     train.max_seq_len = 200
 
     val.max_seq_len = 200
