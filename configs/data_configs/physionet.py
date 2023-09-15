@@ -115,7 +115,7 @@ def data_configs():
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.15
+    train.dropout = 0.05
 
     # seq len
     train.max_seq_len = 200
@@ -126,8 +126,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 32
-    val.batch_size = 32
-    test.batch_size = 32
+    train.batch_size = 128
+    val.batch_size = 128
+    test.batch_size = 128
 
     return config

@@ -103,7 +103,7 @@ if __name__ == "__main__":
         ckpt_dir=Path(__file__).parent / "ckpt",
         ckpt_replace=True,
         ckpt_resume=args.resume,
-        ckpt_track_metric="roc_auc",
+        ckpt_track_metric="total_loss",
         metrics_on_train=False,
         total_epochs=args.total_epochs,
         device=args.device,

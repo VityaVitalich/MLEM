@@ -4,11 +4,35 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    ########## Embeddings ##############
+    config.model_name = "ConvClassifier"
 
-    config.model_name = "SimpleClassifier"
+    ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
+
+    ### RNN + LINEAR ###
+    config.classifier_gru_hidden_dim = 64
+    config.classifier_linear_hidden_dim = 300
+
+    ### TRANSFORMER ###
+    config.num_enc_layers = 1
+
+    ### NORMALIZATIONS ###
+    config.pre_gru_norm = "BatchNorm1d"
+    config.post_gru_norm = "Identity"
+
+    ### CONVOLUTIONAL ###
+    conv = config.conv = ml_collections.ConfigDict()
+    conv.out_channels = 32
+    conv.kernels = [3, 5, 9]
+    conv.dilations = [3, 5, 9]
+    conv.num_stacks = 3
+    conv.proj = "Linear"
+
+    ### ACTIVATION ###
+    config.activation = "ReLU"
+
+    ### MTAND ###
     # number of reference points on encoder
     config.num_ref_points = 128
     # latent dimension for mu and sigma
@@ -24,12 +48,8 @@ def model_configs():
     config.linear_hidden_dim = 50
     # number of time embeddings
     config.num_time_emb = 1
-    # number of hidden gru
-    config.classifier_gru_hidden_dim = 8
-    config.classifier_linear_hidden_dim = 300
-    # transformer number of layers
-    config.num_enc_layers = 1
 
+    ### VAE PARAMS ###
     # number of iwae samples
     config.k_iwae = 1
     # noise to diagonal matrix of output distribution
@@ -39,6 +59,8 @@ def model_configs():
     config.CE_weight = 0
     config.reconstruction_weight = 0
     config.classification_weight = 1
+
+    ### DEVICE + OPTIMIZER ###
     config.device = "cuda"
 
     config.lr = 3e-3

@@ -6,7 +6,7 @@ import sys
 sys.path.append("../../")
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.models.mTAND.model import MegaNetClassifier
-from src.models.mTAND.base_models import SimpleClassifier
+from event_seq.src.models.base_models import SimpleClassifier
 from configs.data_configs.rosbank_inference import data_configs
 from configs.model_configs.mTAN.rosbank import model_configs
 from sklearn.metrics import roc_auc_score

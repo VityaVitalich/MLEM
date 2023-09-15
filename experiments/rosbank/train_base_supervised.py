@@ -12,7 +12,7 @@ from configs.data_configs.rosbank import data_configs
 from configs.model_configs.mTAN.rosbank import model_configs
 from src.data_load.dataloader import create_data_loaders
 from src.trainers.trainer_Simple import SimpleTrainerSupervised
-from src.models.mTAND.base_models import SimpleClassifier
+from src.models.base_models import SimpleClassifier
 
 if __name__ == "__main__":
     parser = ArgumentParser()

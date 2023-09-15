@@ -13,7 +13,7 @@ from configs.model_configs.mTAN.rosbank import model_configs
 from src.data_load.dataloader import create_data_loaders
 from src.models.mTAND.model import MegaNetClassifier
 from src.trainers.trainer_mTAND import MtandTrainerSupervised
-from src.models.mTAND.base_models import SimpleClassifier
+from src.models.base_models import SimpleClassifier
 
 if __name__ == "__main__":
     parser = ArgumentParser()
