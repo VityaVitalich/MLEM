@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from einops import repeat, rearrange, reduce
 
 
 class RBatchNorm(torch.nn.Module):
@@ -81,3 +82,100 @@ class FeatureProcessor(nn.Module):
         numeric_tensor = torch.cat(numeric_values, dim=-1)
 
         return torch.cat([categoric_tensor, numeric_tensor], dim=-1), time_steps
+
+
+class TimeConcater(nn.Module):
+    def __init__(self, num_time_blocks, device):
+        super().__init__()
+        blocks = torch.linspace(0.0, 1.1, num_time_blocks + 1)
+        lr = []
+        for i in range(len(blocks) - 1):
+            lr.append(torch.concat([blocks[i].view(1, 1), blocks[i + 1].view(1, 1)]))
+
+        self.ls, self.rs = torch.concat(lr, dim=1).to(device)
+        self.num_points = num_time_blocks
+
+    def _create_idx_mask(self, time_steps):
+        bs, seq_len = time_steps.size()
+
+        left_idx = repeat(time_steps, "b l -> p b l", p=self.num_points) >= repeat(
+            self.ls, "p -> p b l", b=bs, l=seq_len
+        )
+        right_idx = repeat(time_steps, "b l -> p b l", p=self.num_points) < repeat(
+            self.rs, "p -> p b l", b=bs, l=seq_len
+        )
+
+        multi_idx = left_idx & right_idx
+
+        return multi_idx
+
+    def forward(self, x, time_steps):
+        """
+        x - tensor of size (BS, L, D)
+        time steps - tensor of size (BS, L)
+
+        returns x of size (BS, Num ref points, in dim) and time steps
+        """
+        in_dim = x.size()[-1]
+        mask = self._create_idx_mask(time_steps)
+        new_x = reduce(
+            (
+                repeat(x, "b l d -> p b l d", p=self.num_points)
+                * repeat(mask, "p b l -> p b l d", d=in_dim)
+            ),
+            "p b l d -> b p d",
+            "sum",
+        )
+        return new_x, time_steps
+
+
+class Identity(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, x, time_steps):
+        """
+        x - tensor of size (BS, L, D)
+        time steps - tensor of size (BS, L)
+
+        returns the same
+        """
+        return x, time_steps
+
+
+class MultiTimeSummator(nn.Module):
+    def __init__(self, time_blocks, device):
+        super().__init__()
+
+        assert isinstance(time_blocks, list)
+
+        self.time_ps = []
+        for num_block in time_blocks:
+            self.time_ps.append(TimeConcater(num_block, device))
+
+        self.max_len = max(time_blocks)
+
+        self.weights = nn.Parameter(torch.ones(len(time_blocks)) / len(time_blocks))
+
+    def forward(self, x, time_steps):
+        new_xs = self.collect_new_x(x, time_steps)
+
+        nb, bs, l, d = new_xs.size()
+
+        cur_w = repeat(self.weights, "nb -> nb bs l d", bs=bs, l=l, d=d)
+
+        out = (new_xs * cur_w).sum(dim=0)
+
+        return out, time_steps
+
+    def collect_new_x(self, x, time_steps):
+        new_xs = []
+
+        for tc in self.time_ps:
+            cur_multiplier = self.max_len // tc.num_points
+            out_x, time_steps = tc(x, time_steps)
+            new_x = torch.repeat_interleave(out_x, cur_multiplier, dim=1).unsqueeze(0)
+
+            new_xs.append(new_x)
+
+        return torch.cat(new_xs, dim=0)

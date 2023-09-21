@@ -5,14 +5,16 @@ from pathlib import Path
 
 import torch
 import sys
+import os
 
 sys.path.append("../../")
 
 from configs.data_configs.rosbank import data_configs
 from configs.model_configs.mTAN.rosbank import model_configs
-from src.data_load.dataloader import create_data_loaders
+from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_Simple import SimpleTrainerSupervised
-from src.models.base_models import SimpleClassifier
+from src.trainers.randomness import seed_everything
+import src.models.base_models
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -78,10 +80,22 @@ if __name__ == "__main__":
     conf = data_configs()
     model_conf = model_configs()
 
+    ### Fix randomness ###
+    # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    seed_everything(
+        conf.client_list_shuffle_seed,
+        avoid_benchmark_noise=True,
+        only_deterministic_algorithms=False,
+    )
+
+    ### Create loaders and train ###
     train_loader, valid_loader = create_data_loaders(conf)
-    net = SimpleClassifier(model_conf=model_conf, data_conf=conf)
+    test_loader = create_test_loader(conf)
+
+    model = getattr(src.models.base_models, model_conf.model_name)
+    net = model(model_conf=model_conf, data_conf=conf)
     opt = torch.optim.Adam(
-        net.parameters(), lr=model_conf.lr, weight_decay=model_conf.weight_decay
+        net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
     )
     trainer = SimpleTrainerSupervised(
         model=net,
@@ -96,7 +110,11 @@ if __name__ == "__main__":
         metrics_on_train=False,
         total_epochs=args.total_epochs,
         device=args.device,
+        model_conf=model_conf,
     )
 
     ### RUN TRAINING ###
     trainer.run()
+
+    trainer.load_best_model()
+    trainer.test(test_loader)

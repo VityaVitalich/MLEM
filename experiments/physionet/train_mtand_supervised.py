@@ -14,6 +14,7 @@ from configs.data_configs.physionet import data_configs
 from configs.model_configs.mTAN.physionet import model_configs
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 import src.models.mTAND.model
+from src.trainers.randomness import seed_everything
 from src.trainers.trainer_mTAND import MtandTrainerSupervised
 
 if __name__ == "__main__":
@@ -81,9 +82,12 @@ if __name__ == "__main__":
     model_conf = model_configs()
 
     ### Fix randomness ###
-    torch.manual_seed(conf.client_list_shuffle_seed)
-    random.seed(conf.client_list_shuffle_seed)
-    np.random.seed(conf.client_list_shuffle_seed)
+    # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    seed_everything(
+        conf.client_list_shuffle_seed,
+        avoid_benchmark_noise=True,
+        only_deterministic_algorithms=False,
+    )
 
     ### Create loaders and train ###
     train_loader, valid_loader = create_data_loaders(conf)

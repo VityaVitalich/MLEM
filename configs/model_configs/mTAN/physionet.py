@@ -4,22 +4,28 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "ConvClassifier"
+    config.model_name = "GRUClassifier"
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
+    config.classifier_gru_hidden_dim = 128
     config.classifier_linear_hidden_dim = 300
 
     ### TRANSFORMER ###
+    config.encoder = "Identity"
     config.num_enc_layers = 1
+    config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
-    config.pre_gru_norm = "BatchNorm1d"
-    config.post_gru_norm = "Identity"
+    config.pre_gru_norm = "Identity"
+    config.post_gru_norm = "LayerNorm"
+    config.encoder_norm = "Identity"
+
+    ### DROPOUT ###
+    config.after_enc_dropout = 0.0
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
@@ -31,6 +37,10 @@ def model_configs():
 
     ### ACTIVATION ###
     config.activation = "ReLU"
+
+    ### TIME TRICKS ###
+    config.num_time_blocks = [4, 16, 32, 64]
+    config.time_preproc = "MultiTimeSummator"
 
     ### MTAND ###
     # number of reference points on encoder
@@ -47,7 +57,7 @@ def model_configs():
     # dim in FF layer after attention
     config.linear_hidden_dim = 50
     # number of time embeddings
-    config.num_time_emb = 1
+    config.num_time_emb = 3
 
     ### VAE PARAMS ###
     # number of iwae samples

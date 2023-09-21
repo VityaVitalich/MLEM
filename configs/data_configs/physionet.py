@@ -82,6 +82,15 @@ def data_configs():
         "WBC": None,
     }
 
+    config.ckpt_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "physionet"
+        / "ckpt"
+        / "Tr_1l_2h_LN_GR128+LN_2023-09-20_09:32:45"
+        / "epoch: 0033 - total_loss: 0.2984 - roc_auc: 0.8421 - loss: 0.2629.ckpt"
+    )
+
     # name of target col
     features.target_col = "target"
     config.num_classes = 2

@@ -227,7 +227,7 @@ class BaseTrainer:
                     kv = it.split(": ")
                     assert len(kv) == 2, f"Failed to parse filename: {p.name}"
                     k = kv[0]
-                    v = -float(kv[1]) if k == "loss" else float(kv[1])
+                    v = -float(kv[1]) if "loss" in k else float(kv[1])
                     metrics[k] = v
                 return metrics[key]
 
@@ -498,7 +498,7 @@ class BaseTrainer:
                     kv = it.split(": ")
                     assert len(kv) == 2, f"Failed to parse filename: {p.name}"
                     k = kv[0]
-                    v = -float(kv[1]) if k == "loss" else float(kv[1])
+                    v = -float(kv[1]) if "loss" in k else float(kv[1])
                     metrics[k] = v
                 return metrics[key]
 
@@ -506,7 +506,7 @@ class BaseTrainer:
 
         all_ckpt = list(ckpt_path.glob("*.ckpt"))
         best_ckpt = max(all_ckpt, key=make_key_extractor(self._ckpt_track_metric))
-
+        print(best_ckpt)
         self.load_ckpt(best_ckpt)
 
     def test(self, test_loader: DataLoader) -> None:
@@ -523,3 +523,5 @@ class BaseTrainer:
             str(self._metric_values),
         )
         logger.info("Test finished")
+
+        return self._metric_values
