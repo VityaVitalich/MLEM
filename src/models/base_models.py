@@ -58,7 +58,7 @@ class GRUClassifier(nn.Module):
             enable_nested_tensor=True,
             mask_check=True,
         )
-        self.after_enc_dropout = nn.Dropout(self.model_conf.after_enc_dropout)
+        self.after_enc_dropout = nn.Dropout1d(self.model_conf.after_enc_dropout)
         self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(self, padded_batch):

@@ -6,7 +6,7 @@ import torch
 
 from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, accuracy_score
 
 logger = logging.getLogger(__name__)
 
@@ -91,3 +91,39 @@ class SimpleTrainerSupervised(BaseTrainer):
         """
         if metrics is not None:
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
+
+class AccuracySimpleTrainerSupervised(SimpleTrainerSupervised):
+    def compute_metrics(
+        self,
+        model_outputs: List[Any],
+        ground_truths: List[Any],  # pyright: ignore unused
+    ) -> Dict[str, Any]:
+        """Compute metrics based on model output.
+
+        The function is used to compute model metrics. For further logging and
+        and checkpoint tracking. Any metrics could be logged, but only scalar metrics
+        are used to track checkpoints.
+
+        Args:
+            model_outputs: as is stacked model outputs during train or validation stage.
+            ground_truths: as is stacked collected labels during train or validation
+                stage.
+
+        Returns:
+            A dict of metric name and metric value(s).
+        """
+        # assert isinstance(self.model, MegaNetCE)
+        loss_dicts = [
+            self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
+        ]
+        losses_dict = {
+            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
+        }
+
+        preds = torch.cat([it.cpu().argmax(dim=1) for it in model_outputs])
+        gold = torch.cat([gt[1].cpu() for gt in ground_truths])
+        score = accuracy_score(gold, preds)
+
+        losses_dict["accuracy"] = score
+
+        return losses_dict
