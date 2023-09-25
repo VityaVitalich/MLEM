@@ -1,5 +1,7 @@
 import logging
 from typing import Any, Dict, List, Literal, Union, Tuple
+from torch.utils.data import DataLoader
+from lightgbm import LGBMClassifier
 
 import numpy as np
 import torch
@@ -8,10 +10,31 @@ from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
 from sklearn.metrics import roc_auc_score, accuracy_score
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("event_seq")
+
+params = {
+    "n_estimators": 100,
+    "boosting_type": "gbdt",
+    "objective": "binary",
+    "metric": "auc",
+    "subsample": 0.2,
+    "subsample_freq": 1,
+    "learning_rate": 0.02,
+    "feature_fraction": 0.75,
+    "max_depth": 3,
+    "lambda_l1": 1,
+    "lambda_l2": 1,
+    "min_data_in_leaf": 50,
+    "random_state": 42,
+    "n_jobs": 8,
+    "reg_alpha": None,
+    "reg_lambda": None,
+    "colsample_bytree": None,
+    "min_child_samples": None,
+}
 
 
-class SimpleTrainerSupervised(BaseTrainer):
+class SimpleTrainerContrastive(BaseTrainer):
     def compute_metrics(
         self,
         model_outputs: List[Any],
@@ -38,12 +61,6 @@ class SimpleTrainerSupervised(BaseTrainer):
         losses_dict = {
             k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
         }
-
-        preds = torch.cat([it.cpu()[:, 1] for it in model_outputs])
-        gold = torch.cat([gt[1].cpu() for gt in ground_truths])
-        score = roc_auc_score(gold, preds)
-
-        losses_dict["roc_auc"] = score
 
         return losses_dict
 
@@ -92,39 +109,43 @@ class SimpleTrainerSupervised(BaseTrainer):
         if metrics is not None:
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
 
-
-class AccuracySimpleTrainerSupervised(SimpleTrainerSupervised):
-    def compute_metrics(
-        self,
-        model_outputs: List[Any],
-        ground_truths: List[Any],  # pyright: ignore unused
-    ) -> Dict[str, Any]:
-        """Compute metrics based on model output.
-
-        The function is used to compute model metrics. For further logging and
-        and checkpoint tracking. Any metrics could be logged, but only scalar metrics
-        are used to track checkpoints.
-
-        Args:
-            model_outputs: as is stacked model outputs during train or validation stage.
-            ground_truths: as is stacked collected labels during train or validation
-                stage.
-
-        Returns:
-            A dict of metric name and metric value(s).
+    def test(
+        self, test_loader: DataLoader, train_supervised_loader: DataLoader
+    ) -> None:
         """
-        # assert isinstance(self.model, MegaNetCE)
-        loss_dicts = [
-            self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
-        ]
-        losses_dict = {
-            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
-        }
+        Logs test metrics with self.compute_metrics
+        """
 
-        preds = torch.cat([it.cpu().argmax(dim=1) for it in model_outputs])
-        gold = torch.cat([gt[1].cpu() for gt in ground_truths])
-        score = accuracy_score(gold, preds)
+        logger.info("Test started")
+        train_embeddings, train_gts = self.predict(train_supervised_loader)
+        test_embeddings, test_gts = self.predict(test_loader)
 
-        losses_dict["accuracy"] = score
+        test_metric = self.compute_test_metric(
+            train_embeddings, train_gts, test_embeddings, test_gts
+        )
+        print(test_metric)
+        logger.info(
+            "Test metrics: %s",
+            str(test_metric),
+        )
+        logger.info("Test finished")
 
-        return losses_dict
+        return test_metric
+
+    def compute_test_metric(
+        self, train_embeddings, train_gts, test_embeddings, test_gts
+    ):
+        train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
+        train_embeddings = torch.cat(train_embeddings).cpu().numpy()
+
+        test_labels = torch.cat([gt[1].cpu() for gt in test_gts]).numpy()
+        test_embeddings = torch.cat(test_embeddings).cpu().numpy()
+
+        model = LGBMClassifier(**params)
+
+        model.fit(train_embeddings, train_labels)
+        y_pred = model.predict_proba(test_embeddings)
+
+        auc_score = roc_auc_score(test_labels, y_pred[:, 1])
+
+        return auc_score

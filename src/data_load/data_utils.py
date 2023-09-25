@@ -79,8 +79,10 @@ def shuffle_client_list_reproducible(conf, data):
     return data
 
 
-def prepare_data(conf):
-    data = read_pyarrow_file(conf.train_path)
+def prepare_data(conf, supervised):
+    train_path = conf.train_supervised_path if supervised else conf.train_path
+
+    data = read_pyarrow_file(train_path)
     data = tqdm(data)
 
     data = prepare_embeddings(data, conf, is_train=True)

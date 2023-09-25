@@ -5,13 +5,14 @@ def model_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
+    config.predict_head = "Identity"
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 128
+    config.classifier_gru_hidden_dim = 64
     config.classifier_linear_hidden_dim = 300
 
     ### TRANSFORMER ###
@@ -39,25 +40,32 @@ def model_configs():
     config.activation = "ReLU"
 
     ### TIME TRICKS ###
-    config.num_time_blocks = [4, 16, 32, 64]
-    config.time_preproc = "MultiTimeSummator"
+    config.num_time_blocks = [4, 16]
+    config.time_preproc = "Identity"
+
+    ### LOSS ###
+    loss = config.loss = ml_collections.ConfigDict()
+    loss.sampling_strategy = "HardNegativePair"
+    loss.neg_count = 5
+    loss.loss_fn = "ContrastiveLoss"
+    loss.margin = 0.5
 
     ### MTAND ###
-    # number of reference points on encoder
-    config.num_ref_points = 128
-    # latent dimension for mu and sigma
-    config.latent_dim = 2
-    # dimension of reference points after mTAN layer
-    # in fact is the dimension of output linear in attention
-    config.ref_point_dim = 128
-    # dim of each time emb
-    config.time_emb_dim = 16
-    # number of heads in mTAN attention
-    config.num_heads_enc = 2
-    # dim in FF layer after attention
-    config.linear_hidden_dim = 50
-    # number of time embeddings
-    config.num_time_emb = 3
+    # # number of reference points on encoder
+    # config.num_ref_points = 128
+    # # latent dimension for mu and sigma
+    # config.latent_dim = 2
+    # # dimension of reference points after mTAN layer
+    # # in fact is the dimension of output linear in attention
+    # config.ref_point_dim = 128
+    # # dim of each time emb
+    # config.time_emb_dim = 16
+    # # number of heads in mTAN attention
+    # config.num_heads_enc = 2
+    # # dim in FF layer after attention
+    # config.linear_hidden_dim = 50
+    # # number of time embeddings
+    # config.num_time_emb = 3
 
     ### VAE PARAMS ###
     # number of iwae samples

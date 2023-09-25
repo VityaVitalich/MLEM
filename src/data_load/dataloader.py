@@ -16,8 +16,8 @@ from .splitting_dataset import (
 )
 
 
-def create_data_loaders(conf):
-    train_data, valid_data = prepare_data(conf)
+def create_data_loaders(conf, supervised=True):
+    train_data, valid_data = prepare_data(conf, supervised)
 
     train_dataset = SplittingDataset(
         train_data,

@@ -29,7 +29,10 @@ class SplittingDataset(Dataset):
 
         if self.target_col:
             target = row[self.target_col]
-            target = -1 if target is SENTINEL else int(target)
+            try:
+                target = int(target)
+            except ValueError:
+                target = -1
             return data, target
         return data
 

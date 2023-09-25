@@ -13,8 +13,16 @@ def data_configs():
         / "experiments"
         / "physionet"
         / "data"
+        / "train_trx.parquet"
+    )
+    config.train_supervised_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "physionet"
+        / "data"
         / "train_trx_supervised.parquet"
     )
+
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
