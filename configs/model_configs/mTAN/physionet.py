@@ -5,18 +5,18 @@ def model_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
-    config.predict_head = "Identity"
+    config.predict_head = "Linear"
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
-    config.classifier_linear_hidden_dim = 300
+    config.classifier_gru_hidden_dim = 128
+    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"
+    config.encoder = "Identity"  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
@@ -47,7 +47,7 @@ def model_configs():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "ContrastiveLoss"
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss"
     loss.margin = 0.5
 
     ### MTAND ###

@@ -3,22 +3,24 @@ from sklearn.neural_network import MLPClassifier
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 import sys
+import torch
 
 sys.path.append("../../")
 from src.create_embeddings import create_embeddings
-from configs.data_configs.physionet_inference import data_configs
+from configs.data_configs.physionet_contrastive import data_configs
 from configs.model_configs.mTAN.physionet import model_configs
+from sklearn.preprocessing import MaxAbsScaler
 
 params = {
-    "n_estimators": 100,
+    "n_estimators": 500,
     "boosting_type": "gbdt",
     "objective": "binary",
     "metric": "auc",
-    "subsample": 0.2,
+    "subsample": 0.5,
     "subsample_freq": 1,
     "learning_rate": 0.02,
     "feature_fraction": 0.75,
-    "max_depth": 3,
+    "max_depth": 6,
     "lambda_l1": 1,
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
@@ -34,29 +36,25 @@ params = {
 if __name__ == "__main__":
     conf = data_configs()
     model_conf = model_configs()
-    #  create_embeddings(conf, model_conf)
+    train_embeddings, train_gts, test_embeddings, test_gts = create_embeddings(
+        conf, model_conf
+    )
 
-    train_embeds = pd.read_csv(conf.train_embed_path, index_col=0)
-    test_embeds = pd.read_csv(conf.test_embed_path, index_col=0)
+    train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
+    train_embeddings = torch.cat(train_embeddings).cpu().numpy()
 
-    train_y = pd.read_parquet(conf.train_path)[conf.features.target_col]
-    test_y = pd.read_parquet(conf.test_path)[conf.features.target_col].astype(int)
-
-    train = train_embeds.join(train_y)
-    train = train.dropna()
-    train[conf.features.target_col] = train[conf.features.target_col].astype(int)
-
-    test = test_embeds.join(test_y)
+    test_labels = torch.cat([gt[1].cpu() for gt in test_gts]).numpy()
+    test_embeddings = torch.cat(test_embeddings).cpu().numpy()
 
     model = LGBMClassifier(**params)
-    # model = LGBMClassifier()
-    # model = MLPClassifier()
+    preprocessor = MaxAbsScaler()
 
-    model.fit(
-        train.drop(columns=[conf.features.target_col]), train[conf.features.target_col]
-    )
-    y_pred = model.predict_proba(test.drop(columns=[conf.features.target_col]))
+    train_embeddings = preprocessor.fit_transform(train_embeddings)
+    test_embeddings = preprocessor.transform(test_embeddings)
 
-    auc_score = roc_auc_score(test_y, y_pred[:, 1])
+    model.fit(train_embeddings, train_labels)
+    y_pred = model.predict_proba(test_embeddings)
+
+    auc_score = roc_auc_score(test_labels, y_pred[:, 1])
 
     print(auc_score)

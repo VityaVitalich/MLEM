@@ -94,8 +94,8 @@ def data_configs():
         / "experiments"
         / "physionet"
         / "ckpt"
-        / "Tr_1l_2h_LN_GR128+LN_2023-09-20_09:32:45"
-        / "epoch: 0033 - total_loss: 0.2984 - roc_auc: 0.8421 - loss: 0.2629.ckpt"
+        / "CS_GRU128_LN_2023-09-26_07:39:48"
+        / "epoch: 0050 - total_loss: 78.45 - loss: 90.48.ckpt"
     )
 
     # name of target col

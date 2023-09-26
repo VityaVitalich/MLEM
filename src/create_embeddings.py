@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 import pandas as pd
 from .data_load.dataloader import create_data_loaders, create_test_loader
-from .models.mTAND.model import MegaNetCE, MegaNet
+from .models import base_models
 
 
 @torch.no_grad()
@@ -30,25 +30,37 @@ def save_embeds(embeds, indices, save_path):
     df.to_csv(save_path)
 
 
+def predict(model, loader, device):
+    model.eval()
+    preds, gts = [], []
+    with torch.no_grad():
+        for inp, gt in tqdm(loader):
+            gts.append(gt.to(device))
+            inp = inp.to(device)
+            pred = model(inp)
+            preds.append(pred)
+
+    return preds, gts
+
+
 def create_embeddings(data_inference_conf, model_conf):
-    train_loader, valid_loader = create_data_loaders(data_inference_conf)
+    data_inference_conf.valid_size = 0
+    data_inference_conf.train.split_strategy = {"split_strategy": "NoSplit"}
+    train_supervised_loader, valid_loader = create_data_loaders(
+        data_inference_conf, supervised=True
+    )
     test_loader = create_test_loader(data_inference_conf)
 
-    net = MegaNetCE(model_conf=model_conf, data_conf=data_inference_conf).to(
-        model_conf.device
-    )
+    model = getattr(base_models, model_conf.model_name)
+    net = model(model_conf=model_conf, data_conf=data_inference_conf)
 
     ckpt = torch.load(data_inference_conf.ckpt_path)
     net.load_state_dict(ckpt["model"])
+    net = net.to(model_conf.device)
 
-    valid_embeds, valid_indexes = get_embeds(valid_loader, net)
-    save_embeds(valid_embeds, valid_indexes, data_inference_conf.valid_embed_path)
-    print("valid embeds saved")
+    train_embeddings, train_gts = predict(
+        net, train_supervised_loader, model_conf.device
+    )
+    test_embeddings, test_gts = predict(net, test_loader, model_conf.device)
 
-    test_embeds, test_indexes = get_embeds(test_loader, net)
-    save_embeds(test_embeds, test_indexes, data_inference_conf.test_embed_path)
-    print("test embeds saved")
-
-    train_embeds, train_indexes = get_embeds(train_loader, net)
-    save_embeds(train_embeds, train_indexes, data_inference_conf.train_embed_path)
-    print("train embeds saved")
+    return train_embeddings, train_gts, test_embeddings, test_gts

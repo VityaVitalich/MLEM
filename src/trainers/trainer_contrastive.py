@@ -9,19 +9,20 @@ import torch
 from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
 from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.preprocessing import MaxAbsScaler
 
 logger = logging.getLogger("event_seq")
 
 params = {
-    "n_estimators": 100,
+    "n_estimators": 500,
     "boosting_type": "gbdt",
     "objective": "binary",
     "metric": "auc",
-    "subsample": 0.2,
+    "subsample": 0.5,
     "subsample_freq": 1,
     "learning_rate": 0.02,
     "feature_fraction": 0.75,
-    "max_depth": 3,
+    "max_depth": 6,
     "lambda_l1": 1,
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
@@ -142,6 +143,10 @@ class SimpleTrainerContrastive(BaseTrainer):
         test_embeddings = torch.cat(test_embeddings).cpu().numpy()
 
         model = LGBMClassifier(**params)
+        preprocessor = MaxAbsScaler()
+
+        train_embeddings = preprocessor.fit_transform(train_embeddings)
+        test_embeddings = preprocessor.transform(test_embeddings)
 
         model.fit(train_embeddings, train_labels)
         y_pred = model.predict_proba(test_embeddings)

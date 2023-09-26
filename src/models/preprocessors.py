@@ -87,7 +87,7 @@ class FeatureProcessor(nn.Module):
 class TimeConcater(nn.Module):
     def __init__(self, num_time_blocks, device):
         super().__init__()
-        blocks = torch.linspace(0.0, 1.1, num_time_blocks + 1)
+        blocks = torch.linspace(0.0, 1.001, num_time_blocks + 1)
         lr = []
         for i in range(len(blocks) - 1):
             lr.append(torch.concat([blocks[i].view(1, 1), blocks[i + 1].view(1, 1)]))

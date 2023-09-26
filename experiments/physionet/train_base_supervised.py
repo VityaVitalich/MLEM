@@ -80,8 +80,8 @@ def run_experiment(run_name, device, total_epochs, conf, model_conf, resume, log
     trainer.load_best_model()
     test_metrics = trainer.test(test_loader)
 
-    print(trainer._model.time_processor.weights)
-    del logger
+    logger.removeHandler(fh)
+    fh.close()
     return test_metrics
 
 
