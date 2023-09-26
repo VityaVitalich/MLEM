@@ -1,8 +1,8 @@
 #!/bin/bash
 
-EPOCHS=50
+EPOCHS=1
 DEVICE="cuda"
-NAME='CS_GRU128_LN'
+NAME='test_CS_GRU64_LN'
 
 
 python train_contrastive.py --total-epochs=$EPOCHS --device=$DEVICE --run-name=$NAME

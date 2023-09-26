@@ -162,7 +162,9 @@ class MultiTimeSummator(nn.Module):
 
         nb, bs, l, d = new_xs.size()
 
-        cur_w = repeat(self.weights, "nb -> nb bs l d", bs=bs, l=l, d=d)
+        self.softmaxed_weights = nn.functional.softmax(self.weights, dim=0)
+
+        cur_w = repeat(self.softmaxed_weights, "nb -> nb bs l d", bs=bs, l=l, d=d)
 
         out = (new_xs * cur_w).sum(dim=0)
 

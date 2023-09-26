@@ -10,6 +10,7 @@ from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
 from sklearn.metrics import roc_auc_score, accuracy_score
 from sklearn.preprocessing import MaxAbsScaler
+from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger("event_seq")
 
@@ -124,11 +125,9 @@ class SimpleTrainerContrastive(BaseTrainer):
         test_metric = self.compute_test_metric(
             train_embeddings, train_gts, test_embeddings, test_gts
         )
+        mean_metric = np.mean(test_metric)
         print(test_metric)
-        logger.info(
-            "Test metrics: %s",
-            str(test_metric),
-        )
+        logger.info("Test metrics: %s, Mean: %s", str(test_metric), str(mean_metric))
         logger.info("Test finished")
 
         return test_metric
@@ -142,15 +141,25 @@ class SimpleTrainerContrastive(BaseTrainer):
         test_labels = torch.cat([gt[1].cpu() for gt in test_gts]).numpy()
         test_embeddings = torch.cat(test_embeddings).cpu().numpy()
 
-        model = LGBMClassifier(**params)
-        preprocessor = MaxAbsScaler()
+        skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
 
-        train_embeddings = preprocessor.fit_transform(train_embeddings)
-        test_embeddings = preprocessor.transform(test_embeddings)
+        results = []
+        for i, (train_index, test_index) in enumerate(
+            skf.split(train_embeddings, train_labels)
+        ):
+            train_emb_subset = train_embeddings[train_index]
+            train_labels_subset = train_labels[train_index]
 
-        model.fit(train_embeddings, train_labels)
-        y_pred = model.predict_proba(test_embeddings)
+            model = LGBMClassifier(**params)
+            preprocessor = MaxAbsScaler()
 
-        auc_score = roc_auc_score(test_labels, y_pred[:, 1])
+            train_emb_subset = preprocessor.fit_transform(train_emb_subset)
+            test_embeddings_subset = preprocessor.transform(test_embeddings)
 
-        return auc_score
+            model.fit(train_emb_subset, train_labels_subset)
+            y_pred = model.predict_proba(test_embeddings_subset)
+
+            auc_score = roc_auc_score(test_labels, y_pred[:, 1])
+            results.append(auc_score)
+
+        return results

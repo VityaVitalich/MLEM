@@ -16,18 +16,35 @@ from configs.model_configs.mTAN.physionet import model_configs
 if __name__ == "__main__":
     default_data_config = data_configs()
     default_model_config = model_configs()
-    total_epochs = 1
-    log_dir = "./logs/testing/"
+    total_epochs = 70
+    log_dir = "./logs/MTS_entropy/"
 
-    gru_hid_options = [32, 64, 128]
+    entropy_weight_options = [0.01, 0.1, 0.2, 0.3, 0.4]
+    default_model_config["num_time_blocks"] = [
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        24,
+        30,
+        40,
+        60,
+        120,
+    ]
 
     all_results = {}
 
-    for gru_hid in gru_hid_options:
+    for ew in entropy_weight_options:
         cur_conf = default_model_config
-        cur_conf["classifier_gru_hidden_dim"] = gru_hid
+        cur_conf["entropy_weight"] = ew
 
-        run_name = "GRU{}".format(gru_hid)
+        run_name = "MTS_GRU64_Entropy{}".format(ew)
 
         test_metrics = run_experiment(
             run_name,

@@ -70,7 +70,16 @@ class BaseMixin(nn.Module):
             loss = self.loss_fn(out, gt[0])
         else:
             loss = self.loss_fn(out, gt[1])
-        return {"total_loss": loss}
+
+        if self.model_conf.time_preproc == "MultiTimeSummator":
+            logp = torch.log(self.time_processor.softmaxed_weights)
+            entropy_term = torch.sum(-self.time_processor.softmaxed_weights * logp)
+        else:
+            entropy_term = torch.tensor(0)
+        return {
+            "total_loss": loss + self.model_conf.entropy_weight * entropy_term,
+            "entropy_loss": entropy_term,
+        }
 
 
 class GRUClassifier(BaseMixin):
