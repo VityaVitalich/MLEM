@@ -16,7 +16,7 @@ from configs.model_configs.mTAN.physionet import model_configs
 if __name__ == "__main__":
     default_data_config = data_configs()
     default_model_config = model_configs()
-    total_epochs = 70
+    total_epochs = 1
     log_dir = "./logs/MTS_entropy/"
 
     entropy_weight_options = [0.01, 0.1, 0.2, 0.3, 0.4]
@@ -44,7 +44,7 @@ if __name__ == "__main__":
         cur_conf = default_model_config
         cur_conf["entropy_weight"] = ew
 
-        run_name = "MTS_GRU64_Entropy{}".format(ew)
+        run_name = "MTS_GRU128_Entropy{}".format(ew)
 
         test_metrics = run_experiment(
             run_name,
@@ -55,5 +55,6 @@ if __name__ == "__main__":
             None,
             log_dir,
         )
+        all_results[ew] = test_metrics
 
     print(all_results)

@@ -72,8 +72,9 @@ class BaseMixin(nn.Module):
             loss = self.loss_fn(out, gt[1])
 
         if self.model_conf.time_preproc == "MultiTimeSummator":
-            logp = torch.log(self.time_processor.softmaxed_weights)
-            entropy_term = torch.sum(-self.time_processor.softmaxed_weights * logp)
+            # logp = torch.log(self.time_processor.softmaxed_weights)
+            # entropy_term = torch.sum(-self.time_processor.softmaxed_weights * logp)
+            entropy_term = torch.tensor(0)
         else:
             entropy_term = torch.tensor(0)
         return {

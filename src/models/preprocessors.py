@@ -155,7 +155,12 @@ class MultiTimeSummator(nn.Module):
 
         self.max_len = max(time_blocks)
 
-        self.weights = nn.Parameter(torch.ones(len(time_blocks)) / len(time_blocks))
+        self.weights = nn.Parameter(torch.zeros(len(time_blocks)))
+        self.weights.data[-1] = 1
+        self.weights.data[:-1] = 1e-10
+        print(self.weights.data)
+       # self.weights = (torch.ones(len(time_blocks)) / len(time_blocks)).to(device)
+        self.dropout = nn.Dropout1d(p=0.0)
 
     def forward(self, x, time_steps):
         new_xs = self.collect_new_x(x, time_steps)
@@ -163,6 +168,12 @@ class MultiTimeSummator(nn.Module):
         nb, bs, l, d = new_xs.size()
 
         self.softmaxed_weights = nn.functional.softmax(self.weights, dim=0)
+        # if self.training:
+        #     self.softmaxed_weights = nn.functional.gumbel_softmax(self.weights, tau=2, hard=True)
+        # else:
+        #     self.softmaxed_weights = torch.zeros_like(self.weights)
+        #     self.softmaxed_weights[self.weights.argmax()] = 1
+       # self.softmaxed_weights = self.weights
 
         cur_w = repeat(self.softmaxed_weights, "nb -> nb bs l d", bs=bs, l=l, d=d)
 
@@ -173,10 +184,13 @@ class MultiTimeSummator(nn.Module):
     def collect_new_x(self, x, time_steps):
         new_xs = []
 
-        for tc in self.time_ps:
+        for i, tc in enumerate(self.time_ps):
             cur_multiplier = self.max_len // tc.num_points
             out_x, time_steps = tc(x, time_steps)
-            new_x = torch.repeat_interleave(out_x, cur_multiplier, dim=1).unsqueeze(0)
+            new_x = self.dropout(torch.repeat_interleave(out_x, cur_multiplier, dim=1)).unsqueeze(0)
+
+            if i < (len(self.time_ps) - 1):
+                new_x = new_x.detach()
 
             new_xs.append(new_x)
 

@@ -8,7 +8,7 @@ def data_configs():
 
     ########## DATA ##############
 
-    config.train_path = (
+    config.train_supervised_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
         / "rosbank"

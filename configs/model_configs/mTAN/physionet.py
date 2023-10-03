@@ -12,7 +12,7 @@ def model_configs():
     config.features_emb_dim = 8
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
+    config.classifier_gru_hidden_dim = 128
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
@@ -40,11 +40,16 @@ def model_configs():
     config.activation = "ReLU"
 
     ### TIME TRICKS ###
-    config.num_time_blocks = [4, 16]
+    config.num_time_blocks = [
+        8,
+        32,
+        64,
+        128
+    ]
     config.time_preproc = (
         "MultiTimeSummator"  # Identity or TimeConcater or MultiTimeSummator
     )
-    config.entropy_weight = 0.1
+    config.entropy_weight = -0.1
 
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
