@@ -29,7 +29,7 @@ def read_pyarrow_file(path, use_threads=True):
 
 
 def prepare_embeddings(seq, conf, is_train):
-    min_seq_len = 1
+    min_seq_len = 5
     embeddings = list(conf.features.embeddings.keys())
 
     feature_keys = embeddings + list(conf.features.numeric_values.keys())

@@ -1,9 +1,5 @@
 import logging
 from typing import Any, Dict, List, Literal, Union, Tuple
-from torch.utils.data import DataLoader
-from lightgbm import LGBMClassifier
-from sklearn.preprocessing import MaxAbsScaler
-from sklearn.model_selection import StratifiedKFold
 
 import numpy as np
 import torch
@@ -12,8 +8,10 @@ from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
 from sklearn.metrics import roc_auc_score, accuracy_score
 
-
-logger = logging.getLogger("event_seq")
+from lightgbm import LGBMClassifier
+from sklearn.preprocessing import MaxAbsScaler
+from sklearn.model_selection import StratifiedKFold
+from torch.utils.data import DataLoader
 
 params = {
     "n_estimators": 500,
@@ -37,7 +35,10 @@ params = {
 }
 
 
-class SimpleTrainerContrastive(BaseTrainer):
+logger = logging.getLogger("event_seq")
+
+
+class GenTrainer(BaseTrainer):
     def compute_metrics(
         self,
         model_outputs: List[Any],
@@ -120,8 +121,11 @@ class SimpleTrainerContrastive(BaseTrainer):
         """
 
         logger.info("Test started")
-        train_embeddings, train_gts = self.predict(train_supervised_loader)
-        test_embeddings, test_gts = self.predict(test_loader)
+        train_out, train_gts = self.predict(train_supervised_loader)
+        test_out, test_gts = self.predict(test_loader)
+
+        train_embeddings = [out["latent"] for out in train_out]
+        test_embeddings = [out["latent"] for out in test_out]
 
         test_metric = self.compute_test_metric(
             train_embeddings, train_gts, test_embeddings, test_gts

@@ -31,7 +31,7 @@ class SplittingDataset(Dataset):
             target = row[self.target_col]
             try:
                 target = int(target)
-            except ValueError:
+            except (ValueError, TypeError) as e:
                 target = -1
             return data, target
         return data

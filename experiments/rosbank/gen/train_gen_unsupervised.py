@@ -7,12 +7,12 @@ import torch
 import sys
 import os
 
-sys.path.append("../../")
+sys.path.append("../../../")
 
 from configs.data_configs.rosbank import data_configs
 from configs.model_configs.gen.rosbank import model_configs
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_gen import SimpleTrainerSupervised
+from src.trainers.trainer_gen import GenTrainer
 from src.trainers.randomness import seed_everything
 import src.models.gen_models
 
@@ -89,15 +89,18 @@ if __name__ == "__main__":
     )
 
     ### Create loaders and train ###
-    train_loader, valid_loader = create_data_loaders(conf)
+    train_loader, valid_loader = create_data_loaders(conf, supervised=False)
     test_loader = create_test_loader(conf)
+    conf.valid_size = 0
+    conf.train.split_strategy = {"split_strategy": "NoSplit"}
+    train_supervised_loader, _ = create_data_loaders(conf)
 
-    model = getattr(src.models.base_models, model_conf.model_name)
+    model = getattr(src.models.gen_models, model_conf.model_name)
     net = model(model_conf=model_conf, data_conf=conf)
     opt = torch.optim.Adam(
         net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
     )
-    trainer = SimpleTrainerSupervised(
+    trainer = GenTrainer(
         model=net,
         optimizer=opt,
         train_loader=train_loader,
@@ -106,7 +109,7 @@ if __name__ == "__main__":
         ckpt_dir=Path(__file__).parent / "ckpt",
         ckpt_replace=True,
         ckpt_resume=args.resume,
-        ckpt_track_metric="roc_auc",
+        ckpt_track_metric="total_loss",
         metrics_on_train=False,
         total_epochs=args.total_epochs,
         device=args.device,
@@ -117,4 +120,4 @@ if __name__ == "__main__":
     trainer.run()
 
     trainer.load_best_model()
-    trainer.test(test_loader)
+    trainer.test(test_loader, train_supervised_loader)

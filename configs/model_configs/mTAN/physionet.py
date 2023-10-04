@@ -40,12 +40,7 @@ def model_configs():
     config.activation = "ReLU"
 
     ### TIME TRICKS ###
-    config.num_time_blocks = [
-        8,
-        32,
-        64,
-        128
-    ]
+    config.num_time_blocks = [8, 32, 64, 128]
     config.time_preproc = (
         "MultiTimeSummator"  # Identity or TimeConcater or MultiTimeSummator
     )

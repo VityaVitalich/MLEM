@@ -336,9 +336,6 @@ class BaseTrainer:
             self._last_epoch + 1,
             str(self._metric_values),
         )
-        logger.info("Weights for time blocks: %s",
-            str(self._model.time_processor.softmaxed_weights.data.detach().cpu())
-        )
         logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
 
     def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
@@ -525,8 +522,9 @@ class BaseTrainer:
             "Test metrics: %s",
             str(self._metric_values),
         )
-        logger.info("Weights for time blocks: %s",
-            str(self._model.time_processor.softmaxed_weights.data.detach().cpu())
+        logger.info(
+            "Weights for time blocks: %s",
+            str(self._model.time_processor.softmaxed_weights.data.detach().cpu()),
         )
         logger.info("Test finished")
 

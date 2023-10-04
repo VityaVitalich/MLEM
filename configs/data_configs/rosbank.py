@@ -15,6 +15,13 @@ def data_configs():
         / "data"
         / "train_trx_supervised.parquet"
     )
+    config.train_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "rosbank"
+        / "data"
+        / "train_trx.parquet"
+    )
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
@@ -34,10 +41,10 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "mcc": {"in": 100, "out": 24, "max_value": 400},
-        "channel_type": {"in": 4, "out": 4, "max_value": 400},
-        "currency": {"in": 4, "out": 4, "max_value": 400},
-        "trx_category": {"in": 10, "out": 4, "max_value": 400},
+        "mcc": {"in": 100, "out": 24, "max_value": 100},
+        "channel_type": {"in": 4, "out": 4, "max_value": 5},
+        "currency": {"in": 4, "out": 4, "max_value": 5},
+        "trx_category": {"in": 10, "out": 4, "max_value": 12},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
@@ -76,7 +83,7 @@ def data_configs():
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.0
     train.max_seq_len = 200
 
     test.max_seq_len = 200
