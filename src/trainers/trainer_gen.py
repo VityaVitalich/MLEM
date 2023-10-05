@@ -168,3 +168,6 @@ class GenTrainer(BaseTrainer):
             results.append(auc_score)
 
         return results
+
+    def generate_data(self, train_supervised_loader):
+        train_out, train_gts = self.predict(train_supervised_loader)

@@ -16,6 +16,11 @@ from src.trainers.trainer_gen import GenTrainer
 from src.trainers.randomness import seed_everything
 import src.models.gen_models
 
+from ..train_base_supervised import run_experiment
+from configs.model_configs.gen.rosbank_genval import (
+    model_configs as model_configs_genval,
+)
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--run-name", help="run name for Trainer", default=None)
@@ -47,6 +52,16 @@ if __name__ == "__main__":
         "--resume",
         help="path to checkpoint to resume from",
         default=None,
+    )
+    parser.add_argument(
+        "--gen-val",
+        help="Whether to perform generated validation",
+        default=False,
+    )
+    parser.add_argument(
+        "--gen-val-epoch",
+        help="How many epochs to perform on generated samples",
+        default=15,
     )
     args = parser.parse_args()
 
@@ -121,3 +136,17 @@ if __name__ == "__main__":
 
     trainer.load_best_model()
     trainer.test(test_loader, train_supervised_loader)
+
+    if args.gen_val:
+        generated_data_path = trainer.generate_data(train_supervised_loader)
+        conf.train_supervised_path = generated_data_path
+        conf.valid_size = 0.1
+
+        run_name = "G_" + run_name
+        total_epochs = args.gen - val - epoch
+        model_conf_genval = model_configs_genval()
+        log_dir = "./logs/"
+        generated_test_metric = run_experiment(
+            run_name, device, total_epochs, conf, model_conf_genval, log_dir
+        )
+        logger.info(f"Generated test metric: {generated_test_metric};")

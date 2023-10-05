@@ -12,11 +12,12 @@ def model_configs():
     config.features_emb_dim = 8
 
     ### ENCODER ###
-    config.encoder_hidden = 64
+    config.encoder_hidden = 8
+    config.encoder_num_layers = 4
 
     ### DECODER ###
-    config.decoder_gru_hidden = 64
-    config.decoder_num_layers = 1
+    config.decoder_gru_hidden = 8
+    config.decoder_num_layers = 4
 
     ### TRANSFORMER ###
     config.encoder = "Identity"  # IDnetity or TransformerEncoder
@@ -34,10 +35,13 @@ def model_configs():
     ### ACTIVATION ###
     config.activation = "ReLU"
 
+    ### TIME ###
+    config.use_deltas = True
+    config.delta_weight = 1
+
     ### LOSS ###
     config.mse_weight = 1
     config.CE_weight = 1
-    config.delta_weight = 10000
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"

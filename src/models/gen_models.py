@@ -102,12 +102,15 @@ class GRUGen(nn.Module):
             self.data_conf.features.embeddings
         )
         self.all_numeric_size = len(self.data_conf.features.numeric_values)
-        self.input_dim = all_emb_size + self.all_numeric_size
+        self.input_dim = (
+            all_emb_size + self.all_numeric_size + self.model_conf.use_deltas
+        )
 
         self.encoder = nn.GRU(
             self.input_dim,
             self.model_conf.encoder_hidden,
             batch_first=True,
+            num_layers=self.model_conf.encoder_num_layers,
         )
         self.decoder = DecoderGRU(
             input_size=self.input_dim,
@@ -116,7 +119,6 @@ class GRUGen(nn.Module):
             num_layers=self.model_conf.decoder_num_layers,
         )
         self.out_proj = nn.Linear(self.model_conf.decoder_gru_hidden, self.input_dim)
-        self.delta_proj = nn.Linear(self.model_conf.decoder_gru_hidden, 1)
 
         self.embedding_predictor = EmbeddingPredictor(
             model_conf=self.model_conf, data_conf=self.data_conf
@@ -126,6 +128,13 @@ class GRUGen(nn.Module):
 
     def forward(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
+        if self.model_conf.use_deltas:
+            gt_delta = time_steps.diff(1)
+            delta_feature = torch.cat(
+                [gt_delta, torch.zeros(x.size()[0], 1, device=gt_delta.device)], dim=1
+            )
+            x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
+
         all_hid, hn = self.encoder(x)
 
         lens = padded_batch.seq_lens - 1
@@ -133,7 +142,6 @@ class GRUGen(nn.Module):
 
         dec_out = self.decoder(x, last_hidden)
         out = self.out_proj(dec_out)[:, :-1, :]
-        pred_delta = self.delta_proj(dec_out)[:, :-1, :].squeeze(-1)
 
         emb_dist = self.embedding_predictor(out)
 
@@ -141,7 +149,6 @@ class GRUGen(nn.Module):
             "x": x,
             "time_steps": time_steps,
             "pred": out,
-            "pred_delta": pred_delta,
             "input_batch": padded_batch,
             "emb_dist": emb_dist,
             "latent": last_hidden,
@@ -153,6 +160,10 @@ class GRUGen(nn.Module):
         """
         gt_embedding = output["x"][:, 1:, :]
         pred = output["pred"]
+        if self.model_conf.use_deltas:
+            pred_delta = pred[:, :, -1].squeeze(-1)
+            pred = pred[:, :, :-1]
+            gt_embedding = gt_embedding[:, :, :-1]
 
         # MSE
         mse_loss = self.mse_fn(
@@ -164,11 +175,14 @@ class GRUGen(nn.Module):
         mse_loss = masked_mse.sum() / (masked_mse != 0).sum()
 
         # DELTA MSE
-        gt_delta = output["time_steps"].diff(1)
-        delta_mse = self.mse_fn(gt_delta, output["pred_delta"])
-        mask = output["time_steps"] != -1
-        delta_masked = delta_mse * mask[:, 1:]
-        delta_mse = delta_masked.sum() / (delta_masked != 0).sum()
+        if self.model_conf.use_deltas:
+            gt_delta = output["time_steps"].diff(1)
+            delta_mse = self.mse_fn(gt_delta, pred_delta)
+            mask = output["time_steps"] != -1
+            delta_masked = delta_mse * mask[:, 1:]
+            delta_mse = delta_masked.sum() / (delta_masked != 0).sum()
+        else:
+            delta_mse = 0
 
         # CROSS ENTROPY
         cross_entropy_losses = self.embedding_predictor.loss(
