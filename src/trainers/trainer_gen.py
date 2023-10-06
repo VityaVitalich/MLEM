@@ -3,6 +3,9 @@ from typing import Any, Dict, List, Literal, Union, Tuple
 
 import numpy as np
 import torch
+from pathlib import Path
+import os
+import pandas as pd
 
 from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
@@ -171,3 +174,68 @@ class GenTrainer(BaseTrainer):
 
     def generate_data(self, train_supervised_loader):
         train_out, train_gts = self.predict(train_supervised_loader)
+        generated_data = self.output_to_df(
+            train_out, train_gts, self._model_conf, self._data_conf
+        )
+
+        gen_data_path = Path(self._ckpt_dir) / "generated_data"
+        gen_data_path.mkdir(parents=True, exist_ok=True)
+        save_path = gen_data_path / self._run_name
+
+        generated_data.to_parquet(save_path)
+
+        return save_path
+
+    @staticmethod
+    def output_to_df(outs, gts, model_conf, conf):
+        order = {}
+
+        k = 0
+        for key in outs[0]["input_batch"].payload.keys():
+            if key in conf.features.numeric_values.keys():
+                order[k] = key
+                k += 1
+
+        df_dic = {"event_time": [], "trx_count": [], "target_target_flag": []}
+        for feature in conf.features.embeddings.keys():
+            df_dic[feature] = []
+
+        for feature in conf.features.numeric_values.keys():
+            df_dic[feature] = []
+
+        for out, gt in zip(outs, gts):
+            for key, val in out["emb_dist"].items():
+                df_dic[key].extend((val.cpu().argmax(dim=-1) - 1).tolist())
+
+            if model_conf.use_deltas:
+                pred_delta = out["pred"][:, :, -1].squeeze(-1)
+                pred = out["pred"][:, :, :-1]
+
+            num_numeric = len(conf.features.numeric_values.keys())
+            numeric_pred = pred[:, :, -num_numeric:]
+            for i in range(num_numeric):
+                cur_key = order[i]
+                cur_val = numeric_pred[:, :, i].cpu().tolist()
+                df_dic[cur_key].extend(cur_val)
+
+            df_dic["event_time"].extend(out["time_steps"][:, 1:].tolist())
+            df_dic["trx_count"].extend(
+                (out["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
+            )
+            df_dic["target_target_flag"].extend(gt[1].cpu().tolist())
+
+        generated_df = pd.DataFrame.from_dict(df_dic)
+        generated_df["event_time"] = generated_df["event_time"].apply(
+            lambda x: (np.array(x) * (conf.max_time - conf.min_time)) + conf.min_time
+        )
+
+        def truncate_lists(row):
+            value = row["trx_count"]
+            for col in row.index:
+                if isinstance(row[col], (np.ndarray, list)):
+                    row[col] = row[col][:value]
+            return row
+
+        generated_df = generated_df.apply(func=truncate_lists, axis=1)
+        generated_df[conf.col_id] = np.arange(len(generated_df))
+        return generated_df

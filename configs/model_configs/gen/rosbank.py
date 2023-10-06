@@ -9,15 +9,15 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 8
+    config.features_emb_dim = 16
 
     ### ENCODER ###
-    config.encoder_hidden = 8
-    config.encoder_num_layers = 4
+    config.encoder_hidden = 128
+    config.encoder_num_layers = 1
 
     ### DECODER ###
-    config.decoder_gru_hidden = 8
-    config.decoder_num_layers = 4
+    config.decoder_gru_hidden = 128
+    config.decoder_num_layers = 1
 
     ### TRANSFORMER ###
     config.encoder = "Identity"  # IDnetity or TransformerEncoder
@@ -48,7 +48,7 @@ def model_configs():
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
-    config.cv_splits = 5
+    config.cv_splits = 3
 
     config.comments = ""
     return config

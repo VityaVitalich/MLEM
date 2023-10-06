@@ -76,6 +76,7 @@ class BaseTrainer:
         device: str = "cpu",
         metrics_on_train: bool = False,
         model_conf: Dict[str, Any] = None,
+        data_conf: Dict[str, Any] = None,
     ):
         """Initialize trainer.
 
@@ -101,6 +102,7 @@ class BaseTrainer:
             device: device to train and validate on.
             metrics_on_train: wether to compute metrics on train set.
             model_conf: Model configs from configs/ dir
+            data_conf: Data configs from configs/ dir
         """
         assert (total_iters is None) ^ (
             total_epochs is None
@@ -120,6 +122,7 @@ class BaseTrainer:
         self._device = device
         self._metrics_on_train = metrics_on_train
         self._model_conf = model_conf
+        self._data_conf = data_conf
 
         self._model = model
         self._model.to(device)
@@ -522,10 +525,10 @@ class BaseTrainer:
             "Test metrics: %s",
             str(self._metric_values),
         )
-        logger.info(
-            "Weights for time blocks: %s",
-            str(self._model.time_processor.softmaxed_weights.data.detach().cpu()),
-        )
+        # logger.info(
+        #     "Weights for time blocks: %s",
+        #     str(self._model.time_processor.softmaxed_weights.data.detach().cpu()),
+        # )
         logger.info("Test finished")
 
         return self._metric_values

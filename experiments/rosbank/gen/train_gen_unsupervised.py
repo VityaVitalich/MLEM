@@ -16,7 +16,7 @@ from src.trainers.trainer_gen import GenTrainer
 from src.trainers.randomness import seed_everything
 import src.models.gen_models
 
-from ..train_base_supervised import run_experiment
+from experiments.rosbank.train_base_supervised import run_experiment
 from configs.model_configs.gen.rosbank_genval import (
     model_configs as model_configs_genval,
 )
@@ -62,6 +62,7 @@ if __name__ == "__main__":
         "--gen-val-epoch",
         help="How many epochs to perform on generated samples",
         default=15,
+        type=int,
     )
     args = parser.parse_args()
 
@@ -129,6 +130,7 @@ if __name__ == "__main__":
         total_epochs=args.total_epochs,
         device=args.device,
         model_conf=model_conf,
+        data_conf=conf,
     )
 
     ### RUN TRAINING ###
@@ -142,11 +144,17 @@ if __name__ == "__main__":
         conf.train_supervised_path = generated_data_path
         conf.valid_size = 0.1
 
-        run_name = "G_" + run_name
-        total_epochs = args.gen - val - epoch
+        run_name = run_name
+        total_epochs = args.gen_val_epoch
         model_conf_genval = model_configs_genval()
-        log_dir = "./logs/"
+        log_dir = "./logs/generations/"
         generated_test_metric = run_experiment(
-            run_name, device, total_epochs, conf, model_conf_genval, log_dir
+            run_name,
+            args.device,
+            total_epochs,
+            conf=conf,
+            model_conf=model_conf_genval,
+            resume=None,
+            log_dir=log_dir,
         )
         logger.info(f"Generated test metric: {generated_test_metric};")

@@ -166,13 +166,23 @@ class GRUGen(nn.Module):
             gt_embedding = gt_embedding[:, :, :-1]
 
         # MSE
-        mse_loss = self.mse_fn(
-            gt_embedding[:, :, self.all_numeric_size :],
-            pred[:, :, self.all_numeric_size :],
-        )
-        mask = gt_embedding[:, :, self.all_numeric_size :] != 0
-        masked_mse = mse_loss * mask
-        mse_loss = masked_mse.sum() / (masked_mse != 0).sum()
+        total_mse_loss = 0
+        num_val_feature = self.all_numeric_size
+        for key, values in output["input_batch"].payload.items():
+            if not key in self.processor.emb_names:
+                gt_val = values.float()[:, 1:]
+                pred_val = pred[:, :, -num_val_feature]
+
+                mse_loss = self.mse_fn(
+                    gt_val,
+                    pred_val,
+                )
+                mask = gt_val != 0
+                masked_mse = mse_loss * mask
+                total_mse_loss += (
+                    masked_mse.sum(dim=1) / (mask != 0).sum(dim=1)
+                ).mean()
+                num_val_feature -= 1
 
         # DELTA MSE
         if self.model_conf.use_deltas:
@@ -180,7 +190,7 @@ class GRUGen(nn.Module):
             delta_mse = self.mse_fn(gt_delta, pred_delta)
             mask = output["time_steps"] != -1
             delta_masked = delta_mse * mask[:, 1:]
-            delta_mse = delta_masked.sum() / (delta_masked != 0).sum()
+            delta_mse = delta_masked.sum() / (mask[:, 1:] != 0).sum()
         else:
             delta_mse = 0
 
@@ -193,14 +203,14 @@ class GRUGen(nn.Module):
         )
 
         losses_dict = {
-            "mse_loss": mse_loss,
+            "total_mse_loss": total_mse_loss,
             "total_CE_loss": total_ce_loss,
             "delta_loss": self.model_conf.delta_weight * delta_mse,
         }
         losses_dict.update(cross_entropy_losses)
 
         total_loss = (
-            self.model_conf.mse_weight * losses_dict["mse_loss"]
+            self.model_conf.mse_weight * losses_dict["total_mse_loss"]
             + self.model_conf.CE_weight * total_ce_loss
             + self.model_conf.delta_weight * delta_mse
         )
