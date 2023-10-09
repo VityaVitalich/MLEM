@@ -2,7 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from numpy.testing import assert_almost_equal
-from .sampling_strategies import get_sampling_strategy
+from .sampling_strategies import (
+    HardNegativePairSelector,
+    get_sampling_strategy,
+    AllPositivePairSelector,
+)
 
 
 class ContrastiveLoss(nn.Module):
@@ -29,12 +33,113 @@ class ContrastiveLoss(nn.Module):
         negative_loss = F.relu(
             self.margin
             - F.pairwise_distance(
-                embeddings[negative_pairs[:, 0]], embeddings[negative_pairs[:, 1]]
+                embeddings[negative_pairs[:, 0]],
+                embeddings[negative_pairs[:, 1]],
             )
         ).pow(2)
         loss = torch.cat([positive_loss, negative_loss], dim=0)
 
         return loss.sum()  # / (len(positive_pairs) + len(negative_pairs))
+
+
+class InfoNCELoss(nn.Module):
+    """
+    InfoNCE Loss https://arxiv.org/abs/1807.03748
+    """
+
+    def __init__(self, temperature, pair_selector):
+        super().__init__()
+        self.temperature = temperature
+        self.pair_selector = pair_selector
+        # self.other_ps = AllPositivePairSelector()
+
+    def forward(self, embeddings, target):
+        positive_pairs, _ = self.pair_selector.get_pairs(embeddings, target)
+        # opp, _ = self.other_ps.get_pairs(embeddings, target)
+        # assert (positive_pairs == opp).all()
+
+        # TODO: remove cosine similarity with itself??
+        sim = (
+            F.cosine_similarity(
+                embeddings[positive_pairs[:, 0], None],
+                embeddings[None],
+                dim=-1,
+            )
+            / self.temperature
+        )
+        lsm = -F.log_softmax(sim, dim=-1)
+        loss = torch.take_along_dim(
+            lsm,
+            positive_pairs[:, [1]],
+            dim=1,
+        ).sum()
+        return loss
+
+
+class DecoupledInfoNCELoss(nn.Module):
+    """
+    Inspired by https://arxiv.org/abs/2110.06848
+    -log((sum exp of positive pairs) / (sum exp of negative pairs))
+    """
+
+    def __init__(self, temperature):
+        super().__init__()
+        self.temperature = temperature
+
+    def forward(self, embeddings, target):
+        pos = target[:, None] == target
+        neg_mask = torch.where(pos, -torch.inf, 0)
+        pos_mask = torch.where(pos, 0, -torch.inf) - torch.diag(
+            torch.full(target.shape, torch.inf, device=pos.device)
+        )
+
+        sim = (
+            F.cosine_similarity(
+                embeddings[:, None],
+                embeddings[None],
+                dim=-1,
+            )
+            / self.temperature
+        )
+        loss = torch.logsumexp(sim + neg_mask, dim=1) - torch.logsumexp(
+            sim + pos_mask, dim=1
+        )
+
+        return loss.sum()
+
+
+class DecoupledPairwiseInfoNCELoss(nn.Module):
+    """
+    Contrastive loss
+
+    "Signature verification using a siamese time delay neural network", NIPS 1993
+    https://papers.nips.cc/paper/769-signature-verification-using-a-siamese-time-delay-neural-network.pdf
+    """
+
+    def __init__(self, temperature, pair_selector):
+        super().__init__()
+        self.temperature = temperature
+        self.pair_selector = pair_selector
+
+    def forward(self, embeddings, target):
+        positive_pairs, negative_pairs = self.pair_selector.get_pairs(
+            embeddings, target
+        )
+        pos = target[positive_pairs[:, 0], None] == target
+        neg_mask = torch.where(pos, -torch.inf, 0)
+        sim = (
+            F.cosine_similarity(
+                embeddings[positive_pairs[:, 0], None],
+                embeddings[None],
+                dim=-1,
+            )
+            / self.temperature
+        )
+        pos_sim = sim[positive_pairs[:, 0], positive_pairs[:, 1]][:, None]
+        neg_sim = sim[positive_pairs[:, 0]] + neg_mask - pos_sim
+        loss = torch.logsumexp(neg_sim, dim=1)
+
+        return loss.sum()
 
 
 class BinomialDevianceLoss(nn.Module):
@@ -265,6 +370,25 @@ def get_loss(model_conf):
         kwargs = {"margin": model_conf.loss.margin, "pair_selector": sampling_strategy}
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         loss_fn = ContrastiveLoss(**kwargs)
+
+    elif model_conf.loss.loss_fn == "InfoNCELoss":
+        kwargs = {
+            "temperature": model_conf.loss.temperature,
+            "pair_selector": sampling_strategy,
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        loss_fn = InfoNCELoss(**kwargs)
+
+    elif model_conf.loss.loss_fn == "DecoupledInfoNCELoss":
+        loss_fn = DecoupledInfoNCELoss(model_conf.loss.temperature)
+
+    elif model_conf.loss.loss_fn == "DecoupledPairwiseInfoNCELoss":
+        kwargs = {
+            "temperature": model_conf.loss.temperature,
+            "pair_selector": sampling_strategy,
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        loss_fn = DecoupledPairwiseInfoNCELoss(**kwargs)
 
     elif model_conf.loss.loss_fn == "BinomialDevianceLoss":
         kwargs = {

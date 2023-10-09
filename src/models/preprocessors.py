@@ -31,8 +31,8 @@ class RBatchNormWithLens(torch.nn.Module):
     def forward(self, x, seq_lens):
         B, T = x.size()  # B x T
 
-        mask = torch.arange(T, device=seq_lens.device).view(1, -1).repeat(
-            B, 1
+        mask = (
+            torch.arange(T, device=seq_lens.device).view(1, -1).repeat(B, 1)
         ) < seq_lens.view(-1, 1)
         x_new = x
         x_new[mask] = self.bn(x[mask].view(-1, 1)).view(-1)
@@ -79,7 +79,9 @@ class FeatureProcessor(nn.Module):
             return torch.cat(numeric_values, dim=-1), time_steps
 
         categoric_tensor = torch.cat(categoric_values, dim=-1)
-        numeric_tensor = torch.cat(numeric_values, dim=-1)
+        numeric_tensor = torch.cat(numeric_values, dim=-1).repeat(
+            1, 1, self.model_conf.repeat_numerical_times
+        )
 
         return torch.cat([categoric_tensor, numeric_tensor], dim=-1), time_steps
 
