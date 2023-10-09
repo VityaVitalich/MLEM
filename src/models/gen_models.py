@@ -24,78 +24,6 @@ class BaseMixin(nn.Module):
         self.processor = prp.FeatureProcessor(
             model_conf=model_conf, data_conf=data_conf
         )
-        self.time_processor = getattr(prp, self.model_conf.time_preproc)(
-            self.model_conf.num_time_blocks, model_conf.device
-        )
-
-        ### INPUT SIZE ###
-        all_emb_size = self.model_conf.features_emb_dim * len(
-            self.data_conf.features.embeddings
-        )
-        all_numeric_size = len(self.data_conf.features.numeric_values)
-        self.input_dim = all_emb_size + all_numeric_size
-
-        ### NORMS ###
-        self.pre_gru_norm = getattr(nn, self.model_conf.pre_gru_norm)(self.input_dim)
-        self.post_gru_norm = getattr(nn, self.model_conf.post_gru_norm)(
-            self.model_conf.classifier_gru_hidden_dim
-        )
-        self.encoder_norm = getattr(nn, self.model_conf.encoder_norm)(self.input_dim)
-
-        ### TRANSFORMER ###
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=self.input_dim, nhead=self.model_conf.num_heads_enc
-        )
-
-        self.encoder = getattr(nn, self.model_conf.encoder)(
-            encoder_layer,
-            self.model_conf.num_enc_layers,
-            norm=self.encoder_norm,
-            enable_nested_tensor=True,
-            mask_check=True,
-        )
-
-        ### DROPOUT ###
-        self.after_enc_dropout = nn.Dropout1d(self.model_conf.after_enc_dropout)
-
-        ### OUT PROJECTION ###
-        self.out_linear = getattr(nn, self.model_conf.predict_head)(
-            self.model_conf.classifier_gru_hidden_dim, self.data_conf.num_classes
-        )
-
-        ### LOSS ###
-
-        self.loss_fn = get_loss(self.model_conf)
-
-    def loss(self, out, gt):
-        if self.model_conf.predict_head == "Identity":
-            loss = self.loss_fn(out, gt[0])
-        else:
-            loss = self.loss_fn(out, gt[1])
-
-        if self.model_conf.time_preproc == "MultiTimeSummator":
-            # logp = torch.log(self.time_processor.softmaxed_weights)
-            # entropy_term = torch.sum(-self.time_processor.softmaxed_weights * logp)
-            entropy_term = torch.tensor(0)
-        else:
-            entropy_term = torch.tensor(0)
-        return {
-            "total_loss": loss + self.model_conf.entropy_weight * entropy_term,
-            "entropy_loss": entropy_term,
-        }
-
-
-class GRUGen(nn.Module):
-    def __init__(self, model_conf, data_conf):
-        super().__init__()
-
-        self.model_conf = model_conf
-        self.data_conf = data_conf
-
-        ### PROCESSORS ###
-        self.processor = prp.FeatureProcessor(
-            model_conf=model_conf, data_conf=data_conf
-        )
 
         ### INPUT SIZE ###
         all_emb_size = self.model_conf.features_emb_dim * len(
@@ -106,53 +34,64 @@ class GRUGen(nn.Module):
             all_emb_size + self.all_numeric_size + self.model_conf.use_deltas
         )
 
+        ### ENCODER ###
         self.encoder = nn.GRU(
             self.input_dim,
             self.model_conf.encoder_hidden,
             batch_first=True,
             num_layers=self.model_conf.encoder_num_layers,
         )
-        self.decoder = DecoderGRU(
-            input_size=self.input_dim,
-            hidden_size=self.model_conf.decoder_gru_hidden,
-            global_hidden_size=self.model_conf.encoder_hidden,
-            num_layers=self.model_conf.decoder_num_layers,
-        )
-        self.out_proj = nn.Linear(self.model_conf.decoder_gru_hidden, self.input_dim)
 
+        ### NORMS ###
+        self.pre_encoder_norm = getattr(nn, self.model_conf.pre_encoder_norm)(
+            self.input_dim
+        )
+        self.post_encoder_norm = getattr(nn, self.model_conf.post_encoder_norm)(
+            self.model_conf.encoder_hidden
+        )
+        self.decoder_norm = getattr(nn, self.model_conf.decoder_norm)(
+            self.model_conf.decoder_hidden
+        )
+
+        ### DECODER ###
+        if self.model_conf.decoder == "GRU":
+            self.decoder = DecoderGRU(
+                input_size=self.input_dim,
+                hidden_size=self.model_conf.decoder_hidden,
+                global_hidden_size=self.model_conf.encoder_hidden,
+                num_layers=self.model_conf.decoder_num_layers,
+            )
+        elif self.model_conf.decoder == "TR":
+            decoder_layer = nn.TransformerDecoderLayer(
+                d_model=self.model_conf.decoder_hidden,
+                nhead=self.model_conf.decoder_heads,
+            )
+            self.decoder = nn.TransformerDecoder(
+                decoder_layer,
+                num_layers=self.model_conf.decoder_num_layers,
+                norm=self.decoder_norm,
+            )
+            self.decoder_proj = nn.Linear(
+                self.input_dim, self.model_conf.decoder_hidden
+            )
+
+        ### DROPOUT ###
+        self.global_hid_dropout = nn.Dropout(self.model_conf.after_enc_dropout)
+
+        ### ACTIVATION ###
+        self.act = nn.GELU()
+
+        ### OUT PROJECTION ###
+        self.out_proj = nn.Linear(self.model_conf.decoder_hidden, self.input_dim)
+
+        ### LOSS ###
         self.embedding_predictor = EmbeddingPredictor(
             model_conf=self.model_conf, data_conf=self.data_conf
         )
         self.mse_fn = torch.nn.MSELoss(reduction="none")
-        self.ce_fn = torch.nn.CrossEntropyLoss(reduction="mean", ignore_index=0)
-
-    def forward(self, padded_batch):
-        x, time_steps = self.processor(padded_batch)
-        if self.model_conf.use_deltas:
-            gt_delta = time_steps.diff(1)
-            delta_feature = torch.cat(
-                [gt_delta, torch.zeros(x.size()[0], 1, device=gt_delta.device)], dim=1
-            )
-            x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
-
-        all_hid, hn = self.encoder(x)
-
-        lens = padded_batch.seq_lens - 1
-        last_hidden = all_hid[:, lens, :].diagonal().T
-
-        dec_out = self.decoder(x, last_hidden)
-        out = self.out_proj(dec_out)[:, :-1, :]
-
-        emb_dist = self.embedding_predictor(out)
-
-        return {
-            "x": x,
-            "time_steps": time_steps,
-            "pred": out,
-            "input_batch": padded_batch,
-            "emb_dist": emb_dist,
-            "latent": last_hidden,
-        }
+        self.ce_fn = torch.nn.CrossEntropyLoss(
+            reduction="mean", ignore_index=0, label_smoothing=0.15
+        )
 
     def loss(self, output, ground_truth):
         """
@@ -219,6 +158,53 @@ class GRUGen(nn.Module):
         return losses_dict
 
 
+class SeqGen(BaseMixin):
+    def __init__(self, model_conf, data_conf):
+        super().__init__(model_conf=model_conf, data_conf=data_conf)
+
+    def forward(self, padded_batch):
+        x, time_steps = self.processor(padded_batch)
+        if self.model_conf.use_deltas:
+            gt_delta = time_steps.diff(1)
+            delta_feature = torch.cat(
+                [gt_delta, torch.zeros(x.size()[0], 1, device=gt_delta.device)], dim=1
+            )
+            x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
+
+        all_hid, hn = self.encoder(self.pre_encoder_norm(x))
+
+        lens = padded_batch.seq_lens - 1
+        last_hidden = self.post_encoder_norm(all_hid[:, lens, :].diagonal().T)
+
+        last_hidden = self.global_hid_dropout(last_hidden)
+
+        if self.model_conf.decoder == "GRU":
+            dec_out = self.decoder(x, last_hidden)
+
+        elif self.model_conf.decoder == "TR":
+            x_proj = self.decoder_proj(x)
+            mask = torch.nn.Transformer.generate_square_subsequent_mask(
+                x.size(1), device=x.device
+            )
+            dec_out = self.decoder(
+                tgt=x_proj.transpose(0, 1),
+                memory=last_hidden.unsqueeze(0),
+                tgt_mask=mask,
+            ).transpose(0, 1)
+
+        out = self.out_proj(dec_out)[:, :-1, :]
+        emb_dist = self.embedding_predictor(out)
+
+        return {
+            "x": x,
+            "time_steps": time_steps,
+            "pred": out,
+            "input_batch": padded_batch,
+            "emb_dist": emb_dist,
+            "latent": last_hidden,
+        }
+
+
 class EmbeddingPredictor(nn.Module):
     def __init__(self, model_conf, data_conf):
         super().__init__()
@@ -279,7 +265,7 @@ class GRUCell(nn.Module):
         self.x2h = nn.Linear(input_size, 3 * hidden_size, bias=bias)
         self.h2h = nn.Linear(hidden_size, 3 * hidden_size, bias=bias)
         self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
-
+        self.act = nn.GELU()
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -298,7 +284,7 @@ class GRUCell(nn.Module):
         if hx is None:
             hx = Variable(input.new_zeros(input.size(0), self.hidden_size))
 
-        hx = self.mix_global(torch.cat([global_hidden, hx], dim=-1))
+        hx = self.act(self.mix_global(torch.cat([global_hidden, hx], dim=-1)))
         x_t = self.x2h(input)
         h_t = self.h2h(hx)
 
@@ -342,7 +328,7 @@ class DecoderGRU(nn.Module):
                 )
             )
 
-    def forward(self, input, global_hidden, hx=None):
+    def forward(self, input, global_hidden, hx=None, **kwargs):
         # Input of shape (batch_size, seqence length, input_size)
         #
         # Output of shape (batch_size, output_size)
