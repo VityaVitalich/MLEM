@@ -150,13 +150,14 @@ class SimpleTrainerContrastive(BaseTrainer):
             train_emb_subset = train_embeddings[train_index]
             train_labels_subset = train_labels[train_index]
 
-            model = LGBMClassifier(**params)
+            model = LGBMClassifier(verbosity=-1, **params)
             preprocessor = MaxAbsScaler()
 
             train_emb_subset = preprocessor.fit_transform(train_emb_subset)
             test_embeddings_subset = preprocessor.transform(test_embeddings)
 
             model.fit(train_emb_subset, train_labels_subset)
+
             y_pred = model.predict_proba(test_embeddings_subset)
 
             auc_score = roc_auc_score(test_labels, y_pred[:, 1])

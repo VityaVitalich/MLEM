@@ -2,11 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from numpy.testing import assert_almost_equal
-from .sampling_strategies import (
-    HardNegativePairSelector,
-    get_sampling_strategy,
-    AllPositivePairSelector,
-)
+import math
+from .sampling_strategies import PairSelector, get_sampling_strategy
 
 
 class ContrastiveLoss(nn.Module):
@@ -47,26 +44,41 @@ class InfoNCELoss(nn.Module):
     InfoNCE Loss https://arxiv.org/abs/1807.03748
     """
 
-    def __init__(self, temperature, pair_selector):
+    def __init__(
+        self,
+        temperature: float,
+        pair_selector: PairSelector,
+        angular_margin: float = 0.0,  # = 0.5 ArcFace default
+    ):
         super().__init__()
         self.temperature = temperature
         self.pair_selector = pair_selector
-        # self.other_ps = AllPositivePairSelector()
+        self.angular_margin = angular_margin
 
     def forward(self, embeddings, target):
         positive_pairs, _ = self.pair_selector.get_pairs(embeddings, target)
-        # opp, _ = self.other_ps.get_pairs(embeddings, target)
-        # assert (positive_pairs == opp).all()
+        dev = positive_pairs.device
+        all_idx = torch.arange(len(positive_pairs), dtype=torch.long, device=dev)
+        mask_same = torch.zeros(len(positive_pairs), len(embeddings), device=dev)
+        mask_same[all_idx, positive_pairs[:, 0]] -= torch.inf
 
-        # TODO: remove cosine similarity with itself??
         sim = (
             F.cosine_similarity(
                 embeddings[positive_pairs[:, 0], None],
                 embeddings[None],
                 dim=-1,
             )
-            / self.temperature
+            + mask_same
         )
+        if self.angular_margin > 0.0:
+            with torch.no_grad():
+                target_sim = sim[all_idx, positive_pairs[:, 1]].clamp(0, 1)
+                target_sim.arccos_()
+                target_sim += self.angular_margin
+                target_sim.cos_()
+                sim[all_idx, positive_pairs[:, 1]] = target_sim
+
+        sim /= self.temperature
         lsm = -F.log_softmax(sim, dim=-1)
         loss = torch.take_along_dim(
             lsm,
@@ -375,6 +387,7 @@ def get_loss(model_conf):
         kwargs = {
             "temperature": model_conf.loss.temperature,
             "pair_selector": sampling_strategy,
+            "angular_margin": model_conf.loss.angular_margin,
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         loss_fn = InfoNCELoss(**kwargs)
