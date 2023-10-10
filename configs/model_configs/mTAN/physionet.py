@@ -41,15 +41,8 @@ def model_configs():
     config.activation = "ReLU"
 
     ### TIME TRICKS ###
-    config.num_time_blocks = [
-        8,
-        32,
-        64,
-        128
-    ]
-    config.time_preproc = (
-        "Identity"  # Identity or TimeConcater or MultiTimeSummator
-    )
+    config.num_time_blocks = [8, 32, 64, 128]
+    config.time_preproc = "Identity"  # Identity or TimeConcater or MultiTimeSummator
     config.entropy_weight = 0.0
 
     ### LOSS ###
@@ -60,6 +53,9 @@ def model_configs():
     # loss.margin = 0.5
     loss.loss_fn = "InfoNCELoss"
     loss.temperature = 0.03
+    loss.angular_margin = 0.5
+    loss.projector = "Linear"
+    loss.project_dim = 128
 
     ### MTAND ###
     # # number of reference points on encoder
