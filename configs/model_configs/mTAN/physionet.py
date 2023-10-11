@@ -51,11 +51,12 @@ def model_configs():
     loss.neg_count = 5
     # loss.loss_fn = "ContrastiveLoss"  # "ContrastiveLoss" or CrossEntropy
     # loss.margin = 0.5
-    loss.loss_fn = "InfoNCELoss"
+    loss.loss_fn = "RINCELoss"
     loss.temperature = 0.03
-    loss.angular_margin = 0.5
     loss.projector = "Linear"
     loss.project_dim = 128
+    loss.q = 0.01
+    loss.lam = 0.1
 
     ### MTAND ###
     # # number of reference points on encoder

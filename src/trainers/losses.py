@@ -125,6 +125,56 @@ class InfoNCELoss(BaseContrastiveLoss):
         return loss
 
 
+class RINCELoss(BaseContrastiveLoss):
+    """
+    Robust Contrastive Learning against Noisy Views
+    """
+
+    def __init__(
+        self,
+        temperature: float,
+        pair_selector: PairSelector,
+        q: float,
+        lam: float,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.temperature = temperature
+        self.pair_selector = pair_selector
+        self.q = q
+        self.lam = lam
+
+    def forward(self, embeddings, target):
+        embeddings = self.project(embeddings)
+
+        positive_pairs, _ = self.pair_selector.get_pairs(embeddings, target)
+        dev = positive_pairs.device
+        all_idx = torch.arange(len(positive_pairs), dtype=torch.long, device=dev)
+        mask_same = torch.zeros(len(positive_pairs), len(embeddings), device=dev)
+        mask_same[all_idx, positive_pairs[:, 0]] -= torch.inf
+
+        sim = (
+            F.cosine_similarity(
+                embeddings[positive_pairs[:, 0], None],
+                embeddings[None],
+                dim=-1,
+            )
+            + mask_same
+        )
+        sim = torch.exp(sim / self.temperature)
+        pos = torch.take_along_dim(
+            sim,
+            positive_pairs[:, [1]],
+            dim=1,
+        )
+        all_ = sim.sum(1)
+        loss = -pos ** self.q / self.q + (self.lam * all_) ** self.q / self.q
+
+        return loss.sum()
+
+
 class DecoupledInfoNCELoss(BaseContrastiveLoss):
     """
     Inspired by https://arxiv.org/abs/2110.06848
@@ -439,6 +489,18 @@ def get_loss(model_conf):
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         loss_fn = InfoNCELoss(**kwargs)
+
+    elif model_conf.loss.loss_fn == "RINCELoss":
+        kwargs = {
+            "temperature": model_conf.loss.temperature,
+            "pair_selector": sampling_strategy,
+            "projector": model_conf.loss.projector,
+            "project_dim": model_conf.loss.project_dim,
+            "q": model_conf.loss.q,
+            "lam": model_conf.loss.lam,
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        loss_fn = RINCELoss(**kwargs)
 
     elif model_conf.loss.loss_fn == "DecoupledInfoNCELoss":
         kwargs = {
