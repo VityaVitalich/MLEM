@@ -12,13 +12,17 @@ sys.path.append("../../../")
 from configs.data_configs.rosbank import data_configs
 from configs.model_configs.gen.rosbank import model_configs
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_gen import GenTrainer
+from src.trainers.trainer_gen import GenTrainer, GANGenTrainer
 from src.trainers.randomness import seed_everything
 import src.models.gen_models
+import src.models.base_models
 
 from experiments.rosbank.train_base_supervised import run_experiment
 from configs.model_configs.gen.rosbank_genval import (
     model_configs as model_configs_genval,
+)
+from configs.model_configs.gen.rosbank_D import (
+    model_configs as model_configs_D,
 )
 
 if __name__ == "__main__":
@@ -116,22 +120,51 @@ if __name__ == "__main__":
     opt = torch.optim.Adam(
         net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
     )
-    trainer = GenTrainer(
-        model=net,
-        optimizer=opt,
-        train_loader=train_loader,
-        val_loader=valid_loader,
-        run_name=run_name,
-        ckpt_dir=Path(__file__).parent / "ckpt",
-        ckpt_replace=True,
-        ckpt_resume=args.resume,
-        ckpt_track_metric="total_loss",
-        metrics_on_train=False,
-        total_epochs=args.total_epochs,
-        device=args.device,
-        model_conf=model_conf,
-        data_conf=conf,
-    )
+    if model_conf.use_discriminator:
+        model_conf_D = model_configs_D()
+        D = getattr(src.models.base_models, model_conf_D.model_name)
+        D = D(model_conf=model_conf, data_conf=conf)
+        D_opt = torch.optim.Adam(
+            D.parameters(), model_conf_D.lr, weight_decay=model_conf_D.weight_decay
+        )
+
+        trainer = GANGenTrainer(
+            model=net,
+            optimizer=opt,
+            discriminator=D,
+            d_opt=D_opt,
+            train_loader=train_loader,
+            val_loader=valid_loader,
+            run_name=run_name,
+            ckpt_dir=Path(__file__).parent / "ckpt",
+            ckpt_replace=True,
+            ckpt_resume=args.resume,
+            ckpt_track_metric="total_loss",
+            metrics_on_train=False,
+            total_epochs=args.total_epochs,
+            device=args.device,
+            model_conf=model_conf,
+            data_conf=conf,
+            model_conf_d=model_conf_D,
+        )
+
+    else:
+        trainer = GenTrainer(
+            model=net,
+            optimizer=opt,
+            train_loader=train_loader,
+            val_loader=valid_loader,
+            run_name=run_name,
+            ckpt_dir=Path(__file__).parent / "ckpt",
+            ckpt_replace=True,
+            ckpt_resume=args.resume,
+            ckpt_track_metric="total_loss",
+            metrics_on_train=False,
+            total_epochs=args.total_epochs,
+            device=args.device,
+            model_conf=model_conf,
+            data_conf=conf,
+        )
 
     ### RUN TRAINING ###
     trainer.run()

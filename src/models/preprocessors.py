@@ -78,6 +78,7 @@ class FeatureProcessor(nn.Module):
         if len(categoric_values) == 0:
             return torch.cat(numeric_values, dim=-1), time_steps
 
+        padded_batch.payload["event_time"] = time_steps
         categoric_tensor = torch.cat(categoric_values, dim=-1)
         numeric_tensor = torch.cat(numeric_values, dim=-1)
 

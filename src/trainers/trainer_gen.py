@@ -8,13 +8,17 @@ import os
 import pandas as pd
 
 from ..models.mTAND.model import MegaNetCE
-from .base_trainer import BaseTrainer
+from ..data_load.dataloader import PaddedBatch
+from .base_trainer import BaseTrainer, _CyclicalLoader
 from sklearn.metrics import roc_auc_score, accuracy_score
 
 from lightgbm import LGBMClassifier
 from sklearn.preprocessing import MaxAbsScaler
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
+from datetime import datetime
+from tqdm import tqdm
+
 
 params = {
     "n_estimators": 500,
@@ -239,3 +243,210 @@ class GenTrainer(BaseTrainer):
         generated_df = generated_df.apply(func=truncate_lists, axis=1)
         generated_df[conf.col_id] = np.arange(len(generated_df))
         return generated_df
+
+
+class GANGenTrainer(GenTrainer):
+    def __init__(
+        self,
+        *,
+        model: torch.nn.Module,
+        discriminator: torch.nn.Module,
+        d_opt: Union[torch.optim.Optimizer, None] = None,
+        optimizer: Union[torch.optim.Optimizer, None] = None,
+        lr_scheduler: Union[torch.optim.lr_scheduler._LRScheduler, None] = None,
+        train_loader: Union[DataLoader, None] = None,
+        val_loader: Union[DataLoader, None] = None,
+        run_name: Union[str, None] = None,
+        total_iters: Union[int, None] = None,
+        total_epochs: Union[int, None] = None,
+        iters_per_epoch: Union[int, None] = None,
+        ckpt_dir: Union[str, os.PathLike, None] = None,
+        ckpt_replace: bool = False,
+        ckpt_track_metric: str = "epoch",
+        ckpt_resume: Union[str, os.PathLike, None] = None,
+        device: str = "cpu",
+        metrics_on_train: bool = False,
+        model_conf: Dict[str, Any] = None,
+        data_conf: Dict[str, Any] = None,
+        model_conf_d: Dict[str, Any] = None,
+    ):
+        """Initialize trainer.
+
+        Args:
+            model: model to train or validate.
+            optimizer: torch optimizer for training.
+            lr_scheduler: torch learning rate scheduler.
+            train_loader: train dataloader.
+            val_loader: val dataloader.
+            run_name: for runs differentiation.
+            total_iters: total number of iterations to train a model.
+            total_epochs: total number of epoch to train a model. Exactly one of
+                `total_iters` and `total_epochs` shoud be passed.
+            iters_per_epoch: validation and checkpointing are performed every
+                `iters_per_epoch` iterations.
+            ckpt_dir: path to the directory, where checkpoints are saved.
+            ckpt_replace: if `replace` is `True`, only the last and the best checkpoint
+                are kept in `ckpt_dir`.
+            ckpt_track_metric: if `ckpt_replace` is `True`, the best checkpoint is
+                determined based on `track_metric`. All metrcs except loss are assumed
+                to be better if the value is higher.
+            ckpt_resume: path to the checkpoint to resume training from.
+            device: device to train and validate on.
+            metrics_on_train: wether to compute metrics on train set.
+            model_conf: Model configs from configs/ dir
+            data_conf: Data configs from configs/ dir
+        """
+        assert (total_iters is None) ^ (
+            total_epochs is None
+        ), "Exactly one of `total_iters` and `total_epochs` shoud be passed."
+
+        self._run_name = (
+            run_name if run_name is not None else datetime.now().strftime("%F_%T")
+        )
+
+        self._total_iters = total_iters
+        self._total_epochs = total_epochs
+        self._iters_per_epoch = iters_per_epoch
+        self._ckpt_dir = ckpt_dir
+        self._ckpt_replace = ckpt_replace
+        self._ckpt_track_metric = ckpt_track_metric
+        self._ckpt_resume = ckpt_resume
+        self._device = device
+        self._metrics_on_train = metrics_on_train
+        self._model_conf = model_conf
+        self._data_conf = data_conf
+
+        self._model = model
+        self._model.to(device)
+        self._opt = optimizer
+        self._sched = lr_scheduler
+        self._train_loader = train_loader
+        if train_loader is not None:
+            self._cyc_train_loader = _CyclicalLoader(train_loader)
+        self._val_loader = val_loader
+
+        self._metric_values = None
+        self._loss_values = None
+        self._last_iter = 0
+        self._last_epoch = 0
+
+        self._D = discriminator.to(device)
+        self._dopt = d_opt
+        self._model_conf_d = model_conf_d
+
+    @property
+    def D(self) -> Union[torch.nn.Module, None]:
+        return self._D
+
+    def train(self, iters: int) -> None:
+        assert self._opt is not None, "Set an optimizer first"
+        assert self._train_loader is not None, "Set a train loader first"
+        logger.info("Epoch %04d: train started", self._last_epoch + 1)
+        self._model.train()
+        self._D.train()
+
+        loss_ema = 0.0
+        losses: List[float] = []
+        d_losses: List[float] = []
+        preds, gts = [], []
+        pbar = tqdm(zip(range(iters), self._cyc_train_loader), total=iters)
+        for i, (inp, gt) in pbar:
+            inp, gt = inp.to(self._device), gt.to(self._device)
+
+            ### Generator Step ###
+            pred = self._model(inp)
+            if self._metrics_on_train:
+                preds.append(pred)
+                gts.append(gt)
+
+            loss = self.compute_loss(pred, gt)
+            loss.backward()
+
+            loss_np = loss.item()
+            losses.append(loss_np)
+            loss_ema = loss_np if i == 0 else 0.9 * loss_ema + 0.1 * loss_np
+            pbar.set_postfix_str(f"Loss: {loss_ema:.4g}")
+
+            self._opt.step()
+
+            self._last_iter += 1
+            self._opt.zero_grad()
+            ### DISCRIMINATOR STEP ###
+            if ((i + 1) % self._model_conf_d.discriminator_step_every) == 0:
+                fake_inp = self.out_to_padded_batch(pred)
+                d_inp, d_labels = self.mix_batches(fake_inp, inp)
+                d_pred = self.D(d_inp)
+                d_loss = self.D.loss(d_pred, d_labels)
+                d_loss.backward()
+
+                loss_d = d_loss.item()
+                d_losses.append(loss_d)
+
+                self._dopt.step()
+                self._dopt.zero_grad()
+
+        self._loss_values = losses
+        logger.info(
+            "Epoch %04d: avg train loss = %.4g;  avg_D_loss = %.4g",
+            self._last_epoch + 1,
+            np.mean(losses),
+            np.mean(d_losses),
+        )
+
+        if self._metrics_on_train:
+            self._metric_values = self.compute_metrics(preds, gts)
+            logger.info(
+                "Epoch %04d: train metrics: %s",
+                self._last_epoch + 1,
+                str(self._metric_values),
+            )
+
+        logger.info("Epoch %04d: train finished", self._last_epoch + 1)
+
+    def out_to_padded_batch(self, out):
+        order = {}
+
+        k = 0
+        for key in out["input_batch"].payload.keys():
+            if key in self._data_conf.features.numeric_values.keys():
+                order[k] = key
+                k += 1
+
+        num_numeric = len(self._data_conf.features.numeric_values.keys())
+
+        payload = {}
+        payload["event_time"] = out["time_steps"][:, 1:]
+        length = (out["time_steps"][:, 1:] != -1).sum(dim=1)
+        mask = out["time_steps"][:, 1:] != -1
+        for key, val in out["emb_dist"].items():
+            payload[key] = val.cpu().argmax(dim=-1).detach()
+            payload[key][~mask] = 0
+
+        if self._model_conf.use_deltas:
+            pred_delta = out["pred"][:, :, -1].squeeze(-1)
+            pred = out["pred"][:, :, :-1]
+
+        numeric_pred = pred[:, :, -num_numeric:]
+        for i in range(num_numeric):
+            cur_key = order[i]
+            cur_val = numeric_pred[:, :, i].cpu().detach()
+            payload[cur_key] = cur_val
+            payload[cur_key][~mask] = 0
+
+        return PaddedBatch(payload, length)
+
+    @staticmethod
+    def mix_batches(gen_batch, true_batch):
+        new_payload = {}
+        for key in gen_batch.payload.keys():
+            new_payload[key] = torch.cat(
+                [gen_batch.payload[key], true_batch.payload[key][:, :-1]], dim=0
+            )
+        new_lens = torch.cat([gen_batch.seq_lens, true_batch.seq_lens - 1])
+
+        new_batch = PaddedBatch(new_payload, new_lens)
+
+        d_labels = torch.zeros(len(new_batch), dtype=torch.long)
+        d_labels[: len(new_batch) // 2] = 1
+
+        return new_batch, d_labels.unsqueeze(0).repeat(2, 1)

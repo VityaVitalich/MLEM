@@ -93,7 +93,7 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 128
+    train.batch_size = 256
     val.batch_size = 128
     test.batch_size = 128
 

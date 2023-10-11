@@ -34,14 +34,6 @@ class BaseMixin(nn.Module):
             all_emb_size + self.all_numeric_size + self.model_conf.use_deltas
         )
 
-        ### ENCODER ###
-        self.encoder = nn.GRU(
-            self.input_dim,
-            self.model_conf.encoder_hidden,
-            batch_first=True,
-            num_layers=self.model_conf.encoder_num_layers,
-        )
-
         ### NORMS ###
         self.pre_encoder_norm = getattr(nn, self.model_conf.pre_encoder_norm)(
             self.input_dim
@@ -52,6 +44,42 @@ class BaseMixin(nn.Module):
         self.decoder_norm = getattr(nn, self.model_conf.decoder_norm)(
             self.model_conf.decoder_hidden
         )
+        self.encoder_norm = getattr(nn, self.model_conf.encoder_norm)(
+            self.model_conf.encoder_hidden
+        )
+
+        ### ENCODER ###
+        if self.model_conf.encoder == "GRU":
+            self.encoder = nn.GRU(
+                self.input_dim,
+                self.model_conf.encoder_hidden,
+                batch_first=True,
+                num_layers=self.model_conf.encoder_num_layers,
+            )
+        elif self.model_conf.encoder == "LSTM":
+            self.encoder = nn.LSTM(
+                self.input_dim,
+                self.model_conf.encoder_hidden,
+                batch_first=True,
+                num_layers=self.model_conf.encoder_num_layers,
+            )
+        elif self.model_conf.encoder == "TR":
+            self.encoder_proj = nn.Linear(
+                self.input_dim, self.model_conf.encoder_hidden
+            )
+            encoder_layer = nn.TransformerEncoderLayer(
+                d_model=self.model_conf.encoder_hidden,
+                nhead=self.model_conf.encoder_num_heads,
+                batch_first=True,
+            )
+
+            self.encoder = nn.TransformerEncoder(
+                encoder_layer,
+                self.model_conf.encoder_num_layers,
+                norm=self.encoder_norm,
+                enable_nested_tensor=True,
+                mask_check=True,
+            )
 
         ### DECODER ###
         if self.model_conf.decoder == "GRU":
@@ -65,6 +93,7 @@ class BaseMixin(nn.Module):
             decoder_layer = nn.TransformerDecoderLayer(
                 d_model=self.model_conf.decoder_hidden,
                 nhead=self.model_conf.decoder_heads,
+                batch_first=True,
             )
             self.decoder = nn.TransformerDecoder(
                 decoder_layer,
@@ -171,10 +200,14 @@ class SeqGen(BaseMixin):
             )
             x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
 
-        all_hid, hn = self.encoder(self.pre_encoder_norm(x))
-
-        lens = padded_batch.seq_lens - 1
-        last_hidden = self.post_encoder_norm(all_hid[:, lens, :].diagonal().T)
+        if self.model_conf.encoder in ("GRU", "LSTM"):
+            all_hid, hn = self.encoder(self.pre_encoder_norm(x))
+            lens = padded_batch.seq_lens - 1
+            last_hidden = self.post_encoder_norm(all_hid[:, lens, :].diagonal().T)
+        elif self.model_conf.encoder == "TR":
+            x_proj = self.encoder_proj(x)
+            enc_out = self.encoder(x_proj)
+            last_hidden = enc_out[:, 0, :]
 
         last_hidden = self.global_hid_dropout(last_hidden)
 
@@ -187,10 +220,10 @@ class SeqGen(BaseMixin):
                 x.size(1), device=x.device
             )
             dec_out = self.decoder(
-                tgt=x_proj.transpose(0, 1),
-                memory=last_hidden.unsqueeze(0),
+                tgt=x_proj,
+                memory=last_hidden.unsqueeze(1),
                 tgt_mask=mask,
-            ).transpose(0, 1)
+            )
 
         out = self.out_proj(dec_out)[:, :-1, :]
         emb_dist = self.embedding_predictor(out)
