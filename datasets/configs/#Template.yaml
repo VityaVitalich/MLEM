@@ -1,0 +1,16 @@
+metric: # auc/mse etc
+classification: # true/false
+data_path: #'/data/#Representation_learning/....
+index_column: 
+time_column: 
+target_column:  
+categorical_columns: []
+numerical_columns:  []
+seq_len_limit: 200 # params.train.max_seq_len
+seq_len_trunc_type: "last"
+split_sizes:
+  test: 0.2
+  train: 0.8
+seed: 42
+output_size: 
+# Time format: unix_timestamp preferably
