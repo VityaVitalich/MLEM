@@ -80,9 +80,16 @@ def shuffle_client_list_reproducible(conf, data):
 
 
 def prepare_data(conf, supervised):
-    train_path = conf.train_supervised_path if supervised else conf.train_path
+    train_path = conf.train_path
 
     data = read_pyarrow_file(train_path)
+    if supervised:
+        data = (
+            rec for rec in data if rec[conf.features.target_col] is not None
+        )
+        data = (
+            rec for rec in data if not np.isnan(float(rec[conf.features.target_col]))
+        )
     data = tqdm(data)
 
     data = prepare_embeddings(data, conf, is_train=True)

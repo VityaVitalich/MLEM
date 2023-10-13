@@ -45,7 +45,9 @@ class BaseMixin(nn.Module):
 
         ### TRANSFORMER ###
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=self.input_dim, nhead=self.model_conf.num_heads_enc
+            d_model=self.input_dim, 
+            nhead=self.model_conf.num_heads_enc,
+            batch_first=self.model_conf.batch_first_encoder,
         )
 
         self.encoder = getattr(nn, self.model_conf.encoder)(

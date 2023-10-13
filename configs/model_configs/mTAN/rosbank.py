@@ -5,6 +5,10 @@ def model_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
+    config.predict_head = "Linear"  # Linear or Identity
+
+    # Vitya NIPS
+    config.batch_first_encoder = False
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
@@ -24,6 +28,10 @@ def model_configs():
     config.post_gru_norm = "LayerNorm"
     config.encoder_norm = "Identity"
 
+
+    ### DROPOUT ###
+    config.after_enc_dropout = 0.3
+
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
     conv.out_channels = 16
@@ -35,12 +43,19 @@ def model_configs():
     ### ACTIVATION ###
     config.activation = "ReLU"
 
-    ### DROPOUT ###
-    config.after_enc_dropout = 0.0
-
     ### TIME TRICKS ###
-    config.num_time_blocks = 50
-    config.time_preproc = "Identity"
+    config.num_time_blocks = 50 #[4, 16] 
+    config.time_preproc = (
+        "Identity"  # Identity or TimeConcater or MultiTimeSummator 
+    )
+    config.entropy_weight = 0.0
+
+    ### LOSS ###
+    loss = config.loss = ml_collections.ConfigDict()
+    loss.sampling_strategy = "HardNegativePair"
+    loss.neg_count = 5
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.margin = 0.5
 
     ### MTAND ###
     # # number of reference points on encoder

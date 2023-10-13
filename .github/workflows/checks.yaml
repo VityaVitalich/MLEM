@@ -8,3 +8,4 @@ jobs:
       - run: pip install -r requirements.txt
       - uses: chartboost/ruff-action@v1
       - uses: jakebailey/pyright-action@v1
+      - uses: psf/black@stable

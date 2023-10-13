@@ -157,7 +157,6 @@ class SimpleTrainerContrastive(BaseTrainer):
             test_embeddings_subset = preprocessor.transform(test_embeddings)
 
             model.fit(train_emb_subset, train_labels_subset)
-
             y_pred = model.predict_proba(test_embeddings_subset)
 
             auc_score = roc_auc_score(test_labels, y_pred[:, 1])
