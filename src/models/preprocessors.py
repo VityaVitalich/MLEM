@@ -59,13 +59,16 @@ class FeatureProcessor(nn.Module):
             )
 
         self.numeric_processor = nn.ModuleDict()
+        self.numeric_norms = nn.ModuleDict()
         for name in self.numeric_names:
             if self.model_conf.use_numeric_emb:
                 self.numeric_processor[name] = nn.Linear(
                     1, self.model_conf.numeric_emb_size
                 )
             else:
-                self.numeric_processor[name] = RBatchNormWithLens()
+                self.numeric_processor[name] = nn.Identity()
+
+            self.numeric_norms[name] = RBatchNormWithLens()
 
     def forward(self, padded_batch):
         numeric_values = []
@@ -79,7 +82,9 @@ class FeatureProcessor(nn.Module):
             else:
                 # TODO: repeat the numerical feature?
                 numeric_values.append(
-                    self.numeric_processor[key](values.float(), seq_lens)
+                    self.numeric_processor[key](
+                        self.numeric_norms[key](values.float(), seq_lens)
+                    )
                 )
 
         if len(categoric_values) == 0:

@@ -10,12 +10,13 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
-    config.use_numeric_emb = False
-    config.features_emb_dim = 8
+    config.use_numeric_emb = True
+    config.numeric_emb_size = 8
+    config.feature_mixer = True
 
     ### ENCODER ###
     config.encoder = "GRU"
-    config.encoder_hidden = 3
+    config.encoder_hidden = 128
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
@@ -23,7 +24,7 @@ def model_configs():
 
     ### DECODER ###
     config.decoder = "GRU"
-    config.decoder_hidden = 3
+    config.decoder_hidden = 128
     config.decoder_num_layers = 1
 
     ### TRANSFORMER DECODER ###
@@ -50,7 +51,7 @@ def model_configs():
     config.CE_weight = 1
 
     ### DEVICE + OPTIMIZER ###
-    config.device = "cpu"
+    config.device = "cuda"
 
     config.lr = 3e-3
     config.weight_decay = 1e-3

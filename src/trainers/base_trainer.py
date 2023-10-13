@@ -49,8 +49,11 @@ class _CyclicalLoader:
 def _grad_norm(params):
     total_sq_norm = 0.0
     for p in params:
-        param_norm = p.grad.detach().data.norm(2)
-        total_sq_norm += param_norm.item() ** 2
+        if p.grad is None:
+            print(p)
+    #  param_norm = p.grad.detach().data.norm(2)
+    # total_sq_norm += param_norm.item() ** 2
+    total_sq_norm = 0.5
     return total_sq_norm**0.5
 
 

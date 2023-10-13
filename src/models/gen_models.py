@@ -14,6 +14,31 @@ class L2Normalization(nn.Module):
         return x.div(torch.norm(x, dim=1).view(-1, 1))
 
 
+class FeatureMixer(nn.Module):
+    def __init__(self, num_features, feature_dim, num_layers):
+        super().__init__()
+        self.num_features = num_features
+        self.feature_dim = feature_dim
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=feature_dim, nhead=1, batch_first=True
+        )
+        self.encoder_norm = nn.LayerNorm(feature_dim)
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer, num_layers=num_layers, norm=self.encoder_norm
+        )
+
+    def forward(self, x):
+        bs, seq_len, d = x.size()
+
+        x_resized = x.view(bs * seq_len, self.num_features, self.feature_dim)
+        # x_resized.requires_grad_(True)
+        out = self.encoder(x_resized).view(
+            bs, seq_len, self.num_features * self.feature_dim
+        )
+        # out.requires_grad_(True)
+        return out
+
+
 class BaseMixin(nn.Module):
     def __init__(self, model_conf, data_conf):
         super().__init__()
@@ -29,7 +54,14 @@ class BaseMixin(nn.Module):
         all_emb_size = self.model_conf.features_emb_dim * len(
             self.data_conf.features.embeddings
         )
-        self.all_numeric_size = len(self.data_conf.features.numeric_values)
+        if self.model_conf.use_numeric_emb:
+            self.all_numeric_size = (
+                len(self.data_conf.features.numeric_values)
+                * self.model_conf.numeric_emb_size
+            )
+        else:
+            self.all_numeric_size = len(self.data_conf.features.numeric_values)
+
         self.input_dim = (
             all_emb_size + self.all_numeric_size + self.model_conf.use_deltas
         )
@@ -47,6 +79,18 @@ class BaseMixin(nn.Module):
         self.encoder_norm = getattr(nn, self.model_conf.encoder_norm)(
             self.model_conf.encoder_hidden
         )
+
+        ### MIXER ###
+        if self.model_conf.feature_mixer:
+            assert self.model_conf.features_emb_dim == self.model_conf.numeric_emb_size
+            self.feature_mixer = FeatureMixer(
+                num_features=len(self.data_conf.features.numeric_values)
+                + len(self.data_conf.features.embeddings),
+                feature_dim=self.model_conf.features_emb_dim,
+                num_layers=1,
+            )
+        else:
+            self.feature_mixer = nn.Identity()
 
         ### ENCODER ###
         if self.model_conf.encoder == "GRU":
@@ -145,10 +189,10 @@ class BaseMixin(nn.Module):
             pred_numeric = self.numeric_projector(pred)
 
         for key, values in output["input_batch"].payload.items():
-            if not key in self.processor.emb_names:
+            if key in self.processor.numeric_names:
                 gt_val = values.float()[:, 1:]
                 if self.model_conf.use_numeric_emb:
-                    pred_val = pred_numeric[key]
+                    pred_val = pred_numeric[key].squeeze(-1)
                 else:
                     pred_val = pred[:, :, -num_val_feature]
 
@@ -204,6 +248,7 @@ class SeqGen(BaseMixin):
 
     def forward(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
+        x = self.feature_mixer(x)
         if self.model_conf.use_deltas:
             gt_delta = time_steps.diff(1)
             delta_feature = torch.cat(
