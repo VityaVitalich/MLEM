@@ -15,18 +15,18 @@ def model_configs():
     config.features_emb_dim = 8
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
+    config.classifier_gru_hidden_dim = 1024
     config.classifier_linear_hidden_dim = 300
 
     ### TRANSFORMER ###
-    config.encoder = "TransformerEncoder"
+    config.encoder = "Identity"
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "LayerNorm"
+    config.encoder_norm = "Identity"
 
 
     ### DROPOUT ###
@@ -46,7 +46,7 @@ def model_configs():
     ### TIME TRICKS ###
     config.num_time_blocks = 50 #[4, 16] 
     config.time_preproc = (
-        "TimeConcater"  # Identity or TimeConcater or MultiTimeSummator 
+        "Identity"  # Identity or TimeConcater or MultiTimeSummator 
     )
     config.entropy_weight = 0.0
 

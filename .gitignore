@@ -5,7 +5,6 @@ ckpt/
 checkpoints/
 .vscode/
 .vim
-tags
 
 
 # Byte-compiled / optimized / DLL files

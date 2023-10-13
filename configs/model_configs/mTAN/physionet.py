@@ -13,13 +13,14 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
+    config.repeat_numerical_times = 8
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 32 
+    config.classifier_gru_hidden_dim = 128
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # Identity or TransformerEncoder 
+    config.encoder = "Identity"  # Identity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
@@ -29,7 +30,7 @@ def model_configs():
     config.encoder_norm = "Identity" # if TransformerEncoder -> LayerNorm. else Identity
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.3
+    config.after_enc_dropout = 0.0
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
@@ -55,6 +56,12 @@ def model_configs():
     loss.neg_count = 5
     loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
+    # loss.loss_fn = "RINCELoss"
+    # loss.temperature = 0.03
+    # loss.projector = "Linear"
+    # loss.project_dim = 128
+    # loss.q = 0.01
+    # loss.lam = 0.1
 
     ### MTAND ###
     # # number of reference points on encoder
