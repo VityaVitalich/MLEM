@@ -1,7 +1,6 @@
 import logging
 from argparse import ArgumentParser
 
-
 logger = logging.getLogger(__name__)
 
 

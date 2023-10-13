@@ -7,22 +7,25 @@ import torch
 from torch.utils.data import DataLoader
 
 from ..data_load import split_strategy
-from .data_utils import prepare_data
+from .data_utils import prepare_data, prepare_test_data
 from .splitting_dataset import (
-    ConvertingTrxDataset,
+    ConvertingTrxDataset,  # TargetDataset
     DropoutTrxDataset,
     SplittingDataset,
     TargetEnumeratorDataset,
 )
 
 
-def create_data_loaders(conf):
-    train_data, valid_data = prepare_data(conf)
+def create_data_loaders(conf, supervised=True):
+    train_data, valid_data = prepare_data(conf, supervised)
 
     train_dataset = SplittingDataset(
-        train_data, split_strategy.create(**conf.train.split_strategy)
+        train_data,
+        split_strategy.create(**conf.train.split_strategy),
+        conf.features.target_col,
     )
     train_dataset = TargetEnumeratorDataset(train_dataset)
+    # train_dataset = TargetDataset(train_dataset)
     train_dataset = ConvertingTrxDataset(train_dataset)
     # не уверен что нам нужна история с дропаутом точек.
     # Но это выглядит неплохой аугментацией в целом
@@ -39,9 +42,12 @@ def create_data_loaders(conf):
     )
 
     valid_dataset = SplittingDataset(
-        valid_data, split_strategy.create(**conf.val.split_strategy)
+        valid_data,
+        split_strategy.create(**conf.val.split_strategy),
+        conf.features.target_col,
     )
     valid_dataset = TargetEnumeratorDataset(valid_dataset)
+    # valid_dataset = TargetDataset(valid_dataset)
     valid_dataset = ConvertingTrxDataset(valid_dataset)
     valid_dataset = DropoutTrxDataset(
         valid_dataset, trx_dropout=0.0, seq_len=conf.val.max_seq_len
@@ -57,6 +63,29 @@ def create_data_loaders(conf):
     return train_loader, valid_loader
 
 
+def create_test_loader(conf):
+    test_data = prepare_test_data(conf)
+
+    test_dataset = SplittingDataset(
+        test_data,
+        split_strategy.create(**conf.test.split_strategy),
+        conf.features.target_col,
+    )
+    test_dataset = TargetEnumeratorDataset(test_dataset)
+    # valid_dataset = TargetDataset(valid_dataset)
+    test_dataset = ConvertingTrxDataset(test_dataset)
+
+    test_loader = DataLoader(
+        dataset=test_dataset,
+        shuffle=False,
+        collate_fn=collate_splitted_rows,
+        num_workers=conf.test.num_workers,
+        batch_size=conf.test.batch_size,
+    )
+
+    return test_loader
+
+
 def padded_collate(batch):
     new_x_ = defaultdict(list)
     for x, _ in batch:
@@ -65,13 +94,26 @@ def padded_collate(batch):
 
     lengths = torch.LongTensor([len(e) for e in next(iter(new_x_.values()))])
 
-    new_x = {
-        k: torch.nn.utils.rnn.pad_sequence(v, batch_first=True)
-        for k, v in new_x_.items()
-    }
-    new_y = torch.tensor([y for _, y in batch])
+    new_x = {}
+    for k, v in new_x_.items():
+        if k == "event_time":
+            new_x[k] = torch.nn.utils.rnn.pad_sequence(
+                v, batch_first=True, padding_value=-1.0
+            )
+        else:
+            new_x[k] = torch.nn.utils.rnn.pad_sequence(
+                v, batch_first=True, padding_value=0.0
+            )
+    # new_x = {
+    #     k: torch.nn.utils.rnn.pad_sequence(v, batch_first=True)
+    #     for k, v in new_x_.items()
+    # }
+    new_idx = torch.tensor([y[0] for _, y in batch])
+    new_y = torch.tensor([y[1] for _, y in batch])
 
-    return PaddedBatch(new_x, lengths), new_y
+    return PaddedBatch(new_x, lengths), torch.cat(
+        [new_idx.unsqueeze(0), new_y.unsqueeze(0)], dim=0
+    )
 
 
 def collate_splitted_rows(batch):

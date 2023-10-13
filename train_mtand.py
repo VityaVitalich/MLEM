@@ -1,16 +1,15 @@
-from argparse import ArgumentParser
 import logging
+from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path
 
 import torch
 
-from configs.data_configs.rosbank import data_configs
-from configs.model_configs.mTAN.rosbank import model_configs
+from configs.data_configs.physionet import data_configs
+from configs.model_configs.mTAN.physionet import model_configs
 from src.data_load.dataloader import create_data_loaders
-from src.models.mTAND.model import MegaNet
+from src.models.mTAND.model import MegaNetCE
 from src.trainers.trainer_mTAND import MtandTrainer
-
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -46,7 +45,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    run_name = args.run_name or f"mtand_{datetime.now():%F_%T}"
+    run_name = args.run_name or "mtand"
+    run_name += f"_{datetime.now():%F_%T}"
 
     ### SETUP LOGGING ###
     ch = logging.StreamHandler()
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     model_conf = model_configs()
 
     train_loader, valid_loader = create_data_loaders(conf)
-    net = MegaNet(model_conf=model_conf, data_conf=conf)
+    net = MegaNetCE(model_conf=model_conf, data_conf=conf)
     opt = torch.optim.Adam(net.parameters(), lr=3e-4, weight_decay=1e-4)
     trainer = MtandTrainer(
         model=net,
@@ -84,12 +84,12 @@ if __name__ == "__main__":
         train_loader=train_loader,
         val_loader=valid_loader,
         run_name=run_name,
-        ckpt_dir=Path(__file__).parent / "experiments" / "rosbank" / "ckpt",
+        ckpt_dir=Path(__file__).parent / "experiments" / "physionet" / "ckpt",
         ckpt_replace=True,
         ckpt_resume=args.resume,
-        metrics_on_train=True,
-        total_epochs=args.epochs,
-        iters_per_epoch=100,
+        ckpt_track_metric="loss",
+        metrics_on_train=False,
+        total_epochs=args.total_epochs,
         device=args.device,
     )
 
