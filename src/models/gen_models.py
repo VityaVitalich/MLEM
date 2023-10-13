@@ -117,6 +117,10 @@ class BaseMixin(nn.Module):
         self.embedding_predictor = EmbeddingPredictor(
             model_conf=self.model_conf, data_conf=self.data_conf
         )
+        if self.model_conf.use_numeric_emb:
+            self.numeric_projector = NumericalFeatureProjector(
+                model_conf=self.model_conf, data_conf=self.data_conf
+            )
         self.mse_fn = torch.nn.MSELoss(reduction="none")
         self.ce_fn = torch.nn.CrossEntropyLoss(
             reduction="mean", ignore_index=0, label_smoothing=0.15
@@ -136,10 +140,17 @@ class BaseMixin(nn.Module):
         # MSE
         total_mse_loss = 0
         num_val_feature = self.all_numeric_size
+
+        if self.model_conf.use_numeric_emb:
+            pred_numeric = self.numeric_projector(pred)
+
         for key, values in output["input_batch"].payload.items():
             if not key in self.processor.emb_names:
                 gt_val = values.float()[:, 1:]
-                pred_val = pred[:, :, -num_val_feature]
+                if self.model_conf.use_numeric_emb:
+                    pred_val = pred_numeric[key]
+                else:
+                    pred_val = pred[:, :, -num_val_feature]
 
                 mse_loss = self.mse_fn(
                     gt_val,
@@ -286,6 +297,41 @@ class EmbeddingPredictor(nn.Module):
             embed_losses[name] = self.criterion(dist.permute(0, 2, 1), shifted_labels)
 
         return embed_losses
+
+
+class NumericalFeatureProjector(nn.Module):
+    def __init__(self, model_conf, data_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.numerical_names = list(self.data_conf.features.numeric_values.keys())
+        self.num_embeds = len(self.numerical_names)
+        self.numerical_len = self.num_embeds * self.model_conf.numeric_emb_size
+
+        self.init_embed_predictors()
+
+    def init_embed_predictors(self):
+        self.embed_predictors = nn.ModuleDict()
+
+        for name in self.numerical_names:
+            self.embed_predictors[name] = nn.Linear(self.model_conf.numeric_emb_size, 1)
+
+    def forward(self, x_recon):
+        batch_size, seq_len, out_dim = x_recon.size()
+
+        resized_x = x_recon[:, :, -self.numerical_len :].view(
+            batch_size,
+            seq_len,
+            self.num_embeds,
+            self.model_conf.numeric_emb_size,
+        )
+
+        pred_numeric = {}
+        for i, name in enumerate(self.numerical_names):
+            pred_numeric[name] = self.embed_predictors[name](resized_x[:, :, i, :])
+
+        return pred_numeric
 
 
 class GRUCell(nn.Module):

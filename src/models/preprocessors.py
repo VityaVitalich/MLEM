@@ -58,9 +58,14 @@ class FeatureProcessor(nn.Module):
                 vocab_size, self.model_conf.features_emb_dim
             )
 
-        self.numeric_norms = nn.ModuleDict()
+        self.numeric_processor = nn.ModuleDict()
         for name in self.numeric_names:
-            self.numeric_norms[name] = RBatchNormWithLens()
+            if self.model_conf.use_numeric_emb:
+                self.numeric_processor[name] = nn.Linear(
+                    1, self.model_conf.numeric_emb_size
+                )
+            else:
+                self.numeric_processor[name] = RBatchNormWithLens()
 
     def forward(self, padded_batch):
         numeric_values = []
@@ -73,7 +78,9 @@ class FeatureProcessor(nn.Module):
                 categoric_values.append(self.embed_layers[key](values.long()))
             else:
                 # TODO: repeat the numerical feature?
-                numeric_values.append(self.numeric_norms[key](values.float(), seq_lens))
+                numeric_values.append(
+                    self.numeric_processor[key](values.float(), seq_lens)
+                )
 
         if len(categoric_values) == 0:
             return torch.cat(numeric_values, dim=-1), time_steps
