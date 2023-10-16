@@ -1,0 +1,16 @@
+metric: "auc"
+classification: True
+data_path: '/data/#Representation_learning/taobao/data.csv'
+index_column: "Index"
+time_column: "event_time"
+target_column: "payment_next_7_days"
+categorical_columns: ["behavior_type", "item_category"]
+numerical_columns:  []
+seq_len_limit: 500 # params.train.max_seq_len
+seq_len_trunc_type: "last"
+split_sizes:
+  test: 0.2
+  train: 0.8
+seed: 42
+output_size: 2
+# Time format: float from [0, 1]

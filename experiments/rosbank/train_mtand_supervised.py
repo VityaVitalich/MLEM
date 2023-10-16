@@ -4,12 +4,16 @@ from datetime import datetime
 from pathlib import Path
 
 import torch
+import sys
 
-from configs.data_configs.physionet import data_configs
-from configs.model_configs.mTAN.physionet import model_configs
+sys.path.append("../../")
+
+from configs.data_configs.rosbank import data_configs
+from configs.model_configs.mTAN.rosbank import model_configs
 from src.data_load.dataloader import create_data_loaders
-from src.models.mTAND.model import MegaNetCE
-from src.trainers.trainer_mTAND import MtandTrainer
+from src.models.mTAND.model import MegaNetClassifier
+from src.trainers.trainer_mTAND import MtandTrainerSupervised
+from src.models.base_models import SimpleClassifier
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -76,18 +80,20 @@ if __name__ == "__main__":
     model_conf = model_configs()
 
     train_loader, valid_loader = create_data_loaders(conf)
-    net = MegaNetCE(model_conf=model_conf, data_conf=conf)
-    opt = torch.optim.Adam(net.parameters(), lr=3e-4, weight_decay=1e-4)
-    trainer = MtandTrainer(
+    net = MegaNetClassifier(model_conf=model_conf, data_conf=conf)
+    opt = torch.optim.Adam(
+        net.parameters(), lr=model_conf.lr, weight_decay=model_conf.weight_decay
+    )
+    trainer = MtandTrainerSupervised(
         model=net,
         optimizer=opt,
         train_loader=train_loader,
         val_loader=valid_loader,
         run_name=run_name,
-        ckpt_dir=Path(__file__).parent / "experiments" / "physionet" / "ckpt",
+        ckpt_dir=Path(__file__).parent / "ckpt",
         ckpt_replace=True,
         ckpt_resume=args.resume,
-        ckpt_track_metric="loss",
+        ckpt_track_metric="roc_auc",
         metrics_on_train=False,
         total_epochs=args.total_epochs,
         device=args.device,

@@ -13,7 +13,7 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "data"
-        / "train_trx.parquet"
+        / "train_trx_supervised.parquet"
     )
     config.test_path = (
         Path(__file__).parent.parent.parent
@@ -23,12 +23,10 @@ def data_configs():
         / "test_trx.parquet"
     )
 
-    config.track_metric = "roc_auc"
-
     config.client_list_shuffle_seed = (
-        0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
+        0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.col_id = "cl_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -57,38 +55,59 @@ def data_configs():
     train = config.train = ml_collections.ConfigDict()
     # validation specific
     val = config.val = ml_collections.ConfigDict()
+    # test params
     test = config.test = ml_collections.ConfigDict()
 
     # splitters
-    # train.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 15,
-    #     "cnt_max": 150,
-    # }
-    # val.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 15,
-    #     "cnt_max": 150,
-    # }
-
     train.split_strategy = {"split_strategy": "NoSplit"}
     val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
-    train.max_seq_len = 200
-    test.max_seq_len = 200
-    val.max_seq_len = 200
+    train.dropout = 0
+    train.max_seq_len = 784
+
+    val.max_seq_len = 784
+    test.max_seq_len = 784
 
     train.num_workers = 1
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 128
-    val.batch_size = 128
-    test.batch_size = 16
+    train.batch_size = 256
+    val.batch_size = 256
+    test.batch_size = 256
+
+    ### Path to trained model ###
+    config.ckpt_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "rosbank"
+        / "ckpt"
+        / "mTAND_supervised_repr_2023-09-12_15:21:33"
+        / "epoch: 0044 - total_loss: 0.5326 - roc_auc: 0.8112 - loss: 0.5472.ckpt"
+    )
+
+    config.train_embed_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "rosbank"
+        / "data"
+        / "train_embed.csv"
+    )
+    config.valid_embed_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "rosbank"
+        / "data"
+        / "valid_embed.csv"
+    )
+    config.test_embed_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "rosbank"
+        / "data"
+        / "test_embed.csv"
+    )
 
     return config

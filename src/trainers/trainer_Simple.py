@@ -6,12 +6,12 @@ import torch
 
 from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, accuracy_score
 
 logger = logging.getLogger(__name__)
 
 
-class MtandTrainer(BaseTrainer):
+class SimpleTrainerSupervised(BaseTrainer):
     def compute_metrics(
         self,
         model_outputs: List[Any],
@@ -32,8 +32,20 @@ class MtandTrainer(BaseTrainer):
             A dict of metric name and metric value(s).
         """
         # assert isinstance(self.model, MegaNetCE)
-        loss_dicts = [self.model.loss(it) for it in model_outputs]
-        return {k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]}
+        loss_dicts = [
+            self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
+        ]
+        losses_dict = {
+            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
+        }
+
+        preds = torch.cat([it.cpu()[:, 1] for it in model_outputs])
+        gold = torch.cat([gt[1].cpu() for gt in ground_truths])
+        score = roc_auc_score(gold, preds)
+
+        losses_dict["roc_auc"] = score
+
+        return losses_dict
 
     def compute_loss(
         self,
@@ -81,7 +93,7 @@ class MtandTrainer(BaseTrainer):
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
 
 
-class MtandTrainerSupervised(MtandTrainer):
+class AccuracySimpleTrainerSupervised(SimpleTrainerSupervised):
     def compute_metrics(
         self,
         model_outputs: List[Any],
@@ -109,10 +121,10 @@ class MtandTrainerSupervised(MtandTrainer):
             k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
         }
 
-        preds = torch.cat([it["y_pred"].cpu()[:, 1] for it in model_outputs])
+        preds = torch.cat([it.cpu().argmax(dim=1) for it in model_outputs])
         gold = torch.cat([gt[1].cpu() for gt in ground_truths])
-        score = roc_auc_score(gold, preds)
+        score = accuracy_score(gold, preds)
 
-        losses_dict["roc_auc"] = score
+        losses_dict["accuracy"] = score
 
         return losses_dict

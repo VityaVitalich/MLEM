@@ -6,12 +6,14 @@ import torch
 from torch.utils.data import Dataset
 
 logger = logging.getLogger(__name__)
+SENTINEL = None
 
 
 class SplittingDataset(Dataset):
-    def __init__(self, base_dataset, splitter):
+    def __init__(self, base_dataset, splitter, target_col=None):
         self.base_dataset = base_dataset
         self.splitter = splitter
+        self.target_col = target_col
 
     def __len__(self):
         return len(self.base_dataset)
@@ -24,6 +26,14 @@ class SplittingDataset(Dataset):
 
         indexes = self.splitter.split(local_date)
         data = [{k: v[ix] for k, v in feature_arrays.items()} for ix in indexes]
+
+        if self.target_col:
+            target = row[self.target_col]
+            try:
+                target = int(target)
+            except ValueError:
+                target = -1
+            return data, target
         return data
 
 
@@ -35,8 +45,25 @@ class TargetEnumeratorDataset(Dataset):
         return len(self.base_dataset)
 
     def __getitem__(self, idx):
-        row = self.base_dataset[idx]
-        data = [(x, idx) for x in row]
+        if self.base_dataset.target_col is SENTINEL:
+            row = self.base_dataset[idx]
+            data = [(x, idx) for x in row]
+        else:
+            row, target = self.base_dataset[idx]
+            data = [(x, (idx, target)) for x in row]
+        return data
+
+
+class TargetDataset(Dataset):
+    def __init__(self, base_dataset):
+        self.base_dataset = base_dataset
+
+    def __len__(self):
+        return len(self.base_dataset)
+
+    def __getitem__(self, idx):
+        row, target = self.base_dataset[idx]
+        data = [(x, target) for x in row]
         return data
 
 
@@ -67,7 +94,7 @@ class ConvertingTrxDataset(Dataset):
         if self.with_target:
             x, y = item
             x = {k: torch.from_numpy(self.to_torch_compatible(v)) for k, v in x.items()}
-            return x, y
+            return x, torch.tensor(y)
         else:
             item = {
                 k: torch.from_numpy(self.to_torch_compatible(v))

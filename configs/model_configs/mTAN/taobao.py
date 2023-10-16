@@ -12,22 +12,21 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 8
+    config.features_emb_dim = 16
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 1024
+    config.classifier_gru_hidden_dim = 32
     config.classifier_linear_hidden_dim = 300
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"
+    config.encoder = "Identity"  # IDnetity or TransformerEncoder 
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "Identity"
-
+    config.encoder_norm = "Identity" # if TransformerEncoder -> LayerNorm. else Identity
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.3

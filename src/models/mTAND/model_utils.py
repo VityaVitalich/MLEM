@@ -1,14 +1,16 @@
 import math
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 
 
 def sample_z(mean, logstd, k_iwae):
-    epsilon = torch.randn(k_iwae, mean.shape[0], mean.shape[1], mean.shape[2])
-    z = epsilon * torch.exp(logstd) + mean  # modified
+    epsilon = torch.randn(k_iwae, mean.shape[0], mean.shape[1], mean.shape[2]).to(
+        logstd.device
+    )
+    z = epsilon * torch.exp(0.5 * logstd) + mean  # modified
     z = z.view(-1, mean.shape[1], mean.shape[2])
     return z
 
@@ -21,9 +23,9 @@ def get_normal_kl(mean_1, log_std_1, mean_2=None, log_std_2=None):
     Note that we consider the case of diagonal covariance matrix.
     """
     if mean_2 is None:
-        mean_2 = torch.zeros_like(mean_1)
+        mean_2 = torch.zeros_like(mean_1).to(mean_1.device)
     if log_std_2 is None:
-        log_std_2 = torch.zeros_like(log_std_1)
+        log_std_2 = torch.zeros_like(log_std_1).to(mean_1.device)
     # ====
     # https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
     # https://stats.stackexchange.com/questions/60680/kl-divergence-between-two-multivariate-gaussians
@@ -46,10 +48,10 @@ def get_normal_nll(x, mean, log_std):
     """
     # ====
     # https://en.wikipedia.org/wiki/Multivariate_normal_distribution#Likelihood_function
-    sigma = torch.exp(log_std.float())
+    sigma = torch.exp(log_std.float()).to(x.device)
 
     out = (((x - mean) / sigma) ** 2) / 2
-    out += log_std
+    out += log_std.to(x.device)
     out += torch.log(torch.sqrt(torch.tensor(2 * np.pi)))
 
     return out

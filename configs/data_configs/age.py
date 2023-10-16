@@ -11,67 +11,63 @@ def data_configs():
     config.train_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "rosbank"
+        / "age"
         / "data"
         / "train_trx.parquet"
     )
+
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "rosbank"
+        / "age"
         / "data"
         / "test_trx.parquet"
     )
 
-    config.track_metric = "roc_auc"
+    config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
+        0  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.1  # validation size
-    config.col_id = "cl_id"  # column defining ids. used for sorting data
+    config.col_id = "client_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "mcc": {"in": 100, "out": 24, "max_value": 400},
-        "channel_type": {"in": 4, "out": 4, "max_value": 400},
-        "currency": {"in": 4, "out": 4, "max_value": 400},
-        "trx_category": {"in": 10, "out": 4, "max_value": 400},
+        "small_group": {"in": 202, "out": 203, "max_value": 203},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
-    features.numeric_values = {"amount": "identity"}
+    features.numeric_values = {
+        "amount_rur": "Identity",
+    }
+
+    config.ckpt_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "physionet"
+        / "ckpt"
+        / "Tr_1l_2h_LN_GR128+LN_2023-09-20_09:32:45"
+        / "epoch: 0033 - total_loss: 0.2984 - roc_auc: 0.8421 - loss: 0.2629.ckpt"
+    )
 
     # name of target col
-    features.target_col = "target_target_flag"
-    config.num_classes = 2
+    features.target_col = "target"
+    config.num_classes = 4
 
     ### TIME ###
-    config.max_time = 17623.972627314815
-    config.min_time = 17081.0
+    config.max_time = 729.0
+    config.min_time = 0.0
 
     # train specific parameters
     train = config.train = ml_collections.ConfigDict()
     # validation specific
     val = config.val = ml_collections.ConfigDict()
+    # test params
     test = config.test = ml_collections.ConfigDict()
-
-    # splitters
-    # train.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 15,
-    #     "cnt_max": 150,
-    # }
-    # val.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 15,
-    #     "cnt_max": 150,
-    # }
 
     train.split_strategy = {"split_strategy": "NoSplit"}
     val.split_strategy = {"split_strategy": "NoSplit"}
@@ -79,9 +75,11 @@ def data_configs():
 
     # dropout
     train.dropout = 0.05
-    train.max_seq_len = 200
-    test.max_seq_len = 200
-    val.max_seq_len = 200
+
+    # seq len
+    train.max_seq_len = 1000
+    val.max_seq_len = 1000
+    test.max_seq_len = 1000
 
     train.num_workers = 1
     val.num_workers = 1
