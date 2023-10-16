@@ -81,16 +81,27 @@ class BaseMixin(nn.Module):
         )
 
         ### MIXER ###
-        if self.model_conf.feature_mixer:
+        if self.model_conf.encoder_feature_mixer:
             assert self.model_conf.features_emb_dim == self.model_conf.numeric_emb_size
-            self.feature_mixer = FeatureMixer(
+            self.encoder_feature_mixer = FeatureMixer(
                 num_features=len(self.data_conf.features.numeric_values)
                 + len(self.data_conf.features.embeddings),
                 feature_dim=self.model_conf.features_emb_dim,
                 num_layers=1,
             )
         else:
-            self.feature_mixer = nn.Identity()
+            self.encoder_feature_mixer = nn.Identity()
+
+        if self.model_conf.decoder_feature_mixer:
+            assert self.model_conf.features_emb_dim == self.model_conf.numeric_emb_size
+            self.decoder_feature_mixer = FeatureMixer(
+                num_features=len(self.data_conf.features.numeric_values)
+                + len(self.data_conf.features.embeddings),
+                feature_dim=self.model_conf.features_emb_dim,
+                num_layers=1,
+            )
+        else:
+            self.decoder_feature_mixer = nn.Identity()
 
         ### ENCODER ###
         if self.model_conf.encoder == "GRU":
@@ -225,6 +236,12 @@ class BaseMixin(nn.Module):
             torch.cat([value.unsqueeze(0) for _, value in cross_entropy_losses.items()])
         )
 
+        # Sparcity
+        # rho = 0.05
+        # data_rho = output['latent'].mean(0)
+        # dkl = - rho * torch.log(data_rho + 1e-15) - (1-rho)*torch.log(1-data_rho + 1e-15)
+        # print(dkl)
+
         losses_dict = {
             "total_mse_loss": total_mse_loss,
             "total_CE_loss": total_ce_loss,
@@ -248,7 +265,7 @@ class SeqGen(BaseMixin):
 
     def forward(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
-        x = self.feature_mixer(x)
+        x = self.encoder_feature_mixer(x)
         if self.model_conf.use_deltas:
             gt_delta = time_steps.diff(1)
             delta_feature = torch.cat(
@@ -281,7 +298,13 @@ class SeqGen(BaseMixin):
                 tgt_mask=mask,
             )
 
-        out = self.out_proj(dec_out)[:, :-1, :]
+        out = self.out_proj(dec_out)
+        if self.model_conf.use_deltas:
+            out_mixed = self.decoder_feature_mixer(out[:, :, :-1])
+            out = torch.cat([out_mixed, out[:, :, -1].unsqueeze(-1)], dim=-1)
+        else:
+            out = self.decoder_feature_mixer(out)
+        out = out[:, :-1, :]
         emb_dist = self.embedding_predictor(out)
 
         return {

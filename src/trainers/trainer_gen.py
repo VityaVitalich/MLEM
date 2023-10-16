@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 
 params = {
-    "n_estimators": 500,
+    "n_estimators": 200,
     "boosting_type": "gbdt",
     "objective": "binary",
     "metric": "auc",

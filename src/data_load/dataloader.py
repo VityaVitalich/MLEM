@@ -35,7 +35,7 @@ def create_data_loaders(conf, supervised=True):
 
     train_loader = DataLoader(
         dataset=train_dataset,
-        shuffle=False,
+        shuffle=True,
         collate_fn=collate_splitted_rows,
         num_workers=conf.train.num_workers,
         batch_size=conf.train.batch_size,
