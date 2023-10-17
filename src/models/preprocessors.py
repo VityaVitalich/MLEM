@@ -31,8 +31,8 @@ class RBatchNormWithLens(torch.nn.Module):
     def forward(self, x, seq_lens):
         B, T = x.size()  # B x T
 
-        mask = torch.arange(T, device=seq_lens.device).view(1, -1).repeat(
-            B, 1
+        mask = (
+            torch.arange(T, device=seq_lens.device).view(1, -1).repeat(B, 1)
         ) < seq_lens.view(-1, 1)
         x_new = x
         x_new[mask] = self.bn(x[mask].view(-1, 1)).view(-1)
@@ -74,12 +74,12 @@ class FeatureProcessor(nn.Module):
         numeric_values = []
         categoric_values = []
 
-        time_steps = padded_batch.payload.pop("event_time").float()
+        time_steps = padded_batch.payload.get("event_time").float()
         seq_lens = padded_batch.seq_lens
         for key, values in padded_batch.payload.items():
             if key in self.emb_names:
                 categoric_values.append(self.embed_layers[key](values.long()))
-            else:
+            elif key in self.numeric_names:
                 # TODO: repeat the numerical feature?
                 numeric_values.append(
                     self.numeric_processor[key](
@@ -89,10 +89,13 @@ class FeatureProcessor(nn.Module):
 
         if len(categoric_values) == 0:
             return torch.cat(numeric_values, dim=-1), time_steps
+        if len(numeric_values) == 0:
+            return torch.cat(categoric_values, dim=-1), time_steps
 
-        padded_batch.payload["event_time"] = time_steps
         categoric_tensor = torch.cat(categoric_values, dim=-1)
-        numeric_tensor = torch.cat(numeric_values, dim=-1)
+        numeric_tensor = torch.cat(numeric_values, dim=-1).repeat(
+            1, 1, self.model_conf.repeat_numerical_times
+        )
 
         return torch.cat([categoric_tensor, numeric_tensor], dim=-1), time_steps
 
@@ -168,12 +171,11 @@ class MultiTimeSummator(nn.Module):
 
         self.max_len = max(time_blocks)
 
-        self.weights = nn.Parameter(torch.zeros(len(time_blocks)))
-        self.weights.data[-1] = 1
-        self.weights.data[:-1] = 1e-10
-        print(self.weights.data)
-        # self.weights = (torch.ones(len(time_blocks)) / len(time_blocks)).to(device)
-        self.dropout = nn.Dropout1d(p=0.0)
+        self.weights = nn.Parameter(torch.ones(len(time_blocks)) / len(time_blocks))
+        # self.weights.data[-1] = 1
+        # self.weights.data[:-1] = 1e-10
+        # print(self.weights.data)
+        # self.dropout = nn.Dropout1d(p=0.0)
 
     def forward(self, x, time_steps):
         new_xs = self.collect_new_x(x, time_steps)
@@ -204,8 +206,8 @@ class MultiTimeSummator(nn.Module):
                 torch.repeat_interleave(out_x, cur_multiplier, dim=1)
             ).unsqueeze(0)
 
-            if i < (len(self.time_ps) - 1):
-                new_x = new_x.detach()
+            # if i < (len(self.time_ps) - 1):
+            #     new_x = new_x.detach()
 
             new_xs.append(new_x)
 

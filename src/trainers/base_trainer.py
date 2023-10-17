@@ -51,9 +51,9 @@ def _grad_norm(params):
     for p in params:
         if p.grad is None:
             print(p)
-    #  param_norm = p.grad.detach().data.norm(2)
-    # total_sq_norm += param_norm.item() ** 2
-    total_sq_norm = 0.5
+        else:
+            param_norm = p.grad.detach().data.norm(2)
+            total_sq_norm += param_norm.item() ** 2
     return total_sq_norm**0.5
 
 
@@ -528,10 +528,6 @@ class BaseTrainer:
             "Test metrics: %s",
             str(self._metric_values),
         )
-        # logger.info(
-        #     "Weights for time blocks: %s",
-        #     str(self._model.time_processor.softmaxed_weights.data.detach().cpu()),
-        # )
         logger.info("Test finished")
 
         return self._metric_values

@@ -13,7 +13,7 @@ def data_configs():
         / "experiments"
         / "age"
         / "data"
-        / "train.parquet"
+        / "train_trx.parquet"
     )
 
     config.test_path = (
@@ -21,8 +21,10 @@ def data_configs():
         / "experiments"
         / "age"
         / "data"
-        / "test.parquet"
+        / "test_trx.parquet"
     )
+
+    config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
@@ -57,7 +59,7 @@ def data_configs():
     config.num_classes = 4
 
     ### TIME ###
-    config.max_time = 1.0
+    config.max_time = 729.0
     config.min_time = 0.0
 
     # train specific parameters
@@ -85,6 +87,6 @@ def data_configs():
 
     train.batch_size = 128
     val.batch_size = 128
-    test.batch_size = 128
+    test.batch_size = 16
 
     return config

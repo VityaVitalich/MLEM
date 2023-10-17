@@ -30,7 +30,10 @@ class BaseMixin(nn.Module):
         all_emb_size = self.model_conf.features_emb_dim * len(
             self.data_conf.features.embeddings
         )
-        all_numeric_size = len(self.data_conf.features.numeric_values)
+        all_numeric_size = (
+            len(self.data_conf.features.numeric_values)
+            * self.model_conf.repeat_numerical_times
+        )
         self.input_dim = all_emb_size + all_numeric_size
 
         ### NORMS ###
@@ -44,7 +47,7 @@ class BaseMixin(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=self.input_dim,
             nhead=self.model_conf.num_heads_enc,
-            #  batch_first=True,
+            batch_first=self.model_conf.batch_first_encoder,
         )
 
         self.encoder = getattr(nn, self.model_conf.encoder)(

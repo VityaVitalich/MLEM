@@ -2,10 +2,41 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from numpy.testing import assert_almost_equal
-from .sampling_strategies import get_sampling_strategy
+from .sampling_strategies import PairSelector, get_sampling_strategy
+from typing import Literal, Union
 
 
-class ContrastiveLoss(nn.Module):
+class BaseContrastiveLoss(nn.Module):
+    def __init__(
+        self,
+        project_dim: Union[int, None] = None,
+        projector: Literal["Identity", "Linear", "MLP"] = "Identity",
+    ):
+        super().__init__()
+
+        if projector == "Identity":
+            self.net = nn.Identity()
+        elif projector == "Linear":
+            assert project_dim is not None
+            self.net = nn.LazyLinear(project_dim)
+        elif projector == "MLP":
+            assert project_dim is not None
+            self.net = nn.Sequential(
+                nn.LazyLinear(project_dim),
+                nn.ReLU(inplace=True),
+                nn.LazyLinear(project_dim),
+            )
+        else:
+            raise ValueError(
+                f"Unkown projector: {projector}. "
+                "Valid values are: {identiy, linear, MLP}"
+            )
+
+    def project(self, x):
+        return self.net(x)
+
+
+class ContrastiveLoss(BaseContrastiveLoss):
     """
     Contrastive loss
 
@@ -13,12 +44,14 @@ class ContrastiveLoss(nn.Module):
     https://papers.nips.cc/paper/769-signature-verification-using-a-siamese-time-delay-neural-network.pdf
     """
 
-    def __init__(self, margin, pair_selector):
-        super(ContrastiveLoss, self).__init__()
+    def __init__(self, margin, pair_selector, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.margin = margin
         self.pair_selector = pair_selector
 
     def forward(self, embeddings, target):
+        embeddings = self.project(embeddings)
+
         positive_pairs, negative_pairs = self.pair_selector.get_pairs(
             embeddings, target
         )
@@ -29,12 +62,187 @@ class ContrastiveLoss(nn.Module):
         negative_loss = F.relu(
             self.margin
             - F.pairwise_distance(
-                embeddings[negative_pairs[:, 0]], embeddings[negative_pairs[:, 1]]
+                embeddings[negative_pairs[:, 0]],
+                embeddings[negative_pairs[:, 1]],
             )
         ).pow(2)
         loss = torch.cat([positive_loss, negative_loss], dim=0)
 
         return loss.sum()  # / (len(positive_pairs) + len(negative_pairs))
+
+
+class InfoNCELoss(BaseContrastiveLoss):
+    """
+    InfoNCE Loss https://arxiv.org/abs/1807.03748
+    """
+
+    def __init__(
+        self,
+        temperature: float,
+        pair_selector: PairSelector,
+        angular_margin: float = 0.0,  # = 0.5 ArcFace default
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.temperature = temperature
+        self.pair_selector = pair_selector
+        self.angular_margin = angular_margin
+
+    def forward(self, embeddings, target):
+        embeddings = self.project(embeddings)
+
+        positive_pairs, _ = self.pair_selector.get_pairs(embeddings, target)
+        dev = positive_pairs.device
+        all_idx = torch.arange(len(positive_pairs), dtype=torch.long, device=dev)
+        mask_same = torch.zeros(len(positive_pairs), len(embeddings), device=dev)
+        mask_same[all_idx, positive_pairs[:, 0]] -= torch.inf
+
+        sim = (
+            F.cosine_similarity(
+                embeddings[positive_pairs[:, 0], None],
+                embeddings[None],
+                dim=-1,
+            )
+            + mask_same
+        )
+        if self.angular_margin > 0.0:
+            with torch.no_grad():
+                target_sim = sim[all_idx, positive_pairs[:, 1]].clamp(0, 1)
+                target_sim.arccos_()
+                target_sim += self.angular_margin
+                target_sim.cos_()
+                sim[all_idx, positive_pairs[:, 1]] = target_sim
+
+        sim /= self.temperature
+        lsm = -F.log_softmax(sim, dim=-1)
+        loss = torch.take_along_dim(
+            lsm,
+            positive_pairs[:, [1]],
+            dim=1,
+        ).sum()
+        return loss
+
+
+class RINCELoss(BaseContrastiveLoss):
+    """
+    Robust Contrastive Learning against Noisy Views
+    """
+
+    def __init__(
+        self,
+        temperature: float,
+        pair_selector: PairSelector,
+        q: float,
+        lam: float,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.temperature = temperature
+        self.pair_selector = pair_selector
+        self.q = q
+        self.lam = lam
+
+    def forward(self, embeddings, target):
+        embeddings = self.project(embeddings)
+
+        positive_pairs, _ = self.pair_selector.get_pairs(embeddings, target)
+        dev = positive_pairs.device
+        all_idx = torch.arange(len(positive_pairs), dtype=torch.long, device=dev)
+        mask_same = torch.zeros(len(positive_pairs), len(embeddings), device=dev)
+        mask_same[all_idx, positive_pairs[:, 0]] -= torch.inf
+
+        sim = (
+            F.cosine_similarity(
+                embeddings[positive_pairs[:, 0], None],
+                embeddings[None],
+                dim=-1,
+            )
+            + mask_same
+        )
+        sim = torch.exp(sim / self.temperature)
+        pos = torch.take_along_dim(
+            sim,
+            positive_pairs[:, [1]],
+            dim=1,
+        )
+        all_ = sim.sum(1)
+        loss = -pos ** self.q / self.q + (self.lam * all_) ** self.q / self.q
+
+        return loss.sum()
+
+
+class DecoupledInfoNCELoss(BaseContrastiveLoss):
+    """
+    Inspired by https://arxiv.org/abs/2110.06848
+    -log((sum exp of positive pairs) / (sum exp of negative pairs))
+    """
+
+    def __init__(self, temperature, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.temperature = temperature
+
+    def forward(self, embeddings, target):
+        embeddings = self.project(embeddings)
+
+        pos = target[:, None] == target
+        neg_mask = torch.where(pos, -torch.inf, 0)
+        pos_mask = torch.where(pos, 0, -torch.inf) - torch.diag(
+            torch.full(target.shape, torch.inf, device=pos.device)
+        )
+
+        sim = (
+            F.cosine_similarity(
+                embeddings[:, None],
+                embeddings[None],
+                dim=-1,
+            )
+            / self.temperature
+        )
+        loss = torch.logsumexp(sim + neg_mask, dim=1) - torch.logsumexp(
+            sim + pos_mask, dim=1
+        )
+
+        return loss.sum()
+
+
+class DecoupledPairwiseInfoNCELoss(BaseContrastiveLoss):
+    """
+    Contrastive loss
+
+    "Signature verification using a siamese time delay neural network", NIPS 1993
+    https://papers.nips.cc/paper/769-signature-verification-using-a-siamese-time-delay-neural-network.pdf
+    """
+
+    def __init__(self, temperature, pair_selector, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.temperature = temperature
+        self.pair_selector = pair_selector
+
+    def forward(self, embeddings, target):
+        embeddings = self.project(embeddings)
+
+        positive_pairs, negative_pairs = self.pair_selector.get_pairs(
+            embeddings, target
+        )
+        pos = target[positive_pairs[:, 0], None] == target
+        neg_mask = torch.where(pos, -torch.inf, 0)
+        sim = (
+            F.cosine_similarity(
+                embeddings[positive_pairs[:, 0], None],
+                embeddings[None],
+                dim=-1,
+            )
+            / self.temperature
+        )
+        pos_sim = sim[positive_pairs[:, 0], positive_pairs[:, 1]][:, None]
+        neg_sim = sim[positive_pairs[:, 0]] + neg_mask - pos_sim
+        loss = torch.logsumexp(neg_sim, dim=1)
+
+        return loss.sum()
 
 
 class BinomialDevianceLoss(nn.Module):
@@ -262,9 +470,56 @@ def get_loss(model_conf):
         loss_fn = torch.nn.CrossEntropyLoss()
 
     elif model_conf.loss.loss_fn == "ContrastiveLoss":
-        kwargs = {"margin": model_conf.loss.margin, "pair_selector": sampling_strategy}
+        kwargs = {
+            "margin": model_conf.loss.margin,
+            "pair_selector": sampling_strategy,
+            "projector": model_conf.loss.projector,
+            "project_dim": model_conf.loss.project_dim,
+        }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         loss_fn = ContrastiveLoss(**kwargs)
+
+    elif model_conf.loss.loss_fn == "InfoNCELoss":
+        kwargs = {
+            "temperature": model_conf.loss.temperature,
+            "pair_selector": sampling_strategy,
+            "angular_margin": model_conf.loss.angular_margin,
+            "projector": model_conf.loss.projector,
+            "project_dim": model_conf.loss.project_dim,
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        loss_fn = InfoNCELoss(**kwargs)
+
+    elif model_conf.loss.loss_fn == "RINCELoss":
+        kwargs = {
+            "temperature": model_conf.loss.temperature,
+            "pair_selector": sampling_strategy,
+            "projector": model_conf.loss.projector,
+            "project_dim": model_conf.loss.project_dim,
+            "q": model_conf.loss.q,
+            "lam": model_conf.loss.lam,
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        loss_fn = RINCELoss(**kwargs)
+
+    elif model_conf.loss.loss_fn == "DecoupledInfoNCELoss":
+        kwargs = {
+            "temperature": model_conf.loss.temperature,
+            "projector": model_conf.loss.projector,
+            "project_dim": model_conf.loss.project_dim,
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        loss_fn = DecoupledInfoNCELoss(**kwargs)
+
+    elif model_conf.loss.loss_fn == "DecoupledPairwiseInfoNCELoss":
+        kwargs = {
+            "temperature": model_conf.loss.temperature,
+            "pair_selector": sampling_strategy,
+            "projector": model_conf.loss.projector,
+            "project_dim": model_conf.loss.project_dim,
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        loss_fn = DecoupledPairwiseInfoNCELoss(**kwargs)
 
     elif model_conf.loss.loss_fn == "BinomialDevianceLoss":
         kwargs = {
@@ -303,10 +558,7 @@ def get_loss(model_conf):
     else:
         raise AttributeError(f'wrong loss "{model_conf["train.loss"]}"')
 
-    def loss(*args, **kwargs):
-        return loss_fn(*args, **kwargs)
-
-    return loss
+    return loss_fn
 
 
 def outer_cosine_similarity(A, B=None):

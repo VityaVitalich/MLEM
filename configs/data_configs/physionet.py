@@ -31,6 +31,8 @@ def data_configs():
         / "test_trx.parquet"
     )
 
+    config.track_metric = "roc_auc"
+
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
@@ -114,20 +116,20 @@ def data_configs():
     test = config.test = ml_collections.ConfigDict()
 
     # splitters
-    train.split_strategy = {
-        "split_strategy": "SampleSlices",
-        "split_count": 5,
-        "cnt_min": 35,
-        "cnt_max": 150,
-    }
-    val.split_strategy = {
-        "split_strategy": "SampleSlices",
-        "split_count": 5,
-        "cnt_min": 35,
-        "cnt_max": 150,
-    }
-    # train.split_strategy = {"split_strategy": "NoSplit"}
-    # val.split_strategy = {"split_strategy": "NoSplit"}
+    # train.split_strategy = {
+    #     "split_strategy": "SampleSlices",
+    #     "split_count": 5,
+    #     "cnt_min": 15,
+    #     "cnt_max": 150,
+    # }
+    # val.split_strategy = {
+    #     "split_strategy": "SampleSlices",
+    #     "split_count": 5,
+    #     "cnt_min": 15,
+    #     "cnt_max": 150,
+    # }
+    train.split_strategy = {"split_strategy": "NoSplit"}
+    val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
@@ -144,6 +146,6 @@ def data_configs():
 
     train.batch_size = 128
     val.batch_size = 128
-    test.batch_size = 128
+    test.batch_size = 16
 
     return config

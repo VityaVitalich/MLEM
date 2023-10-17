@@ -19,7 +19,7 @@ def model_configs():
     config.classifier_linear_hidden_dim = 300
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # Identity or TransformerEncoder 
+    config.encoder = "Identity"  # IDnetity or TransformerEncoder 
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 

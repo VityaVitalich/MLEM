@@ -5,28 +5,32 @@ def model_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
-    config.predict_head = "Identity"  # Linear or Identity
+    config.predict_head = "Linear"  # Linear or Identity
+
+    # Vitya NIPS
+    config.batch_first_encoder = False
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
+    config.repeat_numerical_times = 8
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 512
+    config.classifier_gru_hidden_dim = 128
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
-    config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder
+    config.encoder = "Identity"  # Identity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "LayerNorm"
+    config.encoder_norm = "Identity" # if TransformerEncoder -> LayerNorm. else Identity
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.2
+    config.after_enc_dropout = 0.0
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
@@ -40,16 +44,24 @@ def model_configs():
     config.activation = "ReLU"
 
     ### TIME TRICKS ###
-    config.num_time_blocks = [8, 32, 64, 128]
-    config.time_preproc = "Identity"  # Identity or TimeConcater or MultiTimeSummator
-    config.entropy_weight = -0.0
+    config.num_time_blocks = 50 #[4, 16] 
+    config.time_preproc = (
+        "Identity"  # Identity or TimeConcater or MultiTimeSummator 
+    )
+    config.entropy_weight = 0.0
 
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "ContrastiveLoss"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
+    # loss.loss_fn = "RINCELoss"
+    # loss.temperature = 0.03
+    # loss.projector = "Linear"
+    # loss.project_dim = 128
+    # loss.q = 0.01
+    # loss.lam = 0.1
 
     ### MTAND ###
     # # number of reference points on encoder

@@ -1,0 +1,16 @@
+metric: "auc"
+classification: true
+data_path: '/data/#Representation_learning/rosbank_churn/data_trx.parquet'
+index_column: "cl_id"
+time_column: "event_time"
+target_column:  "target_target_flag"
+categorical_columns: ["mcc", "channel_type", "currency", "trx_category"]
+numerical_columns:  ["amount"]
+seq_len_limit: 200 # params.train.max_seq_len
+seq_len_trunc_type: "last"
+split_sizes:
+  test: 0.2
+  train: 0.8
+seed: 42
+output_size: 2
+# unix_timestamp / (24 * 60 * 60)

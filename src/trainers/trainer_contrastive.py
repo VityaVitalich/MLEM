@@ -2,8 +2,6 @@ import logging
 from typing import Any, Dict, List, Literal, Union, Tuple
 from torch.utils.data import DataLoader
 from lightgbm import LGBMClassifier
-from sklearn.preprocessing import MaxAbsScaler
-from sklearn.model_selection import StratifiedKFold
 
 import numpy as np
 import torch
@@ -11,7 +9,8 @@ import torch
 from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
 from sklearn.metrics import roc_auc_score, accuracy_score
-
+from sklearn.preprocessing import MaxAbsScaler
+from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger("event_seq")
 
@@ -151,7 +150,7 @@ class SimpleTrainerContrastive(BaseTrainer):
             train_emb_subset = train_embeddings[train_index]
             train_labels_subset = train_labels[train_index]
 
-            model = LGBMClassifier(**params)
+            model = LGBMClassifier(verbosity=-1, **params)
             preprocessor = MaxAbsScaler()
 
             train_emb_subset = preprocessor.fit_transform(train_emb_subset)
