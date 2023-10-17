@@ -14,13 +14,13 @@ import pickle
 sys.path.append("../")
 
 from configs.data_configs.age import data_configs as age_data
-from configs.model_configs.mTAN.age import model_configs as age_model
+from configs.model_configs.supervised.age import model_configs as age_model
 from configs.data_configs.physionet import data_configs as physionet_data
-from configs.model_configs.mTAN.physionet import model_configs as physionet_model
+from configs.model_configs.supervised.physionet import model_configs as physionet_model
 from configs.data_configs.rosbank import data_configs as rosbank_data
-from configs.model_configs.mTAN.rosbank import model_configs as rosbank_model
+from configs.model_configs.supervised.rosbank import model_configs as rosbank_model
 from configs.data_configs.taobao import data_configs as taobao_data
-from configs.model_configs.mTAN.taobao import model_configs as taobao_model
+from configs.model_configs.supervised.taobao import model_configs as taobao_model
 
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_Simple import AccuracySimpleTrainerSupervised, SimpleTrainerSupervised

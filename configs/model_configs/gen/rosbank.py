@@ -7,6 +7,9 @@ def model_configs():
     config.model_name = "SeqGen"
     config.predict_head = "Linear"  # Linear or Identity
 
+    # Vitya NIPS
+    config.batch_first_encoder = False
+
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8

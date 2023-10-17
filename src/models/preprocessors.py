@@ -80,7 +80,6 @@ class FeatureProcessor(nn.Module):
             if key in self.emb_names:
                 categoric_values.append(self.embed_layers[key](values.long()))
             elif key in self.numeric_names:
-                # TODO: repeat the numerical feature?
                 numeric_values.append(
                     self.numeric_processor[key](
                         self.numeric_norms[key](values.float(), seq_lens)
@@ -93,9 +92,7 @@ class FeatureProcessor(nn.Module):
             return torch.cat(categoric_values, dim=-1), time_steps
 
         categoric_tensor = torch.cat(categoric_values, dim=-1)
-        numeric_tensor = torch.cat(numeric_values, dim=-1).repeat(
-            1, 1, self.model_conf.repeat_numerical_times
-        )
+        numeric_tensor = torch.cat(numeric_values, dim=-1)
 
         return torch.cat([categoric_tensor, numeric_tensor], dim=-1), time_steps
 
