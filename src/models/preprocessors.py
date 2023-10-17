@@ -58,22 +58,34 @@ class FeatureProcessor(nn.Module):
                 vocab_size, self.model_conf.features_emb_dim
             )
 
+        self.numeric_processor = nn.ModuleDict()
         self.numeric_norms = nn.ModuleDict()
         for name in self.numeric_names:
+            if self.model_conf.use_numeric_emb:
+                self.numeric_processor[name] = nn.Linear(
+                    1, self.model_conf.numeric_emb_size
+                )
+            else:
+                self.numeric_processor[name] = nn.Identity()
+
             self.numeric_norms[name] = RBatchNormWithLens()
 
     def forward(self, padded_batch):
         numeric_values = []
         categoric_values = []
 
-        time_steps = padded_batch.payload.pop("event_time").float()
+        time_steps = padded_batch.payload.get("event_time").float()
         seq_lens = padded_batch.seq_lens
         for key, values in padded_batch.payload.items():
             if key in self.emb_names:
                 categoric_values.append(self.embed_layers[key](values.long()))
-            else:
+            elif key in self.numeric_names:
                 # TODO: repeat the numerical feature?
-                numeric_values.append(self.numeric_norms[key](values.float(), seq_lens))
+                numeric_values.append(
+                    self.numeric_processor[key](
+                        self.numeric_norms[key](values.float(), seq_lens)
+                    )
+                )
 
         if len(categoric_values) == 0:
             return torch.cat(numeric_values, dim=-1), time_steps
@@ -160,6 +172,10 @@ class MultiTimeSummator(nn.Module):
         self.max_len = max(time_blocks)
 
         self.weights = nn.Parameter(torch.ones(len(time_blocks)) / len(time_blocks))
+        # self.weights.data[-1] = 1
+        # self.weights.data[:-1] = 1e-10
+        # print(self.weights.data)
+        # self.dropout = nn.Dropout1d(p=0.0)
 
     def forward(self, x, time_steps):
         new_xs = self.collect_new_x(x, time_steps)
@@ -167,6 +183,12 @@ class MultiTimeSummator(nn.Module):
         nb, bs, l, d = new_xs.size()
 
         self.softmaxed_weights = nn.functional.softmax(self.weights, dim=0)
+        # if self.training:
+        #     self.softmaxed_weights = nn.functional.gumbel_softmax(self.weights, tau=2, hard=True)
+        # else:
+        #     self.softmaxed_weights = torch.zeros_like(self.weights)
+        #     self.softmaxed_weights[self.weights.argmax()] = 1
+        # self.softmaxed_weights = self.weights
 
         cur_w = repeat(self.softmaxed_weights, "nb -> nb bs l d", bs=bs, l=l, d=d)
 
@@ -177,10 +199,15 @@ class MultiTimeSummator(nn.Module):
     def collect_new_x(self, x, time_steps):
         new_xs = []
 
-        for tc in self.time_ps:
+        for i, tc in enumerate(self.time_ps):
             cur_multiplier = self.max_len // tc.num_points
             out_x, time_steps = tc(x, time_steps)
-            new_x = torch.repeat_interleave(out_x, cur_multiplier, dim=1).unsqueeze(0)
+            new_x = self.dropout(
+                torch.repeat_interleave(out_x, cur_multiplier, dim=1)
+            ).unsqueeze(0)
+
+            # if i < (len(self.time_ps) - 1):
+            #     new_x = new_x.detach()
 
             new_xs.append(new_x)
 

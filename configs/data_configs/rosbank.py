@@ -36,10 +36,10 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "mcc": {"in": 100, "out": 24, "max_value": 400},
-        "channel_type": {"in": 4, "out": 4, "max_value": 400},
-        "currency": {"in": 4, "out": 4, "max_value": 400},
-        "trx_category": {"in": 10, "out": 4, "max_value": 400},
+        "mcc": {"in": 100, "out": 24, "max_value": 100},
+        "channel_type": {"in": 4, "out": 4, "max_value": 5},
+        "currency": {"in": 4, "out": 4, "max_value": 5},
+        "trx_category": {"in": 10, "out": 4, "max_value": 12},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
@@ -63,7 +63,7 @@ def data_configs():
     # train.split_strategy = {
     #     "split_strategy": "SampleSlices",
     #     "split_count": 5,
-    #     "cnt_min": 15,
+    #     "cnt_min": 50,
     #     "cnt_max": 150,
     # }
     # val.split_strategy = {

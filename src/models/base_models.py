@@ -45,7 +45,7 @@ class BaseMixin(nn.Module):
 
         ### TRANSFORMER ###
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=self.input_dim, 
+            d_model=self.input_dim,
             nhead=self.model_conf.num_heads_enc,
             batch_first=self.model_conf.batch_first_encoder,
         )
@@ -77,8 +77,9 @@ class BaseMixin(nn.Module):
             loss = self.loss_fn(out, gt[1])
 
         if self.model_conf.time_preproc == "MultiTimeSummator":
-            logp = torch.log(self.time_processor.softmaxed_weights)
-            entropy_term = torch.sum(-self.time_processor.softmaxed_weights * logp)
+            # logp = torch.log(self.time_processor.softmaxed_weights)
+            # entropy_term = torch.sum(-self.time_processor.softmaxed_weights * logp)
+            entropy_term = torch.tensor(0)
         else:
             entropy_term = torch.tensor(0)
         return {

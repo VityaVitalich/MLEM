@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EPOCHS=30
+EPOCHS=100
 DEVICE="cuda:2"
 NAME='InfoNCE_t_003_all_pos_pairs'
 

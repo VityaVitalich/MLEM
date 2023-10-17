@@ -49,8 +49,11 @@ class _CyclicalLoader:
 def _grad_norm(params):
     total_sq_norm = 0.0
     for p in params:
-        param_norm = p.grad.detach().data.norm(2)
-        total_sq_norm += param_norm.item() ** 2
+        if p.grad is None:
+            print(p)
+        else:
+            param_norm = p.grad.detach().data.norm(2)
+            total_sq_norm += param_norm.item() ** 2
     return total_sq_norm**0.5
 
 
@@ -76,6 +79,7 @@ class BaseTrainer:
         device: str = "cpu",
         metrics_on_train: bool = False,
         model_conf: Dict[str, Any] = None,
+        data_conf: Dict[str, Any] = None,
     ):
         """Initialize trainer.
 
@@ -101,6 +105,7 @@ class BaseTrainer:
             device: device to train and validate on.
             metrics_on_train: wether to compute metrics on train set.
             model_conf: Model configs from configs/ dir
+            data_conf: Data configs from configs/ dir
         """
         assert (total_iters is None) ^ (
             total_epochs is None
@@ -120,6 +125,7 @@ class BaseTrainer:
         self._device = device
         self._metrics_on_train = metrics_on_train
         self._model_conf = model_conf
+        self._data_conf = data_conf
 
         self._model = model
         self._model.to(device)

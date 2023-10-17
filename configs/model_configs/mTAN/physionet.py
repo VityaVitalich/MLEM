@@ -34,10 +34,10 @@ def model_configs():
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
-    conv.out_channels = 16
+    conv.out_channels = 32
     conv.kernels = [3, 5, 9]
     conv.dilations = [3, 5, 9]
-    conv.num_stacks = 2
+    conv.num_stacks = 3
     conv.proj = "Linear"
 
     ### ACTIVATION ###
