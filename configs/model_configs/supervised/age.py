@@ -12,14 +12,15 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 16
-
+    config.features_emb_dim = 8
+    config.use_numeric_emb = False
+    config.numeric_emb_size = 8
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 32
-    config.classifier_linear_hidden_dim = 300
+    config.classifier_gru_hidden_dim = 64
+    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # IDnetity or TransformerEncoder 
+    config.encoder = "Identity" # Identity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
@@ -89,6 +90,7 @@ def model_configs():
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
+    config.cv_splits = 5
 
     config.comments = ""
     return config
