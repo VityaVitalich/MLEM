@@ -89,7 +89,7 @@ def preprocess(load_path, save_path="data/synthetic/processed/data.csv", log_amt
         print("Encode amt...")
         df["amt"] = np.sign(df["amt"]) * np.log(df["amt"].abs() + 1)
 
-    df["index"] = (df["epk_id"].astype("str") + "_" + df["report_date"])
+    df["index"] = (df["report_date"] + "_" + df["epk_id"].astype("str"))
     df = df.set_index("index")
 
     print("Transform time...")
@@ -105,7 +105,7 @@ def preprocess(load_path, save_path="data/synthetic/processed/data.csv", log_amt
     print("Done")
     return df
 
-def create_parquet(cfg_path, csv_path):
+def create_parquet(cfg_path, csv_path, shuffle=False):
     cfg = read_yaml(cfg_path)
     if (Path(cfg["data_path"]).parent/"train.parquet").exists():
         print("Parquet already exists.")
@@ -113,7 +113,7 @@ def create_parquet(cfg_path, csv_path):
     print("Creating parquet...")
     cfg["data_path"] = csv_path
     dataset = SequenceDataset(cfg)
-    dataset.load_dataset()
+    dataset.load_dataset(shuffle=shuffle)
     
 if __name__ == "__main__":
     # Generation
@@ -121,11 +121,19 @@ if __name__ == "__main__":
     print(len(df))  # ~41000000 for sber data
 
     # Preprocessing
-    df = preprocess("data/synthetic/data.csv", "data/synthetic/processed/data.csv", log_amt=True)
+    df = preprocess(
+        "data/synthetic/data.csv", 
+        "data/synthetic/processed/data.csv", 
+        log_amt=True,
+    )
     print(df)
 
     # Parquet generation
-    create_parquet("configs/synthetic.yaml", "data/synthetic/processed/data.csv")
+    create_parquet(
+        "configs/synthetic.yaml", 
+        "data/synthetic/processed/data.csv", 
+        shuffle=False,
+    )
 
     print(next(read_pyarrow_file("data/synthetic/processed/train.parquet")))
     print(next(read_pyarrow_file("data/synthetic/processed/test.parquet")))

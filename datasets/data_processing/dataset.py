@@ -48,7 +48,7 @@ class SequenceDataset(Dataset):
             )
         return data
 
-    def load_dataset(self):
+    def load_dataset(self, shuffle=True):
         # Either parquet "data" folder or csv file
         data_path = self.cfg["data_path"]
         train_path = Path(data_path).parent / "train.parquet"
@@ -66,7 +66,7 @@ class SequenceDataset(Dataset):
             print("Collecting lists...")
             data = self.collect_lists(data)
 
-        train, test = self.split_dataset(data)
+        train, test = self.split_dataset(data, shuffle)
         self.save_features(train, train_path)
         self.save_features(test, test_path)
         # self.save_features(val, val_path)
@@ -74,7 +74,7 @@ class SequenceDataset(Dataset):
 
         return self
 
-    def split_dataset(self, all_data):
+    def split_dataset(self, all_data, shuffle=True):
         if self.spark is None or self.spark._jsc.sc().isStopped():
             self.spark = SparkSession.builder.getOrCreate()
         spark = self.spark
@@ -87,7 +87,8 @@ class SequenceDataset(Dataset):
         # shuffle client list
         s_clients = sorted(s_clients)
         s_clients = [cl_id for cl_id in s_clients]
-        Random(1).shuffle(s_clients)
+        if shuffle:
+            Random(1).shuffle(s_clients)
 
         # split client list
         sizes = self.cfg["split_sizes"]
@@ -98,9 +99,9 @@ class SequenceDataset(Dataset):
         n_test = int(len(s_clients) * n_test)
         # n_val = int(len(s_clients) * n_val)
 
-        s_clients_test = s_clients[:n_test]
+        s_clients_train = s_clients[:n_train]
+        s_clients_test = s_clients[n_train:]
         # s_clients_val = s_clients[n_test: n_test + n_val]
-        s_clients_train = s_clients[n_test:]
 
         s_clients_train = spark.createDataFrame(
             [(i,) for i in s_clients_train], [self.cfg["index_column"]]

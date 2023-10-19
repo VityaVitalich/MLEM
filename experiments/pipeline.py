@@ -154,7 +154,7 @@ def do_grid(run_name, device, total_epochs, conf, model_conf, TrainerClass, resu
     #     "encoder_norm": ["LayerNorm", "Identity"],
     #     "after_enc_dropout": [0, 0.3],
     # }
-    # assert not (Path(log_dir) / run_name).exists(), f"{Path(log_dir) / run_name} ALREADY EXISTS!!"
+    assert not (Path(log_dir) / run_name).exists(), f"{Path(log_dir) / run_name} ALREADY EXISTS!!"
     res_dict = {}
     for GRU in [128, 64, 32, 16]:
         for TR in [True, False]:
