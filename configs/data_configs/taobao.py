@@ -38,15 +38,13 @@ def data_configs():
     # have not figured out the purpose of "out"
     features.embeddings = {
         "behavior_type": {"in": 4, "max_value": 5},
-        "item_category": {"in": 300, "max_value": 301}
+        "item_category": {"in": 300, "max_value": 301},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
-    features.numeric_values = {
-    }
+    features.numeric_values = {}
 
-    config.ckpt_path = (
-    )
+    config.ckpt_path = ()
 
     # name of target col
     features.target_col = "payment_next_7_days"

@@ -23,12 +23,28 @@ from configs.data_configs.taobao import data_configs as taobao_data
 from configs.model_configs.supervised.taobao import model_configs as taobao_model
 
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_Simple import AccuracySimpleTrainerSupervised, SimpleTrainerSupervised
+from src.trainers.trainer_Simple import (
+    AccuracySimpleTrainerSupervised,
+    SimpleTrainerSupervised,
+)
 from src.trainers.randomness import seed_everything
 import src.models.base_models
 
 
-def run_experiment(run_name, device, total_epochs, conf, model_conf, TrainerClass, resume, log_dir, seed=0):
+def run_experiment(
+    run_name,
+    device,
+    total_epochs,
+    conf,
+    model_conf,
+    TrainerClass,
+    resume,
+    log_dir,
+    seed=0,
+):
+    """
+    TrainerClass - class from src.trainers
+    """
     ### SETUP LOGGING ###
     ch = logging.StreamHandler()
     cons_lvl = getattr(logging, "warning".upper())
@@ -102,10 +118,22 @@ def run_experiment(run_name, device, total_epochs, conf, model_conf, TrainerClas
 
     return test_metrics, train_metrics, val_metrics
 
+
 def run_experiment_helper(args):
     return run_experiment(*args)
 
-def do_n_runs(run_name, device, total_epochs, conf, model_conf, TrainerClass, resume, log_dir, n_runs=3):
+
+def do_n_runs(
+    run_name,
+    device,
+    total_epochs,
+    conf,
+    model_conf,
+    TrainerClass,
+    resume,
+    log_dir,
+    n_runs=3,
+):
     run_name = f"{run_name}/{datetime.now():%F_%T}"
 
     result_list = []
@@ -120,16 +148,17 @@ def do_n_runs(run_name, device, total_epochs, conf, model_conf, TrainerClass, re
             resume,
             log_dir,
             seed,
-        ) for seed in range(n_runs)
+        )
+        for seed in range(n_runs)
     ]
     with Pool(3) as p:
         result_list = p.map(run_experiment_helper, args)
 
     test_dict, train_dict, val_dict = {}, {}, {}
-    for (test_metrics, train_metrics, val_metrics) in result_list:
+    for test_metrics, train_metrics, val_metrics in result_list:
         for data in zip(
-            [test_dict, train_dict, val_dict], 
-            [test_metrics, train_metrics, val_metrics]
+            [test_dict, train_dict, val_dict],
+            [test_metrics, train_metrics, val_metrics],
         ):
             for k in data[1]:
                 v = data[0].get(k, [])
@@ -147,14 +176,27 @@ def do_n_runs(run_name, device, total_epochs, conf, model_conf, TrainerClass, re
     summary_df.T.to_csv(Path(log_dir) / run_name / "results.csv")
     return summary_df
 
-def do_grid(run_name, device, total_epochs, conf, model_conf, TrainerClass, resume, log_dir, n_runs=3):
+
+def do_grid(
+    run_name,
+    device,
+    total_epochs,
+    conf,
+    model_conf,
+    TrainerClass,
+    resume,
+    log_dir,
+    n_runs=3,
+):
     # grid_example = {
     #     "encoder": ["Identity", "TransformerEncoder"],
     #     "classifier_gru_hidden_dim": [16, 32, 64, 128],
     #     "encoder_norm": ["LayerNorm", "Identity"],
     #     "after_enc_dropout": [0, 0.3],
     # }
-    assert not (Path(log_dir) / run_name).exists(), f"{Path(log_dir) / run_name} ALREADY EXISTS!!"
+    assert not (
+        Path(log_dir) / run_name
+    ).exists(), f"{Path(log_dir) / run_name} ALREADY EXISTS!!"
     res_dict = {}
     for GRU in [128, 64, 32, 16]:
         for TR in [True, False]:
@@ -190,6 +232,7 @@ def get_data_config(dataset):
     }
     return config_dict[dataset]()
 
+
 def get_model_config(dataset):
     config_dict = {
         "taobao": taobao_model,
@@ -199,6 +242,7 @@ def get_model_config(dataset):
     }
     return config_dict[dataset]()
 
+
 def get_trainer_class(dataset):
     trainer_dict = {
         "taobao": SimpleTrainerSupervised,
@@ -207,7 +251,6 @@ def get_trainer_class(dataset):
         "physionet": SimpleTrainerSupervised,
     }
     return trainer_dict[dataset]
-
 
 
 if __name__ == "__main__":
@@ -248,12 +291,7 @@ if __name__ == "__main__":
         default=3,
         type=int,
     )
-    parser.add_argument(
-        "--dataset",
-        help="dataset",
-        type=str,
-        default="physionet"
-    )
+    parser.add_argument("--dataset", help="dataset", type=str, default="physionet")
     args = parser.parse_args()
 
     ### TRAINING SETUP ###

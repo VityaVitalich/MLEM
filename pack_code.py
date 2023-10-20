@@ -11,7 +11,7 @@ EXCLUDE_DIRS = {"__pycache__", "data", "logs", "ckpt"}
 def encode_dir(d: Path) -> List:
     res = []
     for p in d.iterdir():
-        if p.is_dir() and not p.name[0] == '.' and p.name not in EXCLUDE_DIRS:
+        if p.is_dir() and not p.name[0] == "." and p.name not in EXCLUDE_DIRS:
             res.append([p.name, encode_dir(p)])
         elif p.is_file() and p.suffix in EXTENSIONS:
             res.append([p.name, p.read_text()])
@@ -29,11 +29,15 @@ def decode_dir(base_path: Path, d: List) -> None:
             path.write_text(content)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("action", choices=["c", "x"], help="create or extract the JSON")
-    parser.add_argument("--path", help="where to start creation or extraction", default=".")
-    parser.add_argument("--file", help="JSON file with the representation", default="encoded.json")
+    parser.add_argument(
+        "--path", help="where to start creation or extraction", default="."
+    )
+    parser.add_argument(
+        "--file", help="JSON file with the representation", default="encoded.json"
+    )
     args = parser.parse_args()
 
     if args.action == "c":

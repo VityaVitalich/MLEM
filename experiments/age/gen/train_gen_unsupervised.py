@@ -9,8 +9,8 @@ import os
 
 sys.path.append("../../../")
 
-from configs.data_configs.rosbank import data_configs
-from configs.model_configs.gen.rosbank import model_configs
+from configs.data_configs.age import data_configs
+from configs.model_configs.gen.age import model_configs
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_gen import GenTrainer, GANGenTrainer
 from src.trainers.randomness import seed_everything
@@ -18,10 +18,10 @@ import src.models.gen_models
 import src.models.base_models
 
 from experiments.pipeline import run_experiment, get_trainer_class
-from configs.model_configs.gen.rosbank_genval import (
+from configs.model_configs.gen.age_genval import (
     model_configs as model_configs_genval,
 )
-from configs.model_configs.gen.rosbank_D import (
+from configs.model_configs.gen.age_D import (
     model_configs as model_configs_D,
 )
 
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     ### RUN TRAINING ###
     trainer.run()
 
-    trainer.load_best_model()
+    # trainer.load_best_model()
     trainer.test(test_loader, train_supervised_loader)
 
     if args.gen_val:

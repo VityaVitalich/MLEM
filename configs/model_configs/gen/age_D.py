@@ -13,11 +13,10 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
-    config.use_numeric_emb = False
-    config.numeric_emb_size = 8
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
+    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder
@@ -30,7 +29,7 @@ def model_configs():
     config.encoder_norm = "LayerNorm"
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.0
+    config.after_enc_dropout = 0.3
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
@@ -44,13 +43,7 @@ def model_configs():
     config.activation = "ReLU"
 
     ### TIME TRICKS ###
-    config.num_time_blocks = [
-        1,
-        8,
-        16,
-        32,
-        64,
-    ]
+    config.num_time_blocks = 50
     config.time_preproc = "Identity"  # Identity or TimeConcater or MultiTimeSummator
     config.entropy_weight = 0.0
 
@@ -66,7 +59,6 @@ def model_configs():
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
-    config.cv_splits = 5
 
     config.comments = ""
     return config

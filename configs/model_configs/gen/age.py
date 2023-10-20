@@ -8,7 +8,7 @@ def model_configs():
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
-    config.preENC_TR = True
+    config.preENC_TR = False
     config.batch_first_encoder = True
 
     ### EMBEDDINGS ###
@@ -16,12 +16,12 @@ def model_configs():
     config.features_emb_dim = 12
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
-    config.encoder_feature_mixer = True
-    config.decoder_feature_mixer = True
+    config.encoder_feature_mixer = False
+    config.decoder_feature_mixer = False
 
     ### ENCODER ###
     config.encoder = "GRU"
-    config.encoder_hidden = 128
+    config.encoder_hidden = 64
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###

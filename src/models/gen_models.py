@@ -103,6 +103,23 @@ class BaseMixin(nn.Module):
         else:
             self.decoder_feature_mixer = nn.Identity()
 
+        ### INTERBATCH TRANSFORMER ###
+        if self.model_conf.preENC_TR:
+            encoder_layer = nn.TransformerEncoderLayer(
+                d_model=self.input_dim,
+                nhead=1,
+                batch_first=self.model_conf.batch_first_encoder,
+            )
+
+            self.preENC_TR = nn.TransformerEncoder(
+                encoder_layer,
+                1,
+                enable_nested_tensor=True,
+                mask_check=True,
+            )
+        else:
+            self.preENC_TR = nn.Identity()
+
         ### ENCODER ###
         if self.model_conf.encoder == "GRU":
             self.encoder = nn.GRU(
@@ -241,11 +258,13 @@ class BaseMixin(nn.Module):
         # data_rho = output['latent'].mean(0)
         # dkl = - rho * torch.log(data_rho + 1e-15) - (1-rho)*torch.log(1-data_rho + 1e-15)
         # print(dkl)
+        sparce_loss = torch.mean(torch.sum(torch.abs(output["latent"]), dim=1))
 
         losses_dict = {
             "total_mse_loss": total_mse_loss,
             "total_CE_loss": total_ce_loss,
             "delta_loss": self.model_conf.delta_weight * delta_mse,
+            "L1_loss": sparce_loss,
         }
         losses_dict.update(cross_entropy_losses)
 
@@ -253,6 +272,7 @@ class BaseMixin(nn.Module):
             self.model_conf.mse_weight * losses_dict["total_mse_loss"]
             + self.model_conf.CE_weight * total_ce_loss
             + self.model_conf.delta_weight * delta_mse
+            + self.model_conf.l1_weight * sparce_loss
         )
         losses_dict["total_loss"] = total_loss
 
@@ -272,6 +292,8 @@ class SeqGen(BaseMixin):
                 [gt_delta, torch.zeros(x.size()[0], 1, device=gt_delta.device)], dim=1
             )
             x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
+
+        x = self.preENC_TR(x)
 
         if self.model_conf.encoder in ("GRU", "LSTM"):
             all_hid, hn = self.encoder(self.pre_encoder_norm(x))
