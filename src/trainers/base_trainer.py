@@ -287,6 +287,7 @@ class BaseTrainer:
         losses: List[float] = []
         preds, gts = [], []
         pbar = tqdm(zip(range(iters), self._cyc_train_loader), total=iters)
+        pbar.set_description_str(f"Epoch {self._last_epoch + 1: 3}")
         for i, (inp, gt) in pbar:
             inp, gt = inp.to(self._device), gt.to(self._device)
 
@@ -352,9 +353,20 @@ class BaseTrainer:
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 pred = self._model(inp)
-                preds.append(pred)
+                preds.append(self.dict_to_cpu(pred))
 
         return preds, gts
+
+    @staticmethod
+    def dict_to_cpu(d):
+        out = {}
+        for k, val in d.items():
+            if isinstance(val, dict):
+                out[k] = BaseTrainer.dict_to_cpu(val)
+            else:
+                out[k] = val.to("cpu")
+
+        return out
 
     def compute_metrics(
         self,

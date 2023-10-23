@@ -84,9 +84,7 @@ def prepare_data(conf, supervised):
 
     data = read_pyarrow_file(train_path)
     if supervised:
-        data = (
-            rec for rec in data if rec[conf.features.target_col] is not None
-        )
+        data = (rec for rec in data if rec[conf.features.target_col] is not None)
         data = (
             rec for rec in data if not np.isnan(float(rec[conf.features.target_col]))
         )

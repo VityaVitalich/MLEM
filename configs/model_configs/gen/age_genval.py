@@ -20,14 +20,14 @@ def model_configs():
     config.classifier_gru_hidden_dim = 64
 
     ### TRANSFORMER ###
-    config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder
+    config.encoder = "Identity"  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "LayerNorm"
+    config.encoder_norm = "Identity"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.0

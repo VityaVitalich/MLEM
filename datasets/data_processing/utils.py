@@ -8,6 +8,7 @@ def read_yaml(path):
         yaml_data = yaml.safe_load(yaml_file)
     return yaml_data
 
+
 def read_pyarrow_file(path, use_threads=True):
     p_table = pq.read_table(
         source=path,
