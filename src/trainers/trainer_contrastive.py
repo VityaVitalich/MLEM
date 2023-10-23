@@ -57,9 +57,10 @@ class SimpleTrainerContrastive(BaseTrainer):
             A dict of metric name and metric value(s).
         """
         # assert isinstance(self.model, MegaNetCE)
-        loss_dicts = [
-            self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
-        ]
+        with torch.no_grad():
+            loss_dicts = [
+                self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
+            ]
         losses_dict = {
             k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
         }

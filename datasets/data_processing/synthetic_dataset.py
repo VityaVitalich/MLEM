@@ -140,7 +140,7 @@ def create_parquet(cfg_path, csv_path, shuffle=False):
 
 if __name__ == "__main__":
     # Generation
-    df = make_df(47, "data/synthetic/data.csv")  # 47000 to get real scale
+    df = make_df(47000, "data/synthetic/data.csv")  # 47000 to get real scale
     print(len(df))  # ~41000000 for sber data
 
     # Preprocessing
