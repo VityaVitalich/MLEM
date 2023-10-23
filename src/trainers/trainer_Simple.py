@@ -39,7 +39,6 @@ class SimpleTrainerSupervised(BaseTrainer):
             k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
         }
 
-        
         preds = torch.cat([it.cpu()[:, 1] for it in model_outputs])
         gold = torch.cat([gt[1].cpu() for gt in ground_truths])
         score = roc_auc_score(gold, preds)

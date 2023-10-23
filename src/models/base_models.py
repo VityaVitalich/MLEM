@@ -53,8 +53,8 @@ class BaseMixin(nn.Module):
             encoder_layer,
             self.model_conf.num_enc_layers,
             norm=self.encoder_norm,
-            enable_nested_tensor=True,
-            mask_check=True,
+            #  enable_nested_tensor=True,
+            # mask_check=True,
         )
 
         ### DROPOUT ###

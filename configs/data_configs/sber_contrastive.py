@@ -42,13 +42,13 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "trx_country":   {"in": 1000, "out": 24, "max_value": 1 + 2},
-        "mcc_code":      {"in": 1000, "out": 24, "max_value": 1 + 300},
-        "trans_type":    {"in": 1000, "out": 24, "max_value": 1 + 300},
-        "card_cat_cd":   {"in": 1000, "out": 24, "max_value": 1 + 3},
-        "ipt_name":      {"in": 1000, "out": 24, "max_value": 1 + 7},
-        "iso_crncy_cd":  {"in": 1000, "out": 24, "max_value": 1 + 2},
-        "ecom_fl":       {"in": 1000, "out": 24, "max_value": 1 + 2},
+        "trx_country": {"in": 1000, "out": 24, "max_value": 1 + 2},
+        "mcc_code": {"in": 1000, "out": 24, "max_value": 1 + 300},
+        "trans_type": {"in": 1000, "out": 24, "max_value": 1 + 300},
+        "card_cat_cd": {"in": 1000, "out": 24, "max_value": 1 + 3},
+        "ipt_name": {"in": 1000, "out": 24, "max_value": 1 + 7},
+        "iso_crncy_cd": {"in": 1000, "out": 24, "max_value": 1 + 2},
+        "ecom_fl": {"in": 1000, "out": 24, "max_value": 1 + 2},
         "trx_direction": {"in": 1000, "out": 24, "max_value": 1 + 2},
     }
     # all numeric features are defined here as keys
@@ -58,10 +58,7 @@ def data_configs():
     }
 
     config.ckpt_path = (
-        Path(__file__).parent.parent.parent
-        / "experiments"
-        / "sber"
-        / "ckpt"
+        Path(__file__).parent.parent.parent / "experiments" / "sber" / "ckpt"
     )
 
     # name of target col

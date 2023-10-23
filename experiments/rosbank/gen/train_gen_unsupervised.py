@@ -169,7 +169,7 @@ if __name__ == "__main__":
     ### RUN TRAINING ###
     trainer.run()
 
-   # trainer.load_best_model()
+    # trainer.load_best_model()
     trainer.test(test_loader, train_supervised_loader)
 
     if args.gen_val:

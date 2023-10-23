@@ -42,7 +42,8 @@ def model_configs():
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
-    config.generative_embeddings_loss = False
+    config.generative_embeddings_loss = True
+    config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.05
@@ -58,7 +59,7 @@ def model_configs():
     config.mse_weight = 1
     config.CE_weight = 1
     config.l1_weight = 0.001
-    config.gen_emb_weight = 1
+    config.gen_emb_weight = 1000
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"

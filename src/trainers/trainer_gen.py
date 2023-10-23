@@ -88,13 +88,7 @@ class GenTrainer(BaseTrainer):
             ground_truth: tuple of raw idx and raw ground truth label from dataloader.
         """
         # assert isinstance(self.model, MegaNet)
-        if self._model_conf.generative_embeddings_loss:
-            generated_batch = self.out_to_padded_batch(model_output).to(self._device)
-            print(generated_batch.payload['amount'].size())
-            generated_out = self.model(generated_batch)
-        else:
-            generated_out = None
-        losses = self.model.loss(model_output, ground_truth, generated_out=generated_out)
+        losses = self.model.loss(model_output, ground_truth)
         return losses["total_loss"]
 
     def log_metrics(
@@ -161,10 +155,10 @@ class GenTrainer(BaseTrainer):
         skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
 
         if self._data_conf.num_classes == 2:
-            params["objective"]= "binary"
+            params["objective"] = "binary"
             params["metric"] = "auc"
         else:
-            params["objective"]= "multiclass"
+            params["objective"] = "multiclass"
 
         results = []
         for i, (train_index, test_index) in enumerate(
@@ -173,7 +167,9 @@ class GenTrainer(BaseTrainer):
             train_emb_subset = train_embeddings[train_index]
             train_labels_subset = train_labels[train_index]
 
-            model = LGBMClassifier(**params,)
+            model = LGBMClassifier(
+                **params,
+            )
             preprocessor = MaxAbsScaler()
 
             train_emb_subset = preprocessor.fit_transform(train_emb_subset)
@@ -182,8 +178,8 @@ class GenTrainer(BaseTrainer):
             model.fit(train_emb_subset, train_labels_subset)
             y_pred = model.predict_proba(test_embeddings_subset)
 
-            #score = roc_auc_score(test_labels, y_pred[:, 1])
-            score = accuracy_score(test_labels, y_pred.argmax(axis=1))
+            score = roc_auc_score(test_labels, y_pred[:, 1])
+            # score = accuracy_score(test_labels, y_pred.argmax(axis=1))
             results.append(score)
 
         return results
@@ -194,7 +190,6 @@ class GenTrainer(BaseTrainer):
         self.order = {}
         with torch.no_grad():
             for inp, gt in tqdm(loader):
-
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 out = self._model(inp)
@@ -202,17 +197,16 @@ class GenTrainer(BaseTrainer):
 
                 if not self.order:
                     k = 0
-                    for key in out['gt']["input_batch"].payload.keys():
+                    for key in out["gt"]["input_batch"].payload.keys():
                         if key in self._data_conf.features.numeric_values.keys():
                             self.order[k] = key
                             k += 1
 
-                out['gt'].pop('input_batch')
-                out.pop('all_latents', None)
+                out["gt"].pop("input_batch")
+                out.pop("all_latents", None)
                 preds.append(out)
 
         return preds, gts
-
 
     def validate(self) -> None:
         assert self._val_loader is not None, "Set a val loader first"
@@ -246,14 +240,13 @@ class GenTrainer(BaseTrainer):
                 out[k] = val.to("cpu")
 
         return out
+
     def generate_data(self, train_supervised_loader):
         logger.info("Generation started")
         train_out, train_gts = self.predict(train_supervised_loader)
         logger.info("Predictions convertation started")
 
-        generated_data = self.output_to_df(
-            train_out, train_gts
-        )
+        generated_data = self.output_to_df(train_out, train_gts)
         logger.info("Predictions converted")
         gen_data_path = Path(self._ckpt_dir) / "generated_data"
         gen_data_path.mkdir(parents=True, exist_ok=True)
@@ -264,7 +257,6 @@ class GenTrainer(BaseTrainer):
         return save_path
 
     def output_to_df(self, outs, gts):
-
         df_dic = {"event_time": [], "trx_count": [], "target_target_flag": []}
         for feature in self._data_conf.features.embeddings.keys():
             df_dic[feature] = []
@@ -280,7 +272,7 @@ class GenTrainer(BaseTrainer):
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
             if self._model_conf.use_deltas:
-                pred_delta = out["pred"]['delta']
+                pred_delta = out["pred"]["delta"]
 
             # num_numeric = len(self._data_conf.features.numeric_values.keys())
             # numeric_pred = pred[:, :, -num_numeric:]
@@ -289,15 +281,18 @@ class GenTrainer(BaseTrainer):
             #     cur_val = numeric_pred[:, :, i].cpu().tolist()
             #     df_dic[cur_key].extend(cur_val)
 
-            df_dic["event_time"].extend(out['gt']["time_steps"][:, 1:].tolist())
+            df_dic["event_time"].extend(out["gt"]["time_steps"][:, 1:].tolist())
             df_dic["trx_count"].extend(
-                (out['gt']["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
+                (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
             )
             df_dic["target_target_flag"].extend(gt[1].cpu().tolist())
 
         generated_df = pd.DataFrame.from_dict(df_dic)
         generated_df["event_time"] = generated_df["event_time"].apply(
-            lambda x: (np.array(x) * (self._data_conf.max_time - self._data_conf.min_time)) + self._data_conf.min_time
+            lambda x: (
+                np.array(x) * (self._data_conf.max_time - self._data_conf.min_time)
+            )
+            + self._data_conf.min_time
         )
 
         def truncate_lists(row):
@@ -310,29 +305,6 @@ class GenTrainer(BaseTrainer):
         generated_df = generated_df.apply(func=truncate_lists, axis=1)
         generated_df[self._data_conf.col_id] = np.arange(len(generated_df))
         return generated_df
-    
-    def out_to_padded_batch(self, out):
-        order = {}
-
-        k = 0
-        for key in out['gt']["input_batch"].payload.keys():
-            if key in self._data_conf.features.numeric_values.keys():
-                order[k] = key
-                k += 1
-
-        payload = {}
-        payload["event_time"] = out['gt']["time_steps"][:, 1:]
-        length = (out['gt']["time_steps"][:, 1:] != -1).sum(dim=1)
-        mask = out['gt']["time_steps"][:, 1:] != -1
-        for key, val in out["pred"].items():
-            if key in self._data_conf.features.embeddings.keys():
-                payload[key] = val.cpu().argmax(dim=-1)
-                payload[key][~mask] = 0
-            elif key in self._data_conf.features.numeric_values.keys():
-                payload[key] = val.cpu().squeeze(-1)
-                payload[key][~mask] = 0
-
-        return PaddedBatch(payload, length)
 
 
 class GANGenTrainer(GenTrainer):
@@ -492,9 +464,6 @@ class GANGenTrainer(GenTrainer):
             )
 
         logger.info("Epoch %04d: train finished", self._last_epoch + 1)
-
-
-
 
     @staticmethod
     def mix_batches(gen_batch, true_batch):
