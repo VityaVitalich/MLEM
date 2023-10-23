@@ -170,7 +170,7 @@ class RINCELoss(BaseContrastiveLoss):
             dim=1,
         )
         all_ = sim.sum(1)
-        loss = -pos ** self.q / self.q + (self.lam * all_) ** self.q / self.q
+        loss = -(pos**self.q) / self.q + (self.lam * all_) ** self.q / self.q
 
         return loss.sum()
 

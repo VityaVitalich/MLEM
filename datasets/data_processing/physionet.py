@@ -248,7 +248,7 @@ class PhysioNet(object):
                             float(time.split(":")[0]) + float(time.split(":")[1]) / 60.0
                         )
                         # round up the time stamps (up to 6 min by default)
-                        # used for speed -- we actually don't need to quantize it 
+                        # used for speed -- we actually don't need to quantize it
                         # in Latent ODE
                         time = round(time / self.quantization) * self.quantization
 
@@ -358,4 +358,6 @@ if __name__ == "__main__":
         "data/physionet", "configs/physionet.yaml", train=False, download=True
     )
     print(dataset)
-    gen = read_pyarrow_file("/home/dev/2023_03/Datasets/aevent_seq/datasets/data/physionet/PhysioNet/processed/test_trx.parquet")
+    gen = read_pyarrow_file(
+        "/home/dev/2023_03/Datasets/aevent_seq/datasets/data/physionet/PhysioNet/processed/test_trx.parquet"
+    )

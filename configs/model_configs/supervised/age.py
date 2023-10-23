@@ -20,14 +20,16 @@ def model_configs():
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
-    config.encoder = "Identity" # Identity or TransformerEncoder
+    config.encoder = "Identity"  # Identity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "Identity" # if TransformerEncoder -> LayerNorm. else Identity
+    config.encoder_norm = (
+        "Identity"  # if TransformerEncoder -> LayerNorm. else Identity
+    )
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.3
@@ -44,10 +46,8 @@ def model_configs():
     config.activation = "ReLU"
 
     ### TIME TRICKS ###
-    config.num_time_blocks = 50 #[4, 16] 
-    config.time_preproc = (
-        "Identity"  # Identity or TimeConcater or MultiTimeSummator 
-    )
+    config.num_time_blocks = 50  # [4, 16]
+    config.time_preproc = "Identity"  # Identity or TimeConcater or MultiTimeSummator
     config.entropy_weight = 0.0
 
     ### LOSS ###

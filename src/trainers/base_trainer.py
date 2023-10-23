@@ -353,9 +353,20 @@ class BaseTrainer:
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 pred = self._model(inp)
-                preds.append(pred)
+                preds.append(self.dict_to_cpu(pred))
 
         return preds, gts
+
+    @staticmethod
+    def dict_to_cpu(d):
+        out = {}
+        for k, val in d.items():
+            if isinstance(val, dict):
+                out[k] = BaseTrainer.dict_to_cpu(val)
+            else:
+                out[k] = val.to("cpu")
+
+        return out
 
     def compute_metrics(
         self,

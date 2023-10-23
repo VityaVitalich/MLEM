@@ -12,11 +12,11 @@ import os
 
 class SequenceDataset(Dataset):
     def __init__(self, cfg):
-        # 1. Create csv or parquet. Put it into desired folder. 
+        # 1. Create csv or parquet. Put it into desired folder.
         # Assert correct time encoding(unix timestamp prefered).
         # 2. Fill out yaml config.
         # 3. Create SequenceDataset, pass config. Call load_dataset().
-        # Dataset will be brought to the right format, 
+        # Dataset will be brought to the right format,
         # splitted and saved in "data_path" folder.
         # 4. Call e.g. get_dataset(labeled, split="train")
         # conf['dataset']['col_id'] = self.cfg['index_column']
@@ -106,7 +106,7 @@ class SequenceDataset(Dataset):
         s_clients_train = spark.createDataFrame(
             [(i,) for i in s_clients_train], [self.cfg["index_column"]]
         ).repartition(1)
-        # s_clients_val = spark.createDataFrame([(i,) for i in s_clients_val], 
+        # s_clients_val = spark.createDataFrame([(i,) for i in s_clients_val],
         # [self.cfg["index_column"]])
         # .repartition(1)
         s_clients_test = spark.createDataFrame(

@@ -30,9 +30,8 @@ class BaseMixin(nn.Module):
         all_emb_size = self.model_conf.features_emb_dim * len(
             self.data_conf.features.embeddings
         )
-        all_numeric_size = (
-            len(self.data_conf.features.numeric_values) *
-            (self.model_conf.numeric_emb_size if self.model_conf.use_numeric_emb else 1)
+        all_numeric_size = len(self.data_conf.features.numeric_values) * (
+            self.model_conf.numeric_emb_size if self.model_conf.use_numeric_emb else 1
         )
         self.input_dim = all_emb_size + all_numeric_size
 

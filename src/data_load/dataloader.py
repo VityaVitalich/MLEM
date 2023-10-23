@@ -74,6 +74,9 @@ def create_test_loader(conf):
     test_dataset = TargetEnumeratorDataset(test_dataset)
     # valid_dataset = TargetDataset(valid_dataset)
     test_dataset = ConvertingTrxDataset(test_dataset)
+    test_dataset = DropoutTrxDataset(
+        test_dataset, trx_dropout=0.0, seq_len=conf.test.max_seq_len
+    )
 
     test_loader = DataLoader(
         dataset=test_dataset,
