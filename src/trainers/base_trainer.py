@@ -287,6 +287,7 @@ class BaseTrainer:
         losses: List[float] = []
         preds, gts = [], []
         pbar = tqdm(zip(range(iters), self._cyc_train_loader), total=iters)
+        pbar.set_description_str(f"Epoch {self._last_epoch + 1: 3}")
         for i, (inp, gt) in pbar:
             inp, gt = inp.to(self._device), gt.to(self._device)
 
