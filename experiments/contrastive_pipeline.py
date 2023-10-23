@@ -12,18 +12,18 @@ import os
 
 sys.path.append("../")
 
-from configs.data_configs.rosbank import data_configs as rosbank_data
-from configs.data_configs.age import data_configs as age_data
-from configs.data_configs.physionet import data_configs as physionet_data
-from configs.data_configs.taobao import data_configs as taobao_data
+from configs.data_configs.contrastive.rosbank import data_configs as rosbank_data
+from configs.data_configs.contrastive.age import data_configs as age_data
+from configs.data_configs.contrastive.physionet import data_configs as physionet_data
+from configs.data_configs.contrastive.taobao import data_configs as taobao_data
 
-from configs.model_configs.supervised.age import model_configs as age_model
-from configs.model_configs.supervised.physionet import model_configs as physionet_model
-from configs.model_configs.supervised.rosbank import model_configs as rosbank_model
-from configs.model_configs.supervised.taobao import model_configs as taobao_model
+from configs.model_configs.contrastive.age import model_configs as age_model
+from configs.model_configs.contrastive.physionet import model_configs as physionet_model
+from configs.model_configs.contrastive.rosbank import model_configs as rosbank_model
+from configs.model_configs.contrastive.taobao import model_configs as taobao_model
 
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from Datasets.aevent_seq.src.trainers.trainer_supervised import AccuracyTrainerSupervised, AucTrainerSupervised
+from src.trainers.trainer_contrastive import AccuracyTrainerContrastive, AucTrainerContrastive
 from src.trainers.randomness import seed_everything
 import src.models.base_models
 
@@ -76,8 +76,11 @@ def run_experiment(
     )
 
     ### Create loaders and train ###
-    train_loader, valid_loader = create_data_loaders(conf)
+    train_loader, valid_loader = create_data_loaders(conf, supervised=False)
     test_loader = create_test_loader(conf)
+    conf.valid_size = 0
+    conf.train.split_strategy = {"split_strategy": "NoSplit"}
+    train_supervised_loader, _ = create_data_loaders(conf)
 
     model = getattr(src.models.base_models, model_conf.model_name)
     net = model(model_conf=model_conf, data_conf=conf)
@@ -93,7 +96,7 @@ def run_experiment(
         ckpt_dir=Path(log_dir).parent / "ckpt",
         ckpt_replace=True,
         ckpt_resume=resume,
-        ckpt_track_metric=conf.track_metric,
+        ckpt_track_metric="total_loss",
         metrics_on_train=False,
         total_epochs=total_epochs,
         device=device,
@@ -103,33 +106,16 @@ def run_experiment(
     ### RUN TRAINING ###
     trainer.run()
 
-    trainer.load_best_model()
-    test_metrics = trainer.test(test_loader)
+    test_metrics = trainer.test(test_loader, train_supervised_loader)
 
     logger.removeHandler(fh)
     fh.close()
-
-    train_metrics = trainer.test(train_loader)
-    val_metrics = trainer.test(valid_loader)
-
-    return test_metrics, train_metrics, val_metrics
+    return test_metrics
 
 def run_experiment_helper(args):
     return run_experiment(*args)
 
-def do_n_runs(
-        run_name, 
-        device, 
-        total_epochs, 
-        conf, 
-        model_conf, 
-        TrainerClass, 
-        resume, 
-        log_dir, 
-        n_runs=3,
-        console_log="warning",
-        file_log="info",
-    ):
+def do_n_runs(run_name, device, total_epochs, conf, model_conf, TrainerClass, resume, log_dir, n_runs=3):
     run_name = f"{run_name}/{datetime.now():%F_%T}"
 
     result_list = []
@@ -227,10 +213,10 @@ def get_model_config(dataset):
 
 def get_trainer_class(dataset):
     trainer_dict = {
-        "taobao": AucTrainerSupervised,
-        "age": AccuracyTrainerSupervised,
-        "rosbank": AucTrainerSupervised,
-        "physionet": AucTrainerSupervised,
+        "taobao": AucTrainerContrastive,
+        "age": AccuracyTrainerContrastive,
+        "rosbank": AucTrainerContrastive,
+        "physionet": AucTrainerContrastive,
     }
     return trainer_dict[dataset]
 

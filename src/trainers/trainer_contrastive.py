@@ -17,8 +17,8 @@ logger = logging.getLogger("event_seq")
 params = {
     "n_estimators": 500,
     "boosting_type": "gbdt",
-    "objective": "binary",
-    "metric": "auc",
+    # "objective": "binary",
+    # "metric": "auc",
     "subsample": 0.5,
     "subsample_freq": 1,
     "learning_rate": 0.02,
@@ -132,6 +132,7 @@ class SimpleTrainerContrastive(BaseTrainer):
 
         return test_metric
 
+class AucTrainerContrastive(SimpleTrainerContrastive):
     def compute_test_metric(
         self, train_embeddings, train_gts, test_embeddings, test_gts
     ):
@@ -142,6 +143,9 @@ class SimpleTrainerContrastive(BaseTrainer):
         test_embeddings = torch.cat(test_embeddings).cpu().numpy()
 
         skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
+        args = params.copy()
+        args["objective"] = "binary"
+        args["metric"] = "auc"
 
         results = []
         for i, (train_index, test_index) in enumerate(
@@ -150,7 +154,7 @@ class SimpleTrainerContrastive(BaseTrainer):
             train_emb_subset = train_embeddings[train_index]
             train_labels_subset = train_labels[train_index]
 
-            model = LGBMClassifier(verbosity=-1, **params)
+            model = LGBMClassifier(verbosity=-1, **args)
             preprocessor = MaxAbsScaler()
 
             train_emb_subset = preprocessor.fit_transform(train_emb_subset)
@@ -161,5 +165,40 @@ class SimpleTrainerContrastive(BaseTrainer):
 
             auc_score = roc_auc_score(test_labels, y_pred[:, 1])
             results.append(auc_score)
+
+        return results
+
+class AccuracyTrainerContrastive(SimpleTrainerContrastive):
+    def compute_test_metric(
+        self, train_embeddings, train_gts, test_embeddings, test_gts
+    ):
+        train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
+        train_embeddings = torch.cat(train_embeddings).cpu().numpy()
+
+        test_labels = torch.cat([gt[1].cpu() for gt in test_gts]).numpy()
+        test_embeddings = torch.cat(test_embeddings).cpu().numpy()
+
+        skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
+        args = params.copy()
+        args["objective"] = "multiclass"
+
+        results = []
+        for i, (train_index, test_index) in enumerate(
+            skf.split(train_embeddings, train_labels)
+        ):
+            train_emb_subset = train_embeddings[train_index]
+            train_labels_subset = train_labels[train_index]
+
+            model = LGBMClassifier(verbosity=-1, **args)
+            preprocessor = MaxAbsScaler()
+
+            train_emb_subset = preprocessor.fit_transform(train_emb_subset)
+            test_embeddings_subset = preprocessor.transform(test_embeddings)
+
+            model.fit(train_emb_subset, train_labels_subset)
+            y_pred = model.predict(test_embeddings_subset)
+
+            acc_score = accuracy_score(test_labels, y_pred)
+            results.append(acc_score)
 
         return results
