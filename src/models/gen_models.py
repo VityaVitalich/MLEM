@@ -3,6 +3,7 @@ import torch.nn as nn
 from . import preprocessors as prp
 from ..trainers.losses import get_loss
 import numpy as np
+import torch.functional as F
 from torch.autograd import Variable
 
 
@@ -199,7 +200,45 @@ class BaseMixin(nn.Module):
         """
         output: Dict that is outputed from forward method
         """
+        ### MSE ###
+        total_mse_loss = self.numerical_loss(output)
+        delta_mse_loss = self.delta_mse_loss(output)
 
+        ### CROSS ENTROPY ###
+        cross_entropy_losses = self.embedding_predictor.loss(
+            output["pred"], output['gt']["input_batch"]
+        )
+        total_ce_loss = torch.sum(
+            torch.cat([value.unsqueeze(0) for _, value in cross_entropy_losses.items()])
+        )
+
+        ### SPARCE EMBEDDINGS ###
+        sparce_loss = torch.mean(torch.sum(torch.abs(output["latent"]), dim=1))
+
+        ### GENERATED EMBEDDINGS DISTANCE ###
+        gen_embeddings_loss = self.generative_embedding_loss(output, generated_out)
+
+        losses_dict = {
+            "total_mse_loss": total_mse_loss,
+            "total_CE_loss": total_ce_loss,
+            "delta_loss": self.model_conf.delta_weight * delta_mse_loss,
+            "sparcity_loss": sparce_loss,
+            "gen_embedding_loss": gen_embeddings_loss
+        }
+        losses_dict.update(cross_entropy_losses)
+
+        total_loss = (
+            self.model_conf.mse_weight * losses_dict["total_mse_loss"]
+            + self.model_conf.CE_weight * total_ce_loss
+            + self.model_conf.delta_weight * delta_mse_loss
+            + self.model_conf.l1_weight * sparce_loss
+            + self.model_conf.gen_emb_weight * gen_embeddings_loss
+        )
+        losses_dict["total_loss"] = total_loss
+
+        return losses_dict
+    
+    def numerical_loss(self, output):
         # MSE
         total_mse_loss = 0
         for key, values in output["gt"]['input_batch'].payload.items():
@@ -217,6 +256,9 @@ class BaseMixin(nn.Module):
                     masked_mse.sum(dim=1) / (mask != 0).sum(dim=1)
                 ).mean()
 
+        return total_mse_loss
+
+    def delta_mse_loss(self, output):
         # DELTA MSE
         if self.model_conf.use_deltas:
             gt_delta = output['gt']["time_steps"].diff(1)
@@ -225,41 +267,23 @@ class BaseMixin(nn.Module):
             delta_masked = delta_mse * mask[:, 1:]
             delta_mse = delta_masked.sum() / (mask[:, 1:] != 0).sum()
         else:
-            delta_mse = 0
-
-        # CROSS ENTROPY
-        cross_entropy_losses = self.embedding_predictor.loss(
-            output["pred"], output['gt']["input_batch"]
-        )
-        total_ce_loss = torch.sum(
-            torch.cat([value.unsqueeze(0) for _, value in cross_entropy_losses.items()])
-        )
-
-        # Sparcity
-        # rho = 0.05
-        # data_rho = output['latent'].mean(0)
-        # dkl = - rho * torch.log(data_rho + 1e-15) - (1-rho)*torch.log(1-data_rho + 1e-15)
-        # print(dkl)
-        sparce_loss = torch.mean(torch.sum(torch.abs(output["latent"]), dim=1))
-
-        losses_dict = {
-            "total_mse_loss": total_mse_loss,
-            "total_CE_loss": total_ce_loss,
-            "delta_loss": self.model_conf.delta_weight * delta_mse,
-            "L1_loss": sparce_loss,
-        }
-        losses_dict.update(cross_entropy_losses)
-
-        total_loss = (
-            self.model_conf.mse_weight * losses_dict["total_mse_loss"]
-            + self.model_conf.CE_weight * total_ce_loss
-            + self.model_conf.delta_weight * delta_mse
-            + self.model_conf.l1_weight * sparce_loss
-        )
-        losses_dict["total_loss"] = total_loss
-
-        return losses_dict
-
+            delta_mse = torch.tensor(0)
+        
+        return delta_mse
+    
+    def generative_embedding_loss(self, output, generated_out):
+        if self.model_conf.generative_embeddings_loss:
+            gt = output['all_latents'][:,1:,:]
+            gen = generated_out['all_latents']
+            # у кого рубить градиент?))))
+            mask = output['gt']["time_steps"] != -1
+            loss = F.mse_loss(gen, gt, reduction='none')
+            loss = loss * mask[:, 1:]
+            loss = loss.sum() / (mask[:, 1:] != 0).sum()
+        else:
+            loss = torch.tensor(0)
+        
+        return loss
 
 class SeqGen(BaseMixin):
     def __init__(self, model_conf, data_conf):

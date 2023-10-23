@@ -8,7 +8,7 @@ def model_configs():
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
-    config.preENC_TR = True
+    config.preENC_TR = False
     config.batch_first_encoder = True
 
     ### EMBEDDINGS ###
@@ -16,8 +16,8 @@ def model_configs():
     config.features_emb_dim = 12
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
-    config.encoder_feature_mixer = True
-    config.decoder_feature_mixer = True
+    config.encoder_feature_mixer = False
+    config.decoder_feature_mixer = False
 
     ### ENCODER ###
     config.encoder = "GRU"
@@ -41,6 +41,9 @@ def model_configs():
     config.decoder_norm = "Identity"
     config.encoder_norm = "Identity"
 
+    ### GENERATED EMBEDDINGS LOSS ###
+    config.generative_embeddings_loss = False
+
     ### DROPOUT ###
     config.after_enc_dropout = 0.05
 
@@ -55,6 +58,7 @@ def model_configs():
     config.mse_weight = 1
     config.CE_weight = 1
     config.l1_weight = 0.001
+    config.gen_emb_weight = 1
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"

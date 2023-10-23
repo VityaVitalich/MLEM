@@ -1,8 +1,8 @@
 #!/bin/bash
 
 EPOCHS=1
-DEVICE="cuda"
-NAME='test1'
+DEVICE="cuda:3"
+NAME='test2'
 N_RUNS=1
 DATASET="rosbank"
 

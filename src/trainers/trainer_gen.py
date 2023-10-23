@@ -90,6 +90,7 @@ class GenTrainer(BaseTrainer):
         # assert isinstance(self.model, MegaNet)
         if self._model_conf.generative_embeddings_loss:
             generated_batch = self.out_to_padded_batch(model_output).to(self._device)
+            print(generated_batch.payload['amount'].size())
             generated_out = self.model(generated_batch)
         else:
             generated_out = None
@@ -276,7 +277,7 @@ class GenTrainer(BaseTrainer):
                 if key in self._data_conf.features.embeddings.keys():
                     df_dic[key].extend((val.cpu().argmax(dim=-1) - 1).tolist())
                 elif key in self._data_conf.features.numeric_values.keys():
-                    df_dic[key].extend(val.cpu().tolist())
+                    df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
             if self._model_conf.use_deltas:
                 pred_delta = out["pred"]['delta']
@@ -328,7 +329,7 @@ class GenTrainer(BaseTrainer):
                 payload[key] = val.cpu().argmax(dim=-1)
                 payload[key][~mask] = 0
             elif key in self._data_conf.features.numeric_values.keys():
-                payload[key] = val.cpu()
+                payload[key] = val.cpu().squeeze(-1)
                 payload[key][~mask] = 0
 
         return PaddedBatch(payload, length)
