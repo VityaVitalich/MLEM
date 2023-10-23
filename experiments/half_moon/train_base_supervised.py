@@ -11,7 +11,7 @@ sys.path.append("../../")
 from configs.data_configs.half_moon import data_configs
 from configs.model_configs.mTAN.half_moon import model_configs
 from src.data_load.dataloader import create_data_loaders
-from src.trainers.trainer_Simple import SimpleTrainerSupervised
+from Datasets.aevent_seq.src.trainers.trainer_supervised import AucTrainerSupervised
 from src.models.mTAND.base_models import HalfMoonClassifier
 
 if __name__ == "__main__":
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     opt = torch.optim.Adam(
         net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
     )
-    trainer = SimpleTrainerSupervised(
+    trainer = AucTrainerSupervised(
         model=net,
         optimizer=opt,
         train_loader=train_loader,

@@ -12,7 +12,7 @@ sys.path.append("../../")
 from configs.data_configs.physionet_contrastive import data_configs
 from configs.model_configs.mTAN.physionet import model_configs
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_contrastive import SimpleTrainerContrastive
+from src.trainers.trainer_contrastive import AucTrainerContrastive
 from src.trainers.randomness import seed_everything
 import src.models.base_models
 
@@ -61,7 +61,7 @@ def run_experiment(run_name, device, total_epochs, conf, model_conf, resume, log
     opt = torch.optim.Adam(
         net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
     )
-    trainer = SimpleTrainerContrastive(
+    trainer = AucTrainerContrastive(
         model=net,
         optimizer=opt,
         train_loader=train_loader,
