@@ -216,7 +216,10 @@ class BaseTrainer:
         metrics["loss"] = np.mean(self._loss_values)
 
         fname = f"epoch: {self._last_epoch:04d}"
-        metrics_str = " - ".join(f"{k}: {v:.4g}" for k, v in metrics.items())
+        metrics_str = " - ".join(
+            f"{k}: {v:.4g}" for k, v in metrics.items() if k == self._ckpt_track_metric
+        )
+        # metrics_str = "test"
         if len(metrics_str) > 0:
             fname = " - ".join((fname, metrics_str))
         fname += ".ckpt"

@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Literal, Union, Tuple
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from pathlib import Path
 import os
 import pandas as pd
@@ -18,6 +19,7 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
 from datetime import datetime
 from tqdm import tqdm
+from ..models.model_utils import out_to_padded_batch
 
 
 params = {
@@ -417,11 +419,12 @@ class GANGenTrainer(GenTrainer):
 
             ### Generator Step ###
             pred = self._model(inp)
+            d_pred = self.D(out_to_padded_batch(pred, self._data_conf).to(self.device))
             if self._metrics_on_train:
                 preds.append(pred)
                 gts.append(gt)
 
-            loss = self.compute_loss(pred, gt)
+            loss = self.compute_loss(pred, gt, d_pred)
             loss.backward()
 
             loss_np = loss.item()
@@ -435,10 +438,10 @@ class GANGenTrainer(GenTrainer):
             self._opt.zero_grad()
             ### DISCRIMINATOR STEP ###
             if ((i + 1) % self._model_conf_d.discriminator_step_every) == 0:
-                fake_inp = self.out_to_padded_batch(pred)
+                fake_inp = out_to_padded_batch(pred, self._data_conf).to(self.device)
                 d_inp, d_labels = self.mix_batches(fake_inp, inp)
                 d_pred = self.D(d_inp)
-                d_loss = self.D.loss(d_pred, d_labels)
+                d_loss = self.D.loss(d_pred.to(self.device), d_labels)["total_loss"]
                 d_loss.backward()
 
                 loss_d = d_loss.item()
@@ -465,18 +468,64 @@ class GANGenTrainer(GenTrainer):
 
         logger.info("Epoch %04d: train finished", self._last_epoch + 1)
 
-    @staticmethod
-    def mix_batches(gen_batch, true_batch):
+    def mix_batches(self, gen_batch, true_batch):
         new_payload = {}
         for key in gen_batch.payload.keys():
             new_payload[key] = torch.cat(
-                [gen_batch.payload[key], true_batch.payload[key][:, :-1]], dim=0
+                [gen_batch.payload[key].detach(), true_batch.payload[key][:, 1:]], dim=0
             )
         new_lens = torch.cat([gen_batch.seq_lens, true_batch.seq_lens - 1])
 
         new_batch = PaddedBatch(new_payload, new_lens)
 
-        d_labels = torch.zeros(len(new_batch), dtype=torch.long)
+        d_labels = torch.zeros(len(new_batch), dtype=torch.long, device=self.device)
         d_labels[: len(new_batch) // 2] = 1
+        # true = 0, fake = 1
 
         return new_batch, d_labels.unsqueeze(0).repeat(2, 1)
+
+    def compute_loss(
+        self,
+        model_output: Any,
+        ground_truth: Tuple[int, int],  # pyright: ignore unused
+        d_pred: Any,
+    ) -> torch.Tensor:
+        """Compute loss for backward.
+
+        The function is called every iteration in training loop to compute loss.
+
+        Args:
+            model_output: raw model output as is.
+            ground_truth: tuple of raw idx and raw ground truth label from dataloader.
+        """
+        # assert isinstance(self.model, MegaNet)
+        losses = self.model.loss(model_output, ground_truth)
+        d_loss = F.softmax(d_pred, dim=1)[:, 1].mean()
+        return losses["total_loss"] + d_loss * self._model_conf.D_weight
+
+    def validate(self) -> None:
+        assert self._val_loader is not None, "Set a val loader first"
+
+        logger.info("Epoch %04d: validation started", self._last_epoch + 1)
+        self._model.eval()
+        loss_dicts = []
+        with torch.no_grad():
+            for inp, gt in tqdm(self._val_loader):
+                inp = inp.to(self._device)
+                model_output = self._model(inp)
+                d_pred = self.D(
+                    out_to_padded_batch(model_output, self._data_conf).to(self.device)
+                )
+                cur_loss = self._model.loss(model_output, gt)
+                cur_loss["D"] = F.softmax(d_pred, dim=1)[:, 1].mean()
+                loss_dicts.append(cur_loss)
+
+        self._metric_values = {
+            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
+        }
+        logger.info(
+            "Epoch %04d: validation metrics: %s",
+            self._last_epoch + 1,
+            str(self._metric_values),
+        )
+        logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
