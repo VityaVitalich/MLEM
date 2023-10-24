@@ -5,6 +5,7 @@ import ml_collections
 
 def data_configs():
     config = ml_collections.ConfigDict()
+    config.sber = True
 
     ########## DATA ##############
 

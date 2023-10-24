@@ -12,6 +12,7 @@ from .splitting_dataset import (
     ConvertingTrxDataset,  # TargetDataset
     DropoutTrxDataset,
     SplittingDataset,
+    SberSplittingDataset,
     TargetEnumeratorDataset,
 )
 
@@ -19,7 +20,11 @@ from .splitting_dataset import (
 def create_data_loaders(conf, supervised=True):
     train_data, valid_data = prepare_data(conf, supervised)
 
-    train_dataset = SplittingDataset(
+    Dataset = SplittingDataset
+    if hasattr(conf, "sber"):
+        Dataset = SberSplittingDataset
+
+    train_dataset = Dataset(
         train_data,
         split_strategy.create(**conf.train.split_strategy),
         conf.features.target_col,
@@ -29,9 +34,10 @@ def create_data_loaders(conf, supervised=True):
     train_dataset = ConvertingTrxDataset(train_dataset)
     # не уверен что нам нужна история с дропаутом точек.
     # Но это выглядит неплохой аугментацией в целом
-    train_dataset = DropoutTrxDataset(
-        train_dataset, trx_dropout=conf.train.dropout, seq_len=conf.train.max_seq_len
-    )
+    if conf.train.dropout > 0:
+        train_dataset = DropoutTrxDataset(
+            train_dataset, trx_dropout=conf.train.dropout, seq_len=conf.train.max_seq_len
+        )
 
     train_loader = DataLoader(
         dataset=train_dataset,
@@ -41,7 +47,7 @@ def create_data_loaders(conf, supervised=True):
         batch_size=conf.train.batch_size,
     )
 
-    valid_dataset = SplittingDataset(
+    valid_dataset = Dataset(
         valid_data,
         split_strategy.create(**conf.val.split_strategy),
         conf.features.target_col,
@@ -49,9 +55,9 @@ def create_data_loaders(conf, supervised=True):
     valid_dataset = TargetEnumeratorDataset(valid_dataset)
     # valid_dataset = TargetDataset(valid_dataset)
     valid_dataset = ConvertingTrxDataset(valid_dataset)
-    valid_dataset = DropoutTrxDataset(
-        valid_dataset, trx_dropout=0.0, seq_len=conf.val.max_seq_len
-    )
+    # valid_dataset = DropoutTrxDataset(
+    #     valid_dataset, trx_dropout=0.0, seq_len=conf.val.max_seq_len
+    # )
     valid_loader = DataLoader(
         dataset=valid_dataset,
         shuffle=False,
@@ -66,7 +72,11 @@ def create_data_loaders(conf, supervised=True):
 def create_test_loader(conf):
     test_data = prepare_test_data(conf)
 
-    test_dataset = SplittingDataset(
+    Dataset = SplittingDataset
+    if hasattr(conf, "sber"):
+        Dataset = SberSplittingDataset
+
+    test_dataset = Dataset(
         test_data,
         split_strategy.create(**conf.test.split_strategy),
         conf.features.target_col,

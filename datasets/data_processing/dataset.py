@@ -6,6 +6,7 @@ from pyspark.sql import Window
 from pyspark.sql import functions as F
 from random import Random
 import numpy as np
+import pandas as pd
 
 import os
 
@@ -183,6 +184,99 @@ class SequenceDataset(Dataset):
     def save_features(self, df_data, save_path):
         df_data.write.parquet(str(save_path), mode="overwrite")
         print(f'Saved to: "{save_path}"')
+
+
+class SberSequenceDataset(SequenceDataset):
+    def load_dataset(self, train_ids, first_test_date):
+        # Either parquet "data" folder or csv file
+        data_path = self.cfg["data_path"]
+        train_path = Path(data_path).parent / "train.parquet"
+        test_path = Path(data_path).parent / "test.parquet"
+        # val_path = Path(data_path).parent / "val.parquet"
+
+        if train_path.exists():
+            print(f"{str(train_path)} already exists.")
+            return self
+        if self.spark is None or self.spark._jsc.sc().isStopped():
+            self.spark = SparkSession.builder.getOrCreate()
+
+        data = self.read_preprocessed_data(data_path)
+        if not self.is_collected_list(data):
+            print("Collecting lists...")
+            data = self.collect_lists(data)
+
+        train, test = self.split_dataset(data, train_ids, first_test_date)
+        self.save_features(train, train_path)
+        self.save_features(test, test_path)
+        # self.save_features(val, val_path)
+        self.spark.stop()
+
+        return self
+
+    def split_dataset(self, all_data, train_ids, first_test_date):
+    # def split_dataset(self, all_data, shuffle=True):
+        if self.spark is None or self.spark._jsc.sc().isStopped():
+            self.spark = SparkSession.builder.getOrCreate()
+        spark = self.spark
+        s_clients = all_data.filter(F.col(self.cfg["target_column"]).isNotNull())
+        s_clients = (
+            pd.Series(
+                cl[0]
+                for cl in s_clients.select(self.cfg["index_column"]).distinct().collect()
+            )
+            .str.split("_", expand=True)
+            .rename({0: "date", 1: "epk_id"}, axis=1)
+            .assign(
+                date   = lambda df: pd.to_datetime(df["date"]),
+                epk_id = lambda df: df["epk_id"].astype(int),
+            )
+        )
+        train_clients = s_clients.query(
+            "date < @first_test_date and epk_id.isin(@train_ids)"
+        )
+        test_clients = s_clients.query("date >= @first_test_date")
+        s_clients_train = (
+            train_clients["date"].astype(str) 
+            + "_" 
+            + train_clients["epk_id"].astype(str)
+        ).tolist()
+        s_clients_test = (
+            test_clients["date"].astype(str) 
+            + "_" 
+            + test_clients["epk_id"].astype(str)
+        ).tolist()
+
+        s_clients_train = spark.createDataFrame(
+            [(i,) for i in s_clients_train], [self.cfg["index_column"]]
+        ).repartition(1)
+        # s_clients_val = spark.createDataFrame([(i,) for i in s_clients_val],
+        # [self.cfg["index_column"]])
+        # .repartition(1)
+        s_clients_test = spark.createDataFrame(
+            [(i,) for i in s_clients_test], [self.cfg["index_column"]]
+        ).repartition(1)
+        # s_clients = spark.createDataFrame(
+        #     [(i,) for i in s_clients], [self.cfg["index_column"]]
+        # ).repartition(1)
+
+        # split data
+        labeled_train = all_data.join(
+            s_clients_train, on=self.cfg["index_column"], how="inner"
+        )
+        labeled_test = all_data.join(
+            s_clients_test, on=self.cfg["index_column"], how="inner"
+        )
+        # labeled_val = all_data.join(s_clients_val, on=self.cfg["index_column"]
+        # , how='inner')
+
+        # unlabeled = all_data.join(
+        #     s_clients, on=self.cfg["index_column"], how="left_anti"
+        # )
+        train = labeled_train
+        test = labeled_test
+        # val = labeled_val
+        return train, test
+
 
 
 if __name__ == "__main__":
