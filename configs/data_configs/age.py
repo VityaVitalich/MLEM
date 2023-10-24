@@ -85,8 +85,13 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
+<<<<<<< HEAD
+    train.batch_size = 1024
+    val.batch_size = 512
+=======
     train.batch_size = 128
     val.batch_size = 128
+>>>>>>> main
     test.batch_size = 16
 
     return config

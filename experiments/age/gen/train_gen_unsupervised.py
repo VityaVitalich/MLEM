@@ -181,7 +181,7 @@ if __name__ == "__main__":
         total_epochs = args.gen_val_epoch
         model_conf_genval = model_configs_genval()
         log_dir = "./logs/generations/"
-        trainer_class = get_trainer_class("rosbank")
+        trainer_class = get_trainer_class("age")
         generated_test_metric, train_metrics, val_metrics = run_experiment(
             run_name,
             args.device,

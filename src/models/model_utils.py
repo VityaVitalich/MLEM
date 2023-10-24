@@ -4,6 +4,31 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ..data_load.dataloader import PaddedBatch
+
+
+def out_to_padded_batch(out, data_conf):
+    order = {}
+
+    k = 0
+    for key in out["gt"]["input_batch"].payload.keys():
+        if key in data_conf.features.numeric_values.keys():
+            order[k] = key
+            k += 1
+
+    payload = {}
+    payload["event_time"] = out["gt"]["time_steps"][:, 1:]
+    length = (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1)
+    mask = out["gt"]["time_steps"][:, 1:] != -1
+    for key, val in out["pred"].items():
+        if key in data_conf.features.embeddings.keys():
+            payload[key] = val.cpu().argmax(dim=-1)
+            payload[key][~mask] = 0
+        elif key in data_conf.features.numeric_values.keys():
+            payload[key] = val.cpu().squeeze(-1)
+            payload[key][~mask] = 0
+
+    return PaddedBatch(payload, length)
 
 
 def sample_z(mean, logstd, k_iwae):

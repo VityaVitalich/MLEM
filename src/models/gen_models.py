@@ -3,7 +3,9 @@ import torch.nn as nn
 from . import preprocessors as prp
 from ..trainers.losses import get_loss
 import numpy as np
+import torch.nn.functional as F
 from torch.autograd import Variable
+from .model_utils import out_to_padded_batch
 
 
 class L2Normalization(nn.Module):
@@ -54,13 +56,11 @@ class BaseMixin(nn.Module):
         all_emb_size = self.model_conf.features_emb_dim * len(
             self.data_conf.features.embeddings
         )
-        if self.model_conf.use_numeric_emb:
-            self.all_numeric_size = (
-                len(self.data_conf.features.numeric_values)
-                * self.model_conf.numeric_emb_size
-            )
-        else:
-            self.all_numeric_size = len(self.data_conf.features.numeric_values)
+
+        self.all_numeric_size = (
+            len(self.data_conf.features.numeric_values)
+            * self.model_conf.numeric_emb_size
+        )
 
         self.input_dim = (
             all_emb_size + self.all_numeric_size + self.model_conf.use_deltas
@@ -189,10 +189,9 @@ class BaseMixin(nn.Module):
         self.embedding_predictor = EmbeddingPredictor(
             model_conf=self.model_conf, data_conf=self.data_conf
         )
-        if self.model_conf.use_numeric_emb:
-            self.numeric_projector = NumericalFeatureProjector(
-                model_conf=self.model_conf, data_conf=self.data_conf
-            )
+        self.numeric_projector = NumericalFeatureProjector(
+            model_conf=self.model_conf, data_conf=self.data_conf
+        )
         self.mse_fn = torch.nn.MSELoss(reduction="none")
         self.ce_fn = torch.nn.CrossEntropyLoss(
             reduction="mean", ignore_index=0, label_smoothing=0.15
@@ -202,27 +201,51 @@ class BaseMixin(nn.Module):
         """
         output: Dict that is outputed from forward method
         """
-        gt_embedding = output["x"][:, 1:, :]
-        pred = output["pred"]
-        if self.model_conf.use_deltas:
-            pred_delta = pred[:, :, -1].squeeze(-1)
-            pred = pred[:, :, :-1]
-            gt_embedding = gt_embedding[:, :, :-1]
+        ### MSE ###
+        total_mse_loss = self.numerical_loss(output)
+        delta_mse_loss = self.delta_mse_loss(output)
 
+        ### CROSS ENTROPY ###
+        cross_entropy_losses = self.embedding_predictor.loss(
+            output["pred"], output["gt"]["input_batch"]
+        )
+        total_ce_loss = torch.sum(
+            torch.cat([value.unsqueeze(0) for _, value in cross_entropy_losses.items()])
+        )
+
+        ### SPARCE EMBEDDINGS ###
+        sparce_loss = torch.mean(torch.sum(torch.abs(output["latent"]), dim=1))
+
+        ### GENERATED EMBEDDINGS DISTANCE ###
+        gen_embeddings_loss = self.generative_embedding_loss(output)
+
+        losses_dict = {
+            "total_mse_loss": total_mse_loss,
+            "total_CE_loss": total_ce_loss,
+            "delta_loss": self.model_conf.delta_weight * delta_mse_loss,
+            "sparcity_loss": sparce_loss,
+            "gen_embedding_loss": gen_embeddings_loss,
+        }
+        losses_dict.update(cross_entropy_losses)
+
+        total_loss = (
+            self.model_conf.mse_weight * losses_dict["total_mse_loss"]
+            + self.model_conf.CE_weight * total_ce_loss
+            + self.model_conf.delta_weight * delta_mse_loss
+            + self.model_conf.l1_weight * sparce_loss
+            + self.model_conf.gen_emb_weight * gen_embeddings_loss
+        )
+        losses_dict["total_loss"] = total_loss
+
+        return losses_dict
+
+    def numerical_loss(self, output):
         # MSE
         total_mse_loss = 0
-        num_val_feature = self.all_numeric_size
-
-        if self.model_conf.use_numeric_emb:
-            pred_numeric = self.numeric_projector(pred)
-
-        for key, values in output["input_batch"].payload.items():
+        for key, values in output["gt"]["input_batch"].payload.items():
             if key in self.processor.numeric_names:
                 gt_val = values.float()[:, 1:]
-                if self.model_conf.use_numeric_emb:
-                    pred_val = pred_numeric[key].squeeze(-1)
-                else:
-                    pred_val = pred[:, :, -num_val_feature]
+                pred_val = output["pred"][key].squeeze(-1)
 
                 mse_loss = self.mse_fn(
                     gt_val,
@@ -233,57 +256,55 @@ class BaseMixin(nn.Module):
                 total_mse_loss += (
                     masked_mse.sum(dim=1) / (mask != 0).sum(dim=1)
                 ).mean()
-                num_val_feature -= 1
 
+        return total_mse_loss
+
+    def delta_mse_loss(self, output):
         # DELTA MSE
         if self.model_conf.use_deltas:
-            gt_delta = output["time_steps"].diff(1)
-            delta_mse = self.mse_fn(gt_delta, pred_delta)
-            mask = output["time_steps"] != -1
+            gt_delta = output["gt"]["time_steps"].diff(1)
+            delta_mse = self.mse_fn(gt_delta, output["pred"]["delta"])
+            mask = output["gt"]["time_steps"] != -1
             delta_masked = delta_mse * mask[:, 1:]
             delta_mse = delta_masked.sum() / (mask[:, 1:] != 0).sum()
         else:
-            delta_mse = 0
+            delta_mse = torch.tensor(0)
 
-        # CROSS ENTROPY
-        cross_entropy_losses = self.embedding_predictor.loss(
-            output["emb_dist"], output["input_batch"]
-        )
-        total_ce_loss = torch.sum(
-            torch.cat([value.unsqueeze(0) for _, value in cross_entropy_losses.items()])
-        )
+        return delta_mse
 
-        # Sparcity
-        # rho = 0.05
-        # data_rho = output['latent'].mean(0)
-        # dkl = - rho * torch.log(data_rho + 1e-15) - (1-rho)*torch.log(1-data_rho + 1e-15)
-        # print(dkl)
-        sparce_loss = torch.mean(torch.sum(torch.abs(output["latent"]), dim=1))
+    def generative_embedding_loss(self, output):
+        if self.model_conf.generative_embeddings_loss:
+            gt = output["all_latents"][:, 1:, :].detach()
+            gen = output["gen_all_latents"]
+            # у кого рубить градиент?))))
+            if self.model_conf.gen_emb_loss_type == "l2":
+                loss = F.mse_loss(gen, gt, reduction="none").sum(dim=-1)
+            elif self.model_conf.gen_emb_loss_type == "l1":
+                loss = F.l1_loss(gen, gt, reduction="none").sum(dim=-1)
+            elif self.model_conf.gen_emb_loss_type == "cosine":
+                bs, seq_len, d = gen.size()
+                loss = F.cosine_embedding_loss(
+                    gen.reshape(bs * seq_len, d),
+                    gt.reshape(bs * seq_len, d),
+                    torch.ones(bs * seq_len, device=gt.device),
+                    reduction="none",
+                ).view(bs, seq_len)
 
-        losses_dict = {
-            "total_mse_loss": total_mse_loss,
-            "total_CE_loss": total_ce_loss,
-            "delta_loss": self.model_conf.delta_weight * delta_mse,
-            "L1_loss": sparce_loss,
-        }
-        losses_dict.update(cross_entropy_losses)
+            mask = output["gt"]["time_steps"] != -1
+            #  print('gen loss', loss.size(), mask.size())
+            loss = loss * mask[:, 1:]
+            loss = loss.sum() / (mask[:, 1:] != 0).sum()
+        else:
+            loss = torch.tensor(0)
 
-        total_loss = (
-            self.model_conf.mse_weight * losses_dict["total_mse_loss"]
-            + self.model_conf.CE_weight * total_ce_loss
-            + self.model_conf.delta_weight * delta_mse
-            + self.model_conf.l1_weight * sparce_loss
-        )
-        losses_dict["total_loss"] = total_loss
-
-        return losses_dict
+        return loss
 
 
 class SeqGen(BaseMixin):
     def __init__(self, model_conf, data_conf):
         super().__init__(model_conf=model_conf, data_conf=data_conf)
 
-    def forward(self, padded_batch):
+    def forward(self, padded_batch, generative=False):
         x, time_steps = self.processor(padded_batch)
         x = self.encoder_feature_mixer(x)
         if self.model_conf.use_deltas:
@@ -301,8 +322,8 @@ class SeqGen(BaseMixin):
             last_hidden = self.post_encoder_norm(all_hid[:, lens, :].diagonal().T)
         elif self.model_conf.encoder == "TR":
             x_proj = self.encoder_proj(x)
-            enc_out = self.encoder(x_proj)
-            last_hidden = enc_out[:, 0, :]
+            all_hid = self.encoder(x_proj)
+            last_hidden = all_hid[:, 0, :]
 
         last_hidden = self.global_hid_dropout(last_hidden)
 
@@ -327,16 +348,31 @@ class SeqGen(BaseMixin):
         else:
             out = self.decoder_feature_mixer(out)
         out = out[:, :-1, :]
-        emb_dist = self.embedding_predictor(out)
 
-        return {
-            "x": x,
-            "time_steps": time_steps,
-            "pred": out,
-            "input_batch": padded_batch,
-            "emb_dist": emb_dist,
+        pred = self.embedding_predictor(out)
+        pred.update(self.numeric_projector(out))
+        if self.model_conf.use_deltas:
+            pred["delta"] = out[:, :, -1].squeeze(-1)
+
+        gt = {"input_batch": padded_batch, "time_steps": time_steps}
+
+        res_dict = {
+            "gt": gt,
+            "pred": pred,
             "latent": last_hidden,
         }
+
+        if self.model_conf.generative_embeddings_loss:
+            res_dict["all_latents"] = all_hid
+            if not generative:
+                gen_batch = out_to_padded_batch(res_dict, self.data_conf)
+                generated_out = self.forward(
+                    gen_batch.to(self.model_conf.device), generative=True
+                )
+                res_dict["gen_all_latents"] = generated_out["all_latents"]
+                res_dict["gen_latent"] = generated_out["latent"]
+
+        return res_dict
 
 
 class EmbeddingPredictor(nn.Module):
@@ -383,8 +419,11 @@ class EmbeddingPredictor(nn.Module):
     def loss(self, embedding_distribution, padded_batch):
         embed_losses = {}
         for name, dist in embedding_distribution.items():
-            shifted_labels = padded_batch.payload[name].long()[:, 1:]
-            embed_losses[name] = self.criterion(dist.permute(0, 2, 1), shifted_labels)
+            if name in self.emb_names:
+                shifted_labels = padded_batch.payload[name].long()[:, 1:]
+                embed_losses[name] = self.criterion(
+                    dist.permute(0, 2, 1), shifted_labels
+                )
 
         return embed_losses
 
@@ -397,7 +436,10 @@ class NumericalFeatureProjector(nn.Module):
 
         self.numerical_names = list(self.data_conf.features.numeric_values.keys())
         self.num_embeds = len(self.numerical_names)
-        self.numerical_len = self.num_embeds * self.model_conf.numeric_emb_size
+        self.numerical_len = (
+            self.num_embeds * self.model_conf.numeric_emb_size
+            + self.model_conf.use_deltas
+        )
 
         self.init_embed_predictors()
 
@@ -410,7 +452,12 @@ class NumericalFeatureProjector(nn.Module):
     def forward(self, x_recon):
         batch_size, seq_len, out_dim = x_recon.size()
 
-        resized_x = x_recon[:, :, -self.numerical_len :].view(
+        if self.model_conf.use_deltas:
+            resized_x = x_recon[:, :, -self.numerical_len : -1]
+        else:
+            resized_x = x_recon[:, :, -self.numerical_len :]
+        # print(resized_x.size())
+        resized_x = resized_x.view(
             batch_size,
             seq_len,
             self.num_embeds,

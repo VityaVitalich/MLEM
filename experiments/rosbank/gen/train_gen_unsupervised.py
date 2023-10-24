@@ -123,7 +123,7 @@ if __name__ == "__main__":
     if model_conf.use_discriminator:
         model_conf_D = model_configs_D()
         D = getattr(src.models.base_models, model_conf_D.model_name)
-        D = D(model_conf=model_conf, data_conf=conf)
+        D = D(model_conf=model_conf_D, data_conf=conf)
         D_opt = torch.optim.Adam(
             D.parameters(), model_conf_D.lr, weight_decay=model_conf_D.weight_decay
         )
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     ### RUN TRAINING ###
     trainer.run()
 
-    trainer.load_best_model()
+    # trainer.load_best_model()
     trainer.test(test_loader, train_supervised_loader)
 
     if args.gen_val:

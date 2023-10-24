@@ -3,6 +3,7 @@ data
 logs/
 ckpt/
 checkpoints/
+test/
 .vscode/
 .vim
 
