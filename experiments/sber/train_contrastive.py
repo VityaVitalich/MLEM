@@ -10,7 +10,7 @@ import os
 sys.path.append("../../")
 
 from configs.data_configs.sber_contrastive import data_configs
-from configs.model_configs.mTAN.sber import model_configs
+from configs.model_configs.supervised.sber import model_configs
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_contrastive import SimpleTrainerContrastive
 from src.trainers.randomness import seed_everything
@@ -80,9 +80,6 @@ def run_experiment(run_name, device, total_epochs, conf, model_conf, resume, log
     ### RUN TRAINING ###
     trainer.run()
 
-    del logger
-    return test_metrics
-
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -125,7 +122,7 @@ if __name__ == "__main__":
     conf = data_configs()
     model_conf = model_configs()
 
-    test_metrics = run_experiment(
+    run_experiment(
         run_name,
         args.device,
         args.total_epochs,

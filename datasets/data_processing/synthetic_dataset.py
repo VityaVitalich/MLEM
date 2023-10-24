@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from dataset import SequenceDataset
+from dataset import SberSequenceDataset
 from utils import read_yaml
 import numpy as np
 from utils import read_pyarrow_file
@@ -127,20 +127,20 @@ def preprocess(load_path, save_path="data/synthetic/processed/data.csv", log_amt
     return df
 
 
-def create_parquet(cfg_path, csv_path, shuffle=False):
+def create_parquet(cfg_path, csv_path, train_ids, first_test_date):
     cfg = read_yaml(cfg_path)
     if (Path(cfg["data_path"]).parent / "train.parquet").exists():
         print("Parquet already exists.")
         return
     print("Creating parquet...")
     cfg["data_path"] = csv_path
-    dataset = SequenceDataset(cfg)
-    dataset.load_dataset(shuffle=shuffle)
+    dataset = SberSequenceDataset(cfg)
+    dataset.load_dataset(train_ids, first_test_date)
 
 
 if __name__ == "__main__":
     # Generation
-    df = make_df(47000, "data/synthetic/data.csv")  # 47000 to get real scale
+    df = make_df(470, "data/synthetic/data.csv")  # 47000 to get real scale
     print(len(df))  # ~41000000 for sber data
 
     # Preprocessing
@@ -153,9 +153,10 @@ if __name__ == "__main__":
 
     # Parquet generation
     create_parquet(
-        "configs/synthetic.yaml",
+        "datasets/configs/synthetic.yaml",
         "data/synthetic/processed/data.csv",
-        shuffle=False,
+        set(range(100)),
+        "2022-01-01",
     )
 
     print(next(read_pyarrow_file("data/synthetic/processed/train.parquet")))
