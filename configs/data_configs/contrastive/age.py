@@ -29,7 +29,7 @@ def data_configs():
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.  # validation size
     config.col_id = "client_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -69,8 +69,21 @@ def data_configs():
     # test params
     test = config.test = ml_collections.ConfigDict()
 
-    train.split_strategy = {"split_strategy": "NoSplit"}
-    val.split_strategy = {"split_strategy": "NoSplit"}
+    # splitters
+    train.split_strategy = {
+        "split_strategy": "SampleUniform",  # SampleSlices
+        "split_count": 4,
+        "seq_len": 50,
+        # "cnt_min": 15,
+        # "cnt_max": 150,
+    }
+    val.split_strategy = {
+        "split_strategy": "SampleUniform",  # SampleSlices
+        "split_count": 4,
+        "seq_len": 50,
+        # "cnt_min": 15,
+        # "cnt_max": 150,
+    }
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
@@ -85,13 +98,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-<<<<<<< HEAD
-    train.batch_size = 1024
-    val.batch_size = 512
-=======
     train.batch_size = 128
     val.batch_size = 128
->>>>>>> main
     test.batch_size = 16
 
     return config
