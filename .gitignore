@@ -5,6 +5,7 @@ ckpt/
 checkpoints/
 .vscode/
 .vim
+experiments/example.db
 
 
 # Byte-compiled / optimized / DLL files

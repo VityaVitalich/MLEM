@@ -126,8 +126,8 @@ class SimpleTrainerContrastive(BaseTrainer):
         test_metric = self.compute_test_metric(
             train_embeddings, train_gts, test_embeddings, test_gts
         )
-        mean_metric = np.mean(test_metric)
-        print(test_metric)
+        key = [k for k in test_metric if "test" in k][0]
+        mean_metric = np.mean(test_metric[key])
         logger.info("Test metrics: %s, Mean: %s", str(test_metric), str(mean_metric))
         logger.info("Test finished")
 
@@ -148,7 +148,7 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
         args["objective"] = "binary"
         args["metric"] = "auc"
 
-        results = []
+        results = {"test_auc": [], "train_auc": []}
         for i, (train_index, test_index) in enumerate(
             skf.split(train_embeddings, train_labels)
         ):
@@ -162,10 +162,14 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
             test_embeddings_subset = preprocessor.transform(test_embeddings)
 
             model.fit(train_emb_subset, train_labels_subset)
-            y_pred = model.predict_proba(test_embeddings_subset)
+            
+            x_pred = model.predict_proba(train_emb_subset)
+            auc_score = roc_auc_score(train_labels_subset, x_pred[:, 1])
+            results["train_auc"].append(auc_score)
 
+            y_pred = model.predict_proba(test_embeddings_subset)
             auc_score = roc_auc_score(test_labels, y_pred[:, 1])
-            results.append(auc_score)
+            results["test_auc"].append(auc_score)
 
         return results
 
@@ -183,7 +187,7 @@ class AccuracyTrainerContrastive(SimpleTrainerContrastive):
         args = params.copy()
         args["objective"] = "multiclass"
 
-        results = []
+        results = {"test_acc": [], "train_acc": []}
         for i, (train_index, test_index) in enumerate(
             skf.split(train_embeddings, train_labels)
         ):
@@ -197,9 +201,13 @@ class AccuracyTrainerContrastive(SimpleTrainerContrastive):
             test_embeddings_subset = preprocessor.transform(test_embeddings)
 
             model.fit(train_emb_subset, train_labels_subset)
-            y_pred = model.predict(test_embeddings_subset)
 
+            x_pred = model.predict(train_emb_subset)
+            acc_score = accuracy_score(train_labels_subset, x_pred)
+            results["train_acc"].append(acc_score)
+
+            y_pred = model.predict(test_embeddings_subset)
             acc_score = accuracy_score(test_labels, y_pred)
-            results.append(acc_score)
+            results["test_acc"].append(acc_score)
 
         return results

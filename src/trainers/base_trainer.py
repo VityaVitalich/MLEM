@@ -46,11 +46,11 @@ class _CyclicalLoader:
         return item
 
 
-def _grad_norm(params):
+def _grad_norm(named_parameters):
     total_sq_norm = 0.0
-    for p in params:
+    for n, p in named_parameters:
         if p.grad is None:
-            print(p)
+            print("GRAD IS NONE", n)
         else:
             param_norm = p.grad.detach().data.norm(2)
             total_sq_norm += param_norm.item() ** 2
@@ -311,7 +311,7 @@ class BaseTrainer:
                 "iter: %d,\tloss value: %4g,\tgrad norm: %4g",
                 self._last_iter,
                 loss.item(),
-                _grad_norm(self._model.parameters()),
+                _grad_norm(self._model.named_parameters()),
             )
 
             self._opt.zero_grad()
@@ -334,6 +334,10 @@ class BaseTrainer:
     def validate(self) -> None:
         assert self._val_loader is not None, "Set a val loader first"
 
+        if len(self._val_loader) == 0:
+            self._metric_values = {"placeholder":0}
+            return
+
         logger.info("Epoch %04d: validation started", self._last_epoch + 1)
         preds, gts = self.predict(self._val_loader)
 
@@ -353,7 +357,7 @@ class BaseTrainer:
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 pred = self._model(inp)
-                preds.append(self.dict_to_cpu(pred))
+                preds.append(pred)
 
         return preds, gts
 
