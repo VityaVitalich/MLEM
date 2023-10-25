@@ -21,7 +21,7 @@ def model_configs():
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # Identity or TransformerEncoder
+    config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
@@ -87,7 +87,7 @@ def model_configs():
     config.classification_weight = 1
 
     ### DEVICE + OPTIMIZER ###
-    config.device = "cuda"
+    config.device = "cuda:0"
 
     config.lr = 3e-3
     config.weight_decay = 1e-3

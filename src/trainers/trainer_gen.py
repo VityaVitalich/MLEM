@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Literal, Union, Tuple
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from pathlib import Path
 import os
 import pandas as pd
@@ -18,13 +19,12 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
 from datetime import datetime
 from tqdm import tqdm
+from ..models.model_utils import out_to_padded_batch
 
 
 params = {
     "n_estimators": 200,
     "boosting_type": "gbdt",
-    "objective": "binary",
-    "metric": "auc",
     "subsample": 0.5,
     "subsample_freq": 1,
     "learning_rate": 0.02,
@@ -66,14 +66,15 @@ class GenTrainer(BaseTrainer):
             A dict of metric name and metric value(s).
         """
         # assert isinstance(self.model, MegaNetCE)
-        loss_dicts = [
-            self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
-        ]
-        losses_dict = {
-            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
-        }
+        # loss_dicts = [
+        #     self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
+        # ]
+        # losses_dict = {
+        #     k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
+        # }
 
-        return losses_dict
+        # return losses_dict
+        raise NotImplementedError
 
     def compute_loss(
         self,
@@ -155,6 +156,12 @@ class GenTrainer(BaseTrainer):
 
         skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
 
+        if self._data_conf.num_classes == 2:
+            params["objective"] = "binary"
+            params["metric"] = "auc"
+        else:
+            params["objective"] = "multiclass"
+
         results = []
         for i, (train_index, test_index) in enumerate(
             skf.split(train_embeddings, train_labels)
@@ -162,7 +169,9 @@ class GenTrainer(BaseTrainer):
             train_emb_subset = train_embeddings[train_index]
             train_labels_subset = train_labels[train_index]
 
-            model = LGBMClassifier(**params)
+            model = LGBMClassifier(
+                **params,
+            )
             preprocessor = MaxAbsScaler()
 
             train_emb_subset = preprocessor.fit_transform(train_emb_subset)
@@ -171,66 +180,121 @@ class GenTrainer(BaseTrainer):
             model.fit(train_emb_subset, train_labels_subset)
             y_pred = model.predict_proba(test_embeddings_subset)
 
-            auc_score = roc_auc_score(test_labels, y_pred[:, 1])
-            results.append(auc_score)
+            score = roc_auc_score(test_labels, y_pred[:, 1])
+            # score = accuracy_score(test_labels, y_pred.argmax(axis=1))
+            results.append(score)
 
         return results
 
-    def generate_data(self, train_supervised_loader):
-        train_out, train_gts = self.predict(train_supervised_loader)
-        generated_data = self.output_to_df(
-            train_out, train_gts, self._model_conf, self._data_conf
-        )
+    def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+        self._model.eval()
+        preds, gts = [], []
+        self.order = {}
+        with torch.no_grad():
+            for inp, gt in tqdm(loader):
+                gts.append(gt.to(self._device))
+                inp = inp.to(self._device)
+                out = self._model(inp)
+                out = self.dict_to_cpu(out)
 
+                if not self.order:
+                    k = 0
+                    for key in out["gt"]["input_batch"].payload.keys():
+                        if key in self._data_conf.features.numeric_values.keys():
+                            self.order[k] = key
+                            k += 1
+
+                out["gt"].pop("input_batch")
+                out.pop("all_latents", None)
+                preds.append(out)
+
+        return preds, gts
+
+    def validate(self) -> None:
+        assert self._val_loader is not None, "Set a val loader first"
+
+        logger.info("Epoch %04d: validation started", self._last_epoch + 1)
+        self._model.eval()
+        loss_dicts = []
+        with torch.no_grad():
+            for inp, gt in tqdm(self._val_loader):
+                inp = inp.to(self._device)
+                model_output = self._model(inp)
+                loss_dicts.append(self._model.loss(model_output, gt))
+
+        self._metric_values = {
+            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
+        }
+        logger.info(
+            "Epoch %04d: validation metrics: %s",
+            self._last_epoch + 1,
+            str(self._metric_values),
+        )
+        logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
+
+    @staticmethod
+    def dict_to_cpu(d):
+        out = {}
+        for k, val in d.items():
+            if isinstance(val, dict):
+                out[k] = GenTrainer.dict_to_cpu(val)
+            else:
+                out[k] = val.to("cpu")
+
+        return out
+
+    def generate_data(self, train_supervised_loader):
+        logger.info("Generation started")
+        train_out, train_gts = self.predict(train_supervised_loader)
+        logger.info("Predictions convertation started")
+
+        generated_data = self.output_to_df(train_out, train_gts)
+        logger.info("Predictions converted")
         gen_data_path = Path(self._ckpt_dir) / "generated_data"
         gen_data_path.mkdir(parents=True, exist_ok=True)
         save_path = gen_data_path / self._run_name
 
         generated_data.to_parquet(save_path)
-
+        logger.info("Predictions saved")
         return save_path
 
-    @staticmethod
-    def output_to_df(outs, gts, model_conf, conf):
-        order = {}
-
-        k = 0
-        for key in outs[0]["input_batch"].payload.keys():
-            if key in conf.features.numeric_values.keys():
-                order[k] = key
-                k += 1
-
+    def output_to_df(self, outs, gts):
         df_dic = {"event_time": [], "trx_count": [], "target_target_flag": []}
-        for feature in conf.features.embeddings.keys():
+        for feature in self._data_conf.features.embeddings.keys():
             df_dic[feature] = []
 
-        for feature in conf.features.numeric_values.keys():
+        for feature in self._data_conf.features.numeric_values.keys():
             df_dic[feature] = []
 
         for out, gt in zip(outs, gts):
-            for key, val in out["emb_dist"].items():
-                df_dic[key].extend((val.cpu().argmax(dim=-1) - 1).tolist())
+            for key, val in out["pred"].items():
+                if key in self._data_conf.features.embeddings.keys():
+                    df_dic[key].extend((val.cpu().argmax(dim=-1) - 1).tolist())
+                elif key in self._data_conf.features.numeric_values.keys():
+                    df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
-            if model_conf.use_deltas:
-                pred_delta = out["pred"][:, :, -1].squeeze(-1)
-                pred = out["pred"][:, :, :-1]
+            if self._model_conf.use_deltas:
+                pred_delta = out["pred"]["delta"]
 
-            num_numeric = len(conf.features.numeric_values.keys())
-            numeric_pred = pred[:, :, -num_numeric:]
-            for i in range(num_numeric):
-                cur_key = order[i]
-                cur_val = numeric_pred[:, :, i].cpu().tolist()
-                df_dic[cur_key].extend(cur_val)
+            # num_numeric = len(self._data_conf.features.numeric_values.keys())
+            # numeric_pred = pred[:, :, -num_numeric:]
+            # for i in range(num_numeric):
+            #     cur_key = self.order[i]
+            #     cur_val = numeric_pred[:, :, i].cpu().tolist()
+            #     df_dic[cur_key].extend(cur_val)
 
-            df_dic["event_time"].extend(out["time_steps"][:, 1:].tolist())
+            df_dic["event_time"].extend(out["gt"]["time_steps"][:, 1:].tolist())
             df_dic["trx_count"].extend(
-                (out["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
+                (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
             )
             df_dic["target_target_flag"].extend(gt[1].cpu().tolist())
 
         generated_df = pd.DataFrame.from_dict(df_dic)
         generated_df["event_time"] = generated_df["event_time"].apply(
-            lambda x: (np.array(x) * (conf.max_time - conf.min_time)) + conf.min_time
+            lambda x: (
+                np.array(x) * (self._data_conf.max_time - self._data_conf.min_time)
+            )
+            + self._data_conf.min_time
         )
 
         def truncate_lists(row):
@@ -241,7 +305,7 @@ class GenTrainer(BaseTrainer):
             return row
 
         generated_df = generated_df.apply(func=truncate_lists, axis=1)
-        generated_df[conf.col_id] = np.arange(len(generated_df))
+        generated_df[self._data_conf.col_id] = np.arange(len(generated_df))
         return generated_df
 
 
@@ -355,11 +419,12 @@ class GANGenTrainer(GenTrainer):
 
             ### Generator Step ###
             pred = self._model(inp)
+            d_pred = self.D(out_to_padded_batch(pred, self._data_conf).to(self.device))
             if self._metrics_on_train:
                 preds.append(pred)
                 gts.append(gt)
 
-            loss = self.compute_loss(pred, gt)
+            loss = self.compute_loss(pred, gt, d_pred)
             loss.backward()
 
             loss_np = loss.item()
@@ -373,10 +438,10 @@ class GANGenTrainer(GenTrainer):
             self._opt.zero_grad()
             ### DISCRIMINATOR STEP ###
             if ((i + 1) % self._model_conf_d.discriminator_step_every) == 0:
-                fake_inp = self.out_to_padded_batch(pred)
+                fake_inp = out_to_padded_batch(pred, self._data_conf).to(self.device)
                 d_inp, d_labels = self.mix_batches(fake_inp, inp)
                 d_pred = self.D(d_inp)
-                d_loss = self.D.loss(d_pred, d_labels)
+                d_loss = self.D.loss(d_pred.to(self.device), d_labels)["total_loss"]
                 d_loss.backward()
 
                 loss_d = d_loss.item()
@@ -403,50 +468,64 @@ class GANGenTrainer(GenTrainer):
 
         logger.info("Epoch %04d: train finished", self._last_epoch + 1)
 
-    def out_to_padded_batch(self, out):
-        order = {}
-
-        k = 0
-        for key in out["input_batch"].payload.keys():
-            if key in self._data_conf.features.numeric_values.keys():
-                order[k] = key
-                k += 1
-
-        num_numeric = len(self._data_conf.features.numeric_values.keys())
-
-        payload = {}
-        payload["event_time"] = out["time_steps"][:, 1:]
-        length = (out["time_steps"][:, 1:] != -1).sum(dim=1)
-        mask = out["time_steps"][:, 1:] != -1
-        for key, val in out["emb_dist"].items():
-            payload[key] = val.cpu().argmax(dim=-1).detach()
-            payload[key][~mask] = 0
-
-        if self._model_conf.use_deltas:
-            pred_delta = out["pred"][:, :, -1].squeeze(-1)
-            pred = out["pred"][:, :, :-1]
-
-        numeric_pred = pred[:, :, -num_numeric:]
-        for i in range(num_numeric):
-            cur_key = order[i]
-            cur_val = numeric_pred[:, :, i].cpu().detach()
-            payload[cur_key] = cur_val
-            payload[cur_key][~mask] = 0
-
-        return PaddedBatch(payload, length)
-
-    @staticmethod
-    def mix_batches(gen_batch, true_batch):
+    def mix_batches(self, gen_batch, true_batch):
         new_payload = {}
         for key in gen_batch.payload.keys():
             new_payload[key] = torch.cat(
-                [gen_batch.payload[key], true_batch.payload[key][:, :-1]], dim=0
+                [gen_batch.payload[key].detach(), true_batch.payload[key][:, 1:]], dim=0
             )
         new_lens = torch.cat([gen_batch.seq_lens, true_batch.seq_lens - 1])
 
         new_batch = PaddedBatch(new_payload, new_lens)
 
-        d_labels = torch.zeros(len(new_batch), dtype=torch.long)
+        d_labels = torch.zeros(len(new_batch), dtype=torch.long, device=self.device)
         d_labels[: len(new_batch) // 2] = 1
+        # true = 0, fake = 1
 
         return new_batch, d_labels.unsqueeze(0).repeat(2, 1)
+
+    def compute_loss(
+        self,
+        model_output: Any,
+        ground_truth: Tuple[int, int],  # pyright: ignore unused
+        d_pred: Any,
+    ) -> torch.Tensor:
+        """Compute loss for backward.
+
+        The function is called every iteration in training loop to compute loss.
+
+        Args:
+            model_output: raw model output as is.
+            ground_truth: tuple of raw idx and raw ground truth label from dataloader.
+        """
+        # assert isinstance(self.model, MegaNet)
+        losses = self.model.loss(model_output, ground_truth)
+        d_loss = F.softmax(d_pred, dim=1)[:, 1].mean()
+        return losses["total_loss"] + d_loss * self._model_conf.D_weight
+
+    def validate(self) -> None:
+        assert self._val_loader is not None, "Set a val loader first"
+
+        logger.info("Epoch %04d: validation started", self._last_epoch + 1)
+        self._model.eval()
+        loss_dicts = []
+        with torch.no_grad():
+            for inp, gt in tqdm(self._val_loader):
+                inp = inp.to(self._device)
+                model_output = self._model(inp)
+                d_pred = self.D(
+                    out_to_padded_batch(model_output, self._data_conf).to(self.device)
+                )
+                cur_loss = self._model.loss(model_output, gt)
+                cur_loss["D"] = F.softmax(d_pred, dim=1)[:, 1].mean()
+                loss_dicts.append(cur_loss)
+
+        self._metric_values = {
+            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
+        }
+        logger.info(
+            "Epoch %04d: validation metrics: %s",
+            self._last_epoch + 1,
+            str(self._metric_values),
+        )
+        logger.info("Epoch %04d: validation finished", self._last_epoch + 1)

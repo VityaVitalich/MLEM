@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from datetime import date
 
 logger = logging.getLogger(__name__)
 SENTINEL = None
@@ -26,6 +27,34 @@ class SplittingDataset(Dataset):
 
         indexes = self.splitter.split(local_date)
         data = [{k: v[ix] for k, v in feature_arrays.items()} for ix in indexes]
+
+        if self.target_col:
+            target = row[self.target_col]
+            try:
+                target = int(target)
+            except (ValueError, TypeError):
+                target = -1
+            return data, target
+        return data
+
+
+class SberSplittingDataset(SplittingDataset):
+    def __getitem__(self, idx):
+        row = self.base_dataset[idx]
+
+        feature_arrays = row["feature_arrays"]
+        local_date = row["event_time"]
+
+        indexes = self.splitter.split(local_date)
+        data = [{k: v[ix] for k, v in feature_arrays.items()} for ix in indexes]
+
+        report_date, epk_id = row["index"].split("_")
+        for split in data:
+            length = len(next(iter(split.values())))
+            split["report_date"] = np.array(
+                [date.fromisoformat(report_date).toordinal()] * length
+            )
+            split["epk_id"] = np.array([int(epk_id)] * length)
 
         if self.target_col:
             target = row[self.target_col]

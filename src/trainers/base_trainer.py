@@ -216,7 +216,10 @@ class BaseTrainer:
         metrics["loss"] = np.mean(self._loss_values)
 
         fname = f"epoch: {self._last_epoch:04d}"
-        metrics_str = " - ".join(f"{k}: {v:.4g}" for k, v in metrics.items())
+        metrics_str = " - ".join(
+            f"{k}: {v:.4g}" for k, v in metrics.items() if k == self._ckpt_track_metric
+        )
+        # metrics_str = "test"
         if len(metrics_str) > 0:
             fname = " - ".join((fname, metrics_str))
         fname += ".ckpt"
@@ -360,17 +363,6 @@ class BaseTrainer:
                 preds.append(pred)
 
         return preds, gts
-
-    @staticmethod
-    def dict_to_cpu(d):
-        out = {}
-        for k, val in d.items():
-            if isinstance(val, dict):
-                out[k] = BaseTrainer.dict_to_cpu(val)
-            else:
-                out[k] = val.to("cpu")
-
-        return out
 
     def compute_metrics(
         self,
