@@ -295,7 +295,12 @@ if __name__ == "__main__":
         default=3,
         type=int,
     )
-    parser.add_argument("--dataset", help="dataset", type=str, default="physionet")
+    parser.add_argument(
+        "--dataset",
+        help="dataset",
+        type=str,
+        default="physionet"
+    )
     args = parser.parse_args()
 
     ### TRAINING SETUP ###

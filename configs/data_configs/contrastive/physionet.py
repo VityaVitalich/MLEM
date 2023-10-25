@@ -24,10 +24,12 @@ def data_configs():
         / "test_trx.parquet"
     )
 
+    config.track_metric = "roc_auc"
+
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.  # validation size
     config.col_id = "user"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -87,8 +89,8 @@ def data_configs():
         / "experiments"
         / "physionet"
         / "ckpt"
-        / "CS_GRU128_LN_2023-09-26_07:39:48"
-        / "epoch: 0050 - total_loss: 78.45 - loss: 90.48.ckpt"
+        / "Tr_1l_2h_LN_GR128+LN_2023-09-20_09:32:45"
+        / "epoch: 0033 - total_loss: 0.2984 - roc_auc: 0.8421 - loss: 0.2629.ckpt"
     )
 
     # name of target col
@@ -137,6 +139,6 @@ def data_configs():
 
     train.batch_size = 128
     val.batch_size = 128
-    test.batch_size = 128
+    test.batch_size = 16
 
     return config

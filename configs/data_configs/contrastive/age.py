@@ -9,7 +9,7 @@ def data_configs():
     ########## DATA ##############
 
     config.train_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "age"
         / "data"
@@ -17,7 +17,7 @@ def data_configs():
     )
 
     config.test_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "age"
         / "data"
@@ -98,8 +98,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 128
+    train.batch_size = 64
     val.batch_size = 128
-    test.batch_size = 16
+    test.batch_size = 8
 
     return config

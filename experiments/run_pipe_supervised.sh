@@ -1,9 +1,9 @@
 #!/bin/bash
 
-EPOCHS=1
+EPOCHS=70
 DEVICE="cuda:3"
-NAME='test2'
-N_RUNS=1
-DATASET="rosbank"
+NAME='GRID'
+N_RUNS=3
+DATASET="age"
 
 python pipeline.py --total-epochs=$EPOCHS --device=$DEVICE --run-name=$NAME --n-runs=$N_RUNS --dataset=$DATASET

@@ -20,11 +20,8 @@ from .splitting_dataset import (
 def create_data_loaders(conf, supervised=True):
     train_data, valid_data = prepare_data(conf, supervised)
 
-    Dataset = SplittingDataset
-    if hasattr(conf, "sber"):
-        Dataset = SberSplittingDataset
-
-    train_dataset = Dataset(
+    dataset_class = SberSplittingDataset if hasattr(conf, "sber") else SplittingDataset
+    train_dataset = dataset_class(
         train_data,
         split_strategy.create(**conf.train.split_strategy),
         conf.features.target_col,
@@ -47,7 +44,7 @@ def create_data_loaders(conf, supervised=True):
         batch_size=conf.train.batch_size,
     )
 
-    valid_dataset = Dataset(
+    valid_dataset = dataset_class(
         valid_data,
         split_strategy.create(**conf.val.split_strategy),
         conf.features.target_col,
@@ -55,9 +52,9 @@ def create_data_loaders(conf, supervised=True):
     valid_dataset = TargetEnumeratorDataset(valid_dataset)
     # valid_dataset = TargetDataset(valid_dataset)
     valid_dataset = ConvertingTrxDataset(valid_dataset)
-    # valid_dataset = DropoutTrxDataset(
-    #     valid_dataset, trx_dropout=0.0, seq_len=conf.val.max_seq_len
-    # )
+    valid_dataset = DropoutTrxDataset(
+        valid_dataset, trx_dropout=0.0, seq_len=conf.val.max_seq_len
+    )
     valid_loader = DataLoader(
         dataset=valid_dataset,
         shuffle=False,
@@ -72,11 +69,9 @@ def create_data_loaders(conf, supervised=True):
 def create_test_loader(conf):
     test_data = prepare_test_data(conf)
 
-    Dataset = SplittingDataset
-    if hasattr(conf, "sber"):
-        Dataset = SberSplittingDataset
+    dataset_class = SberSplittingDataset if hasattr(conf, "sber") else SplittingDataset
 
-    test_dataset = Dataset(
+    test_dataset = dataset_class(
         test_data,
         split_strategy.create(**conf.test.split_strategy),
         conf.features.target_col,
