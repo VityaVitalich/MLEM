@@ -17,9 +17,9 @@ def out_to_padded_batch(out, data_conf):
             k += 1
 
     payload = {}
-    payload["event_time"] = out["gt"]["time_steps"][:, 1:]
-    length = (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1)
-    mask = out["gt"]["time_steps"][:, 1:] != -1
+    payload["event_time"] = out["gt"]["time_steps"]
+    length = (out["gt"]["time_steps"] != -1).sum(dim=1)
+    mask = out["gt"]["time_steps"] != -1
     for key, val in out["pred"].items():
         if key in data_conf.features.embeddings.keys():
             payload[key] = val.cpu().argmax(dim=-1)

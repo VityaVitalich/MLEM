@@ -419,7 +419,7 @@ class GANGenTrainer(GenTrainer):
 
             ### Generator Step ###
             pred = self._model(inp)
-            d_pred = self.D(out_to_padded_batch(pred, self._data_conf).to(self.device))
+            d_pred = self.D(out_to_padded_batch(pred, self._data_conf).to(self.device)).detach()
             if self._metrics_on_train:
                 preds.append(pred)
                 gts.append(gt)
@@ -472,7 +472,7 @@ class GANGenTrainer(GenTrainer):
         new_payload = {}
         for key in gen_batch.payload.keys():
             new_payload[key] = torch.cat(
-                [gen_batch.payload[key].detach(), true_batch.payload[key][:, 1:]], dim=0
+                [gen_batch.payload[key].detach(), true_batch.payload[key]], dim=0
             )
         new_lens = torch.cat([gen_batch.seq_lens, true_batch.seq_lens - 1])
 
@@ -500,8 +500,8 @@ class GANGenTrainer(GenTrainer):
         """
         # assert isinstance(self.model, MegaNet)
         losses = self.model.loss(model_output, ground_truth)
-        d_loss = F.softmax(d_pred, dim=1)[:, 1].mean()
-        return losses["total_loss"] + d_loss * self._model_conf.D_weight
+        d_loss = F.softmax(d_pred, dim=1)[:, 1]
+        return losses["total_loss"] + d_loss.mean() * self._model_conf.D_weight
 
     def validate(self) -> None:
         assert self._val_loader is not None, "Set a val loader first"

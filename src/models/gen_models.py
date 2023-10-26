@@ -153,6 +153,8 @@ class BaseMixin(nn.Module):
                 mask_check=True,
             )
 
+        ### HIDDEN TO X0 PROJECTION ###
+        self.hidden_to_x0 = nn.Linear(self.model_conf.encoder_hidden, self.input_dim)
         ### DECODER ###
         if self.model_conf.decoder == "GRU":
             self.decoder = DecoderGRU(
@@ -244,7 +246,7 @@ class BaseMixin(nn.Module):
         total_mse_loss = 0
         for key, values in output["gt"]["input_batch"].payload.items():
             if key in self.processor.numeric_names:
-                gt_val = values.float()[:, 1:]
+                gt_val = values.float()
                 pred_val = output["pred"][key].squeeze(-1)
 
                 mse_loss = self.mse_fn(
@@ -263,10 +265,10 @@ class BaseMixin(nn.Module):
         # DELTA MSE
         if self.model_conf.use_deltas:
             gt_delta = output["gt"]["time_steps"].diff(1)
-            delta_mse = self.mse_fn(gt_delta, output["pred"]["delta"])
+            delta_mse = self.mse_fn(gt_delta, output["pred"]["delta"][:,:-1])
             mask = output["gt"]["time_steps"] != -1
-            delta_masked = delta_mse * mask[:, 1:]
-            delta_mse = delta_masked.sum() / (mask[:, 1:] != 0).sum()
+            delta_masked = delta_mse
+            delta_mse = delta_masked.sum() / (mask != 0).sum()
         else:
             delta_mse = torch.tensor(0)
 
@@ -274,7 +276,7 @@ class BaseMixin(nn.Module):
 
     def generative_embedding_loss(self, output):
         if self.model_conf.generative_embeddings_loss:
-            gt = output["all_latents"][:, 1:, :].detach()
+            gt = output["all_latents"].detach()
             gen = output["gen_all_latents"]
             # у кого рубить градиент?))))
             if self.model_conf.gen_emb_loss_type == "l2":
@@ -292,8 +294,8 @@ class BaseMixin(nn.Module):
 
             mask = output["gt"]["time_steps"] != -1
             #  print('gen loss', loss.size(), mask.size())
-            loss = loss * mask[:, 1:]
-            loss = loss.sum() / (mask[:, 1:] != 0).sum()
+            loss = loss * mask
+            loss = loss.sum() / (mask != 0).sum()
         else:
             loss = torch.tensor(0)
 
@@ -310,7 +312,7 @@ class SeqGen(BaseMixin):
         if self.model_conf.use_deltas:
             gt_delta = time_steps.diff(1)
             delta_feature = torch.cat(
-                [gt_delta, torch.zeros(x.size()[0], 1, device=gt_delta.device)], dim=1
+                [gt_delta, torch.zeros(x.size(0), 1, device=gt_delta.device)], dim=1
             )
             x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
 
@@ -326,7 +328,9 @@ class SeqGen(BaseMixin):
             last_hidden = all_hid[:, 0, :]
 
         last_hidden = self.global_hid_dropout(last_hidden)
-
+        x0 = self.hidden_to_x0(last_hidden)
+        
+        x = torch.cat([x0.unsqueeze(1), x], dim=1)
         if self.model_conf.decoder == "GRU":
             dec_out = self.decoder(x, last_hidden)
 
@@ -366,9 +370,10 @@ class SeqGen(BaseMixin):
             res_dict["all_latents"] = all_hid
             if not generative:
                 gen_batch = out_to_padded_batch(res_dict, self.data_conf)
-                generated_out = self.forward(
-                    gen_batch.to(self.model_conf.device), generative=True
-                )
+                with torch.no_grad():
+                    generated_out = self.forward(
+                        gen_batch.to(self.model_conf.device), generative=True
+                    )
                 res_dict["gen_all_latents"] = generated_out["all_latents"]
                 res_dict["gen_latent"] = generated_out["latent"]
 
@@ -420,7 +425,7 @@ class EmbeddingPredictor(nn.Module):
         embed_losses = {}
         for name, dist in embedding_distribution.items():
             if name in self.emb_names:
-                shifted_labels = padded_batch.payload[name].long()[:, 1:]
+                shifted_labels = padded_batch.payload[name].long()#[:, 1:]
                 embed_losses[name] = self.criterion(
                     dist.permute(0, 2, 1), shifted_labels
                 )

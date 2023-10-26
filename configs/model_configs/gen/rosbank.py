@@ -43,7 +43,7 @@ def model_configs():
 
     ### GENERATED EMBEDDINGS LOSS ###
     config.generative_embeddings_loss = False
-    config.gen_emb_loss_type = "l1"
+    config.gen_emb_loss_type = "l2"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.05
@@ -56,17 +56,17 @@ def model_configs():
     config.delta_weight = 5
 
     ### DISCRIMINATOR ###
-    config.use_discriminator = True
+    config.use_discriminator = False
 
     ### LOSS ###
     config.mse_weight = 1
     config.CE_weight = 1
     config.l1_weight = 0.001
     config.gen_emb_weight = 1
-    config.D_weight = 1
+    config.D_weight = 20
 
     ### DEVICE + OPTIMIZER ###
-    config.device = "cuda:1"
+    config.device = "cuda"
 
     config.lr = 3e-3
     config.weight_decay = 1e-3

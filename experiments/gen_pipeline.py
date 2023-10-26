@@ -25,19 +25,20 @@ from configs.model_configs.gen.rosbank_D import (
     model_configs as model_configs_D,
 )
 
+
 def run_experiment(
-        run_name, 
-        device, 
-        total_epochs, 
-        conf, 
-        model_conf, 
-        TrainerClass, 
-        resume, 
-        log_dir, 
-        seed=0, 
-        console_log="warning",
-        file_log="info",
-    ):
+    run_name,
+    device,
+    total_epochs,
+    conf,
+    model_conf,
+    TrainerClass,
+    resume,
+    log_dir,
+    seed=0,
+    console_log="warning",
+    file_log="info",
+):
     ### SETUP LOGGING ###
     ch = logging.StreamHandler()
     cons_lvl = getattr(logging, console_log.upper())
@@ -139,6 +140,8 @@ def run_experiment(
     logger.removeHandler(fh)
     fh.close()
     return test_metrics
+
+
 def run_experiment_helper(args):
     return run_experiment(*args)
 
@@ -181,12 +184,7 @@ if __name__ == "__main__":
         default=3,
         type=int,
     )
-    parser.add_argument(
-        "--dataset",
-        help="dataset",
-        type=str,
-        default="physionet"
-    )
+    parser.add_argument("--dataset", help="dataset", type=str, default="physionet")
     parser.add_argument(
         "--gen-val",
         help="Whether to perform generated validation",
@@ -203,7 +201,6 @@ if __name__ == "__main__":
     run_name = args.run_name or "mtand"
     run_name += f"_{datetime.now():%F_%T}"
 
-
     if args.gen_val:
         generated_data_path = trainer.generate_data(train_supervised_loader)
         conf.train_supervised_path = generated_data_path
@@ -213,7 +210,7 @@ if __name__ == "__main__":
         total_epochs = args.gen_val_epoch
         model_conf_genval = model_configs_genval()
         log_dir = "./logs/generations/"
-        generated_test_metric = run_experiment(
+        generated_test_metric = run_supervised(
             run_name,
             args.device,
             total_epochs,

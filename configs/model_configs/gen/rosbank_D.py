@@ -17,7 +17,7 @@ def model_configs():
     config.numeric_emb_size = 8
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 16
+    config.classifier_gru_hidden_dim = 32
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
@@ -57,10 +57,10 @@ def model_configs():
     loss.margin = 0.5
 
     ### STEP EVERY ###
-    config.discriminator_step_every = 2
+    config.discriminator_step_every = 10
 
     ### DEVICE + OPTIMIZER ###
-    config.device = "cuda:1"
+    config.device = "cuda"
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
