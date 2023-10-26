@@ -162,29 +162,23 @@ class GenTrainer(BaseTrainer):
         else:
             params["objective"] = "multiclass"
 
-        results = []
-        for i, (train_index, test_index) in enumerate(
-            skf.split(train_embeddings, train_labels)
-        ):
-            train_emb_subset = train_embeddings[train_index]
-            train_labels_subset = train_labels[train_index]
+        model = LGBMClassifier(
+            **params,
+        )
+        preprocessor = MaxAbsScaler()
 
-            model = LGBMClassifier(
-                **params,
-            )
-            preprocessor = MaxAbsScaler()
+        train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
+        test_embeddings_tr = preprocessor.transform(test_embeddings)
 
-            train_emb_subset = preprocessor.fit_transform(train_emb_subset)
-            test_embeddings_subset = preprocessor.transform(test_embeddings)
+        model.fit(train_embeddings_tr, train_labels)
+        y_pred = model.predict_proba(test_embeddings_tr)
 
-            model.fit(train_emb_subset, train_labels_subset)
-            y_pred = model.predict_proba(test_embeddings_subset)
-
+        if self._data_conf.num_classes == 2:
             score = roc_auc_score(test_labels, y_pred[:, 1])
-            # score = accuracy_score(test_labels, y_pred.argmax(axis=1))
-            results.append(score)
+        else:
+            score = accuracy_score(test_labels, y_pred.argmax(axis=1))
 
-        return results
+        return [score]
 
     def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
         self._model.eval()
@@ -419,7 +413,9 @@ class GANGenTrainer(GenTrainer):
 
             ### Generator Step ###
             pred = self._model(inp)
-            d_pred = self.D(out_to_padded_batch(pred, self._data_conf).to(self.device)).detach()
+            d_pred = self.D(
+                out_to_padded_batch(pred, self._data_conf).to(self.device)
+            ).detach()
             if self._metrics_on_train:
                 preds.append(pred)
                 gts.append(gt)

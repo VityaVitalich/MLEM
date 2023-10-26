@@ -20,14 +20,20 @@ def model_configs():
     config.classifier_linear_hidden_dim = 300
 
     ### TRANSFORMER ###
-    config.encoder = ["Identity", "TransformerEncoder"]  # Identity or TransformerEncoder 
+    config.encoder = [
+        "Identity",
+        "TransformerEncoder",
+    ]  # Identity or TransformerEncoder
     config.num_enc_layers = [1, 2]
     config.num_heads_enc = [1, 2, 4]
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = ["Identity", "LayerNorm"] # if TransformerEncoder -> LayerNorm. else Identity
+    config.encoder_norm = [
+        "Identity",
+        "LayerNorm",
+    ]  # if TransformerEncoder -> LayerNorm. else Identity
 
     ### DROPOUT ###
     config.after_enc_dropout = [0.0, 0.1, 0.2]
@@ -45,19 +51,23 @@ def model_configs():
     config.activation = ["ReLU", "LeakyReLU", "Mish", "Tanh"]
 
     ### TIME TRICKS ###
-    config.num_time_blocks = 50 #[4, 16] 
-    config.time_preproc = (
-        "Identity"  # Identity or TimeConcater or MultiTimeSummator 
-    )
+    config.num_time_blocks = 50  # [4, 16]
+    config.time_preproc = "Identity"  # Identity or TimeConcater or MultiTimeSummator
     config.entropy_weight = 0.0
 
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
-    loss.loss_fn = ["ContrastiveLoss", "InfoNCELoss", "DecoupledInfoNCELoss", "DecoupledPairwiseInfoNCELoss", "RINCELoss"]
+    loss.loss_fn = [
+        "ContrastiveLoss",
+        "InfoNCELoss",
+        "DecoupledInfoNCELoss",
+        "DecoupledPairwiseInfoNCELoss",
+        "RINCELoss",
+    ]
     loss.margin = [0.0, 0.1, 0.3, 0.5, 1.0]  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = ["Identity", "Linear", "MLP"] # all losses
+    loss.projector = ["Identity", "Linear", "MLP"]  # all losses
     loss.project_dim = [32, 64, 128, 256]  # all losses
     loss.temperature = [0.01, 0.03, 0.1, 0.3, 1.0]  # all except ContrastiveLoss
     loss.angular_margin = [0.0, 0.3, 0.5, 0.7]  # InfoNCELoss only

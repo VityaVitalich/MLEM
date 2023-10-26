@@ -1,7 +1,7 @@
 #!/bin/bash
 
 EPOCHS=1
-DEVICE="cuda:3"
+DEVICE="cuda"
 NAME='test2'
 N_RUNS=1
 DATASET="rosbank"

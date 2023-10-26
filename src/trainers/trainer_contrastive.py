@@ -133,6 +133,7 @@ class SimpleTrainerContrastive(BaseTrainer):
 
         return test_metric
 
+
 class AucTrainerContrastive(SimpleTrainerContrastive):
     def compute_test_metric(
         self, train_embeddings, train_gts, test_embeddings, test_gts
@@ -168,6 +169,7 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
             results.append(auc_score)
 
         return results
+
 
 class AccuracyTrainerContrastive(SimpleTrainerContrastive):
     def compute_test_metric(

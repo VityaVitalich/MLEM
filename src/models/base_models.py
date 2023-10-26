@@ -2,14 +2,7 @@ import torch
 import torch.nn as nn
 from . import preprocessors as prp
 from ..trainers.losses import get_loss
-
-
-class L2Normalization(nn.Module):
-    def __init__(self):
-        super(L2Normalization, self).__init__()
-
-    def forward(self, x):
-        return x.div(torch.norm(x, dim=1).view(-1, 1))
+from .model_utils import L2Normalization, FeatureMixer
 
 
 class BaseMixin(nn.Module):
@@ -34,6 +27,18 @@ class BaseMixin(nn.Module):
             self.model_conf.numeric_emb_size if self.model_conf.use_numeric_emb else 1
         )
         self.input_dim = all_emb_size + all_numeric_size
+
+        ### MIXER ###
+        if self.model_conf.encoder_feature_mixer:
+            assert self.model_conf.features_emb_dim == self.model_conf.numeric_emb_size
+            self.encoder_feature_mixer = FeatureMixer(
+                num_features=len(self.data_conf.features.numeric_values)
+                + len(self.data_conf.features.embeddings),
+                feature_dim=self.model_conf.features_emb_dim,
+                num_layers=1,
+            )
+        else:
+            self.encoder_feature_mixer = nn.Identity()
 
         ### NORMS ###
         self.pre_gru_norm = getattr(nn, self.model_conf.pre_gru_norm)(self.input_dim)
@@ -100,7 +105,7 @@ class GRUClassifier(BaseMixin):
     def forward(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
         x, time_steps = self.time_processor(x, time_steps)
-
+        x = self.encoder_feature_mixer(x)
         encoded = self.encoder(x)
 
         all_hiddens, hn = self.gru(self.pre_gru_norm(self.after_enc_dropout(encoded)))

@@ -7,6 +7,39 @@ import torch.nn.functional as F
 from ..data_load.dataloader import PaddedBatch
 
 
+class L2Normalization(nn.Module):
+    def __init__(self):
+        super(L2Normalization, self).__init__()
+
+    def forward(self, x):
+        return x.div(torch.norm(x, dim=1).view(-1, 1))
+
+
+class FeatureMixer(nn.Module):
+    def __init__(self, num_features, feature_dim, num_layers):
+        super().__init__()
+        self.num_features = num_features
+        self.feature_dim = feature_dim
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=feature_dim, nhead=1, batch_first=True
+        )
+        self.encoder_norm = nn.LayerNorm(feature_dim)
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer, num_layers=num_layers, norm=self.encoder_norm
+        )
+
+    def forward(self, x):
+        bs, seq_len, d = x.size()
+
+        x_resized = x.view(bs * seq_len, self.num_features, self.feature_dim)
+        # x_resized.requires_grad_(True)
+        out = self.encoder(x_resized).view(
+            bs, seq_len, self.num_features * self.feature_dim
+        )
+        # out.requires_grad_(True)
+        return out
+
+
 def out_to_padded_batch(out, data_conf):
     order = {}
 

@@ -24,23 +24,23 @@ from configs.model_configs.supervised.taobao import model_configs as taobao_mode
 
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_supervised import (
-    AccuracyTrainerSupervised, 
-    AucTrainerSupervised
+    AccuracyTrainerSupervised,
+    AucTrainerSupervised,
 )
 from src.trainers.randomness import seed_everything
 import src.models.base_models
 
 
 def run_experiment(
-    run_name, 
-    device, 
-    total_epochs, 
-    conf, 
-    model_conf, 
-    TrainerClass, 
-    resume, 
-    log_dir, 
-    seed=0, 
+    run_name,
+    device,
+    total_epochs,
+    conf,
+    model_conf,
+    TrainerClass,
+    resume,
+    log_dir,
+    seed=0,
     console_log="warning",
     file_log="info",
 ):
@@ -124,15 +124,16 @@ def run_experiment(
 def run_experiment_helper(args):
     return run_experiment(*args)
 
+
 def do_n_runs(
-    run_name, 
-    device, 
-    total_epochs, 
-    conf, 
-    model_conf, 
-    TrainerClass, 
-    resume, 
-    log_dir, 
+    run_name,
+    device,
+    total_epochs,
+    conf,
+    model_conf,
+    TrainerClass,
+    resume,
+    log_dir,
     n_runs=3,
     console_log="warning",
     file_log="info",
@@ -153,7 +154,8 @@ def do_n_runs(
             seed,
             console_log,
             file_log,
-        ) for seed in range(n_runs)
+        )
+        for seed in range(n_runs)
     ]
     with Pool(3) as p:
         result_list = p.map(run_experiment_helper, args)

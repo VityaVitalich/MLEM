@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EPOCHS=15
+EPOCHS=10
 DEVICE="cuda"
 NAME='mixer'
 GENVAL=true

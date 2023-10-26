@@ -5,40 +5,7 @@ from ..trainers.losses import get_loss
 import numpy as np
 import torch.nn.functional as F
 from torch.autograd import Variable
-from .model_utils import out_to_padded_batch
-
-
-class L2Normalization(nn.Module):
-    def __init__(self):
-        super(L2Normalization, self).__init__()
-
-    def forward(self, x):
-        return x.div(torch.norm(x, dim=1).view(-1, 1))
-
-
-class FeatureMixer(nn.Module):
-    def __init__(self, num_features, feature_dim, num_layers):
-        super().__init__()
-        self.num_features = num_features
-        self.feature_dim = feature_dim
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=feature_dim, nhead=1, batch_first=True
-        )
-        self.encoder_norm = nn.LayerNorm(feature_dim)
-        self.encoder = nn.TransformerEncoder(
-            encoder_layer, num_layers=num_layers, norm=self.encoder_norm
-        )
-
-    def forward(self, x):
-        bs, seq_len, d = x.size()
-
-        x_resized = x.view(bs * seq_len, self.num_features, self.feature_dim)
-        # x_resized.requires_grad_(True)
-        out = self.encoder(x_resized).view(
-            bs, seq_len, self.num_features * self.feature_dim
-        )
-        # out.requires_grad_(True)
-        return out
+from .model_utils import out_to_padded_batch, FeatureMixer, L2Normalization
 
 
 class BaseMixin(nn.Module):
@@ -265,7 +232,7 @@ class BaseMixin(nn.Module):
         # DELTA MSE
         if self.model_conf.use_deltas:
             gt_delta = output["gt"]["time_steps"].diff(1)
-            delta_mse = self.mse_fn(gt_delta, output["pred"]["delta"][:,:-1])
+            delta_mse = self.mse_fn(gt_delta, output["pred"]["delta"][:, :-1])
             mask = output["gt"]["time_steps"] != -1
             delta_masked = delta_mse
             delta_mse = delta_masked.sum() / (mask != 0).sum()
@@ -329,7 +296,7 @@ class SeqGen(BaseMixin):
 
         last_hidden = self.global_hid_dropout(last_hidden)
         x0 = self.hidden_to_x0(last_hidden)
-        
+
         x = torch.cat([x0.unsqueeze(1), x], dim=1)
         if self.model_conf.decoder == "GRU":
             dec_out = self.decoder(x, last_hidden)
@@ -425,7 +392,7 @@ class EmbeddingPredictor(nn.Module):
         embed_losses = {}
         for name, dist in embedding_distribution.items():
             if name in self.emb_names:
-                shifted_labels = padded_batch.payload[name].long()#[:, 1:]
+                shifted_labels = padded_batch.payload[name].long()  # [:, 1:]
                 embed_losses[name] = self.criterion(
                     dist.permute(0, 2, 1), shifted_labels
                 )
