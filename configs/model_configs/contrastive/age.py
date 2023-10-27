@@ -8,11 +8,11 @@ def model_configs():
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
-    config.batch_first_encoder = False
+    config.batch_first_encoder = True
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 16
+    config.features_emb_dim = 32
     config.use_numeric_emb = False
     config.numeric_emb_size = 8
     ### RNN + LINEAR ###
@@ -21,7 +21,7 @@ def model_configs():
 
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder 
-    config.num_enc_layers = 1
+    config.num_enc_layers = 2
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
@@ -43,7 +43,7 @@ def model_configs():
     # conv.proj = "Linear"
 
     ### ACTIVATION ###
-    config.activation = "ReLU"
+    config.activation = "LeakyReLU"
 
     ### TIME TRICKS ###
     config.num_time_blocks = 50 #[4, 16] 
@@ -56,9 +56,9 @@ def model_configs():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.loss_fn = "ContrastiveLoss"
-    loss.margin = 0.1  # ContrastiveLoss only
+    loss.margin = 0.3 # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = "Identity" # all losses
+    loss.projector = "Linear" # all losses
     loss.project_dim = 32  # all losses
     loss.temperature = 0.1 # all except ContrastiveLoss
     loss.angular_margin = 0.3 # InfoNCELoss only
@@ -96,8 +96,8 @@ def model_configs():
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"
 
-    config.lr = 3e-3
-    config.weight_decay = 1e-4
+    config.lr = 0.0003
+    config.weight_decay = 0.001
     config.cv_splits = 5
 
     config.comments = ""

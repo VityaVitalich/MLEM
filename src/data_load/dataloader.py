@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from ..data_load import split_strategy
 from .data_utils import prepare_data, prepare_test_data
 from .splitting_dataset import (
-    ConvertingTrxDataset,  # TargetDataset
+    ConvertingTrxDataset, 
     DropoutTrxDataset,
     SplittingDataset,
     SberSplittingDataset,
@@ -17,25 +17,21 @@ from .splitting_dataset import (
 )
 
 
-def create_data_loaders(conf, supervised=True):
-    train_data, valid_data = prepare_data(conf, supervised)
+def create_data_loaders(conf, supervised=True, pinch_test=False):
+    train_data, valid_data, test_data = prepare_data(conf, supervised, pinch_test)
 
     dataset_class = SberSplittingDataset if hasattr(conf, "sber") else SplittingDataset
+
     train_dataset = dataset_class(
         train_data,
         split_strategy.create(**conf.train.split_strategy),
         conf.features.target_col,
     )
     train_dataset = TargetEnumeratorDataset(train_dataset)
-    # train_dataset = TargetDataset(train_dataset)
     train_dataset = ConvertingTrxDataset(train_dataset)
-    # не уверен что нам нужна история с дропаутом точек.
-    # Но это выглядит неплохой аугментацией в целом
-    if conf.train.dropout > 0:
-        train_dataset = DropoutTrxDataset(
-            train_dataset, trx_dropout=conf.train.dropout, seq_len=conf.train.max_seq_len
-        )
-
+    train_dataset = DropoutTrxDataset(
+        train_dataset, trx_dropout=conf.train.dropout, seq_len=conf.train.max_seq_len
+    )
     train_loader = DataLoader(
         dataset=train_dataset,
         shuffle=True,
@@ -50,7 +46,6 @@ def create_data_loaders(conf, supervised=True):
         conf.features.target_col,
     )
     valid_dataset = TargetEnumeratorDataset(valid_dataset)
-    # valid_dataset = TargetDataset(valid_dataset)
     valid_dataset = ConvertingTrxDataset(valid_dataset)
     valid_dataset = DropoutTrxDataset(
         valid_dataset, trx_dropout=0.0, seq_len=conf.val.max_seq_len
@@ -63,6 +58,26 @@ def create_data_loaders(conf, supervised=True):
         batch_size=conf.val.batch_size,
     )
 
+    test_dataset = dataset_class(
+        test_data,
+        split_strategy.create(**conf.test.split_strategy),
+        conf.features.target_col,
+    )
+    test_dataset = TargetEnumeratorDataset(test_dataset)
+    test_dataset = ConvertingTrxDataset(test_dataset)
+    test_dataset = DropoutTrxDataset(
+        test_dataset, trx_dropout=0.0, seq_len=conf.test.max_seq_len
+    )
+    test_loader = DataLoader(
+        dataset=test_dataset,
+        shuffle=False,
+        collate_fn=collate_splitted_rows,
+        num_workers=conf.test.num_workers,
+        batch_size=conf.test.batch_size,
+    )
+
+    if pinch_test:
+        return train_loader, valid_loader, test_loader
     return train_loader, valid_loader
 
 
@@ -77,12 +92,10 @@ def create_test_loader(conf):
         conf.features.target_col,
     )
     test_dataset = TargetEnumeratorDataset(test_dataset)
-    # valid_dataset = TargetDataset(valid_dataset)
     test_dataset = ConvertingTrxDataset(test_dataset)
     test_dataset = DropoutTrxDataset(
         test_dataset, trx_dropout=0.0, seq_len=conf.test.max_seq_len
     )
-
     test_loader = DataLoader(
         dataset=test_dataset,
         shuffle=False,
