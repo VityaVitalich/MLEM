@@ -21,6 +21,9 @@ def model_configs():
     config.classifier_gru_hidden_dim = 64
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
+    ### TIME DELTA ###
+    config.use_deltas = True
+
     ### TRANSFORMER ###
     config.encoder = "Identity"  # Identity or TransformerEncoder
     config.num_enc_layers = 1

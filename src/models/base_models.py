@@ -26,7 +26,7 @@ class BaseMixin(nn.Module):
         all_numeric_size = len(self.data_conf.features.numeric_values) * (
             self.model_conf.numeric_emb_size if self.model_conf.use_numeric_emb else 1
         )
-        self.input_dim = all_emb_size + all_numeric_size
+        self.input_dim = all_emb_size + all_numeric_size + self.model_conf.use_deltas
 
         ### MIXER ###
         if self.model_conf.encoder_feature_mixer:
@@ -106,6 +106,12 @@ class GRUClassifier(BaseMixin):
         x, time_steps = self.processor(padded_batch)
         x, time_steps = self.time_processor(x, time_steps)
         x = self.encoder_feature_mixer(x)
+        if self.model_conf.use_deltas:
+            gt_delta = time_steps.diff(1)
+            delta_feature = torch.cat(
+                [torch.zeros(x.size(0), 1, device=gt_delta.device), gt_delta], dim=1
+            )
+            x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
         encoded = self.encoder(x)
 
         all_hiddens, hn = self.gru(self.pre_gru_norm(self.after_enc_dropout(encoded)))

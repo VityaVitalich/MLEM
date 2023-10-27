@@ -234,7 +234,7 @@ class BaseMixin(nn.Module):
             gt_delta = output["gt"]["time_steps"].diff(1)
             delta_mse = self.mse_fn(gt_delta, output["pred"]["delta"][:, :-1])
             mask = output["gt"]["time_steps"] != -1
-            delta_masked = delta_mse
+            delta_masked = delta_mse * mask[:, :-1]
             delta_mse = delta_masked.sum() / (mask != 0).sum()
         else:
             delta_mse = torch.tensor(0)
@@ -273,13 +273,37 @@ class SeqGen(BaseMixin):
     def __init__(self, model_conf, data_conf):
         super().__init__(model_conf=model_conf, data_conf=data_conf)
 
-    def forward(self, padded_batch, generative=False):
+    def forward(self, padded_batch):
+        all_hidden, global_hidden, time_steps = self.encode(padded_batch)
+        pred = self.decode(padded_batch, global_hidden)
+
+        gt = {"input_batch": padded_batch, "time_steps": time_steps}
+
+        res_dict = {
+            "gt": gt,
+            "pred": pred,
+            "latent": global_hidden,
+        }
+
+        if self.model_conf.generative_embeddings_loss:
+            res_dict["all_latents"] = all_hidden
+            gen_batch = out_to_padded_batch(res_dict, self.data_conf)
+            with torch.no_grad():
+                gen_all_hidden, gen_global_hidden, time_steps = self.encode(
+                    gen_batch.to(self.model_conf.device)
+                )
+            res_dict["gen_all_latents"] = gen_all_hidden
+            res_dict["gen_latent"] = gen_global_hidden
+
+        return res_dict
+
+    def encode(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
         x = self.encoder_feature_mixer(x)
         if self.model_conf.use_deltas:
             gt_delta = time_steps.diff(1)
             delta_feature = torch.cat(
-                [gt_delta, torch.zeros(x.size(0), 1, device=gt_delta.device)], dim=1
+                [torch.zeros(x.size(0), 1, device=gt_delta.device), gt_delta], dim=1
             )
             x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
 
@@ -288,18 +312,30 @@ class SeqGen(BaseMixin):
         if self.model_conf.encoder in ("GRU", "LSTM"):
             all_hid, hn = self.encoder(self.pre_encoder_norm(x))
             lens = padded_batch.seq_lens - 1
-            last_hidden = self.post_encoder_norm(all_hid[:, lens, :].diagonal().T)
+            global_hidden = self.post_encoder_norm(all_hid[:, lens, :].diagonal().T)
         elif self.model_conf.encoder == "TR":
             x_proj = self.encoder_proj(x)
             all_hid = self.encoder(x_proj)
-            last_hidden = all_hid[:, 0, :]
+            global_hidden = all_hid[:, 0, :]
 
-        last_hidden = self.global_hid_dropout(last_hidden)
-        x0 = self.hidden_to_x0(last_hidden)
+        global_hidden = self.global_hid_dropout(global_hidden)
 
+        return all_hid, global_hidden, time_steps
+
+    def decode(self, padded_batch, global_hidden):
+        x, time_steps = self.processor(padded_batch, use_norm=False)
+        if self.model_conf.use_deltas:
+            gt_delta = time_steps.diff(1)
+            delta_feature = torch.cat(
+                [torch.zeros(x.size(0), 1, device=gt_delta.device), gt_delta], dim=1
+            )
+            x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
+
+        x0 = self.hidden_to_x0(global_hidden)
+        # print(x0.size())
         x = torch.cat([x0.unsqueeze(1), x], dim=1)
         if self.model_conf.decoder == "GRU":
-            dec_out = self.decoder(x, last_hidden)
+            dec_out = self.decoder(x, global_hidden)
 
         elif self.model_conf.decoder == "TR":
             x_proj = self.decoder_proj(x)
@@ -308,7 +344,7 @@ class SeqGen(BaseMixin):
             )
             dec_out = self.decoder(
                 tgt=x_proj,
-                memory=last_hidden.unsqueeze(1),
+                memory=global_hidden.unsqueeze(1),
                 tgt_mask=mask,
             )
 
@@ -325,26 +361,7 @@ class SeqGen(BaseMixin):
         if self.model_conf.use_deltas:
             pred["delta"] = out[:, :, -1].squeeze(-1)
 
-        gt = {"input_batch": padded_batch, "time_steps": time_steps}
-
-        res_dict = {
-            "gt": gt,
-            "pred": pred,
-            "latent": last_hidden,
-        }
-
-        if self.model_conf.generative_embeddings_loss:
-            res_dict["all_latents"] = all_hid
-            if not generative:
-                gen_batch = out_to_padded_batch(res_dict, self.data_conf)
-                with torch.no_grad():
-                    generated_out = self.forward(
-                        gen_batch.to(self.model_conf.device), generative=True
-                    )
-                res_dict["gen_all_latents"] = generated_out["all_latents"]
-                res_dict["gen_latent"] = generated_out["latent"]
-
-        return res_dict
+        return pred
 
 
 class EmbeddingPredictor(nn.Module):
@@ -552,5 +569,43 @@ class DecoderGRU(nn.Module):
                 hidden[layer] = hidden_l
 
             outs.append(hidden_l.unsqueeze(1))
+
+        return torch.cat(outs, dim=1)
+
+    def generate(self, global_hidden, length, pred_layers, first_step=None):
+        h0 = Variable(
+            torch.zeros(self.num_layers, global_hidden.size(0), self.hidden_size).to(
+                global_hidden.device
+            )
+        )
+
+        if first_step is None:
+            first_step = torch.zeros(
+                global_hidden.size(0), self.input_size, device=global_hidden.device
+            )
+
+        outs = []
+
+        hidden = list()
+        for layer in range(self.num_layers):
+            hidden.append(h0[layer, :, :])
+
+        prev_input = first_step
+        for t in range(length):
+            for layer in range(self.num_layers):
+                if layer == 0:
+                    hidden_l = self.rnn_cell_list[layer](
+                        prev_input, global_hidden, hidden[layer]
+                    )
+                else:
+                    hidden_l = self.rnn_cell_list[layer](
+                        hidden[layer - 1], global_hidden, hidden[layer]
+                    )
+                hidden[layer] = hidden_l
+
+                hidden[layer] = hidden_l
+
+            outs.append(hidden_l.unsqueeze(1))
+            prev_input = pred_layers(hidden_l)
 
         return torch.cat(outs, dim=1)

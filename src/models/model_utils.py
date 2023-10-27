@@ -33,9 +33,8 @@ class FeatureMixer(nn.Module):
 
         x_resized = x.view(bs * seq_len, self.num_features, self.feature_dim)
         # x_resized.requires_grad_(True)
-        out = self.encoder(x_resized).view(
-            bs, seq_len, self.num_features * self.feature_dim
-        )
+        out = self.encoder(x_resized)
+        out = out.view(bs, seq_len, self.num_features * self.feature_dim)
         # out.requires_grad_(True)
         return out
 

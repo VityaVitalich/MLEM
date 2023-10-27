@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EPOCHS=15
+EPOCHS=1
 DEVICE="cuda"
 NAME='test'
 GENVAL=true

@@ -42,7 +42,7 @@ def model_configs():
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
-    config.generative_embeddings_loss = False
+    config.generative_embeddings_loss = True
     config.gen_emb_loss_type = "l2"
 
     ### DROPOUT ###
@@ -56,7 +56,7 @@ def model_configs():
     config.delta_weight = 5
 
     ### DISCRIMINATOR ###
-    config.use_discriminator = False
+    config.use_discriminator = True
 
     ### LOSS ###
     config.mse_weight = 1
