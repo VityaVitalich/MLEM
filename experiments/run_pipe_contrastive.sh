@@ -2,7 +2,7 @@
 
 EPOCHS=70
 DEVICE="cuda:2"
-NAME='optuna_ContrastiveLoss'
+NAME='debug'
 N_RUNS=3
 DATASET="age"
 

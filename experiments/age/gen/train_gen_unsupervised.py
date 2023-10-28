@@ -17,7 +17,7 @@ from src.trainers.randomness import seed_everything
 import src.models.gen_models
 import src.models.base_models
 
-from experiments.pipeline import run_experiment, get_trainer_class
+from experiments.supervised_pipeline import run_experiment, get_trainer_class
 from configs.model_configs.gen.age_genval import (
     model_configs as model_configs_genval,
 )

@@ -1,5 +1,8 @@
 from argparse import ArgumentParser
 
+import optuna
+import pandas as pd
+
 
 def parse_args():
     parser = ArgumentParser()
@@ -42,3 +45,30 @@ def parse_args():
     parser.add_argument("--dataset", help="dataset", type=str, default="physionet")
     args = parser.parse_args()
     return args
+
+def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
+    study = optuna.load_study(study_name=name, storage="sqlite:///example.db")
+
+    # Retrieve data from the study and construct a pandas DataFrame
+    data = []
+
+    for trial in study.trials:
+        trial_data = {
+            "number": trial.number,
+            "params": trial.params,
+            "user_attrs": trial.user_attrs,
+            "value": trial.value,
+            "datetime_start": trial.datetime_start,
+            "datetime_complete": trial.datetime_complete
+        }
+        data.append(trial_data)
+
+    df = pd.DataFrame(data)
+    df["time"] = df["datetime_complete"] - df["datetime_start"]
+    for k in df["user_attrs"].iloc[0]:
+        df[k] = [i.get(k, "NaT") for i in df["user_attrs"]]
+        params = pd.DataFrame([r for r in df["params"]], index=df.index)
+    df = pd.concat([df, params], axis=1)
+    df = df.drop(columns=["params", "datetime_start", "datetime_complete", "number", "user_attrs"])
+    
+    return df
