@@ -72,3 +72,6 @@ def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
     df = df.drop(columns=["params", "datetime_start", "datetime_complete", "number", "user_attrs"])
     
     return df
+
+if __name__ == "__main__":
+    args = parse_args()
