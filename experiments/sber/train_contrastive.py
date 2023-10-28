@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 import sys
-import os
+import pickle
 
 sys.path.append("../../")
 
@@ -51,10 +51,6 @@ def run_experiment(run_name, device, total_epochs, conf, model_conf, resume, log
 
     ### Create loaders and train ###
     train_loader, valid_loader = create_data_loaders(conf, supervised=False)
-    test_loader = create_test_loader(conf)
-    conf.valid_size = 0
-    conf.train.split_strategy = {"split_strategy": "NoSplit"}
-    train_supervised_loader, _ = create_data_loaders(conf)
 
     model = getattr(src.models.base_models, model_conf.model_name)
     net = model(model_conf=model_conf, data_conf=conf)
@@ -76,6 +72,12 @@ def run_experiment(run_name, device, total_epochs, conf, model_conf, resume, log
         device=device,
         model_conf=model_conf,
     )
+
+    ckpt_path = Path(__file__).parent / "ckpt" / run_name
+    with open(ckpt_path / "model_config.pkl", "wb") as f:
+        pickle.dump(model_conf, f)
+    with open(ckpt_path / "data_config.pkl", "wb") as f:
+        pickle.dump(conf, f)
 
     ### RUN TRAINING ###
     trainer.run()

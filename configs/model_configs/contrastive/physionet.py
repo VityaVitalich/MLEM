@@ -55,7 +55,7 @@ def model_configs():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "ContrastiveLoss"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
     # loss.loss_fn = "RINCELoss"
     # loss.temperature = 0.03

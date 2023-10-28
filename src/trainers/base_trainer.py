@@ -169,6 +169,19 @@ class BaseTrainer:
     def device(self) -> str:
         return self._device
 
+    def _make_key_extractor(self, key):
+        def key_extractor(p: Path) -> float:
+            metrics = {}
+            for it in p.stem.split("_-_"):
+                kv = it.split("__")
+                assert len(kv) == 2, f"Failed to parse filename: {p.name}"
+                k = kv[0]
+                v = -float(kv[1]) if "loss" in k else float(kv[1])
+                metrics[k] = v
+            return metrics[key]
+
+        return key_extractor
+
     def save_ckpt(self, ckpt_path: Union[str, os.PathLike, None] = None) -> None:
         """Save model, optimizer and scheduler states.
 
@@ -215,13 +228,13 @@ class BaseTrainer:
         metrics = {k: v for k, v in self._metric_values.items() if np.isscalar(v)}
         metrics["loss"] = np.mean(self._loss_values)
 
-        fname = f"epoch: {self._last_epoch:04d}"
-        metrics_str = " - ".join(
-            f"{k}: {v:.4g}" for k, v in metrics.items() if k == self._ckpt_track_metric
+        fname = f"epoch__{self._last_epoch:04d}"
+        metrics_str = "_-_".join(
+            f"{k}__{v:.4g}" for k, v in metrics.items() if k == self._ckpt_track_metric
         )
         # metrics_str = "test"
         if len(metrics_str) > 0:
-            fname = " - ".join((fname, metrics_str))
+            fname = "_-_".join((fname, metrics_str))
         fname += ".ckpt"
 
         torch.save(ckpt, ckpt_path / Path(fname))
@@ -229,22 +242,9 @@ class BaseTrainer:
         if not self._ckpt_replace:
             return
 
-        def make_key_extractor(key):
-            def key_extractor(p: Path) -> float:
-                metrics = {}
-                for it in p.stem.split(" - "):
-                    kv = it.split(": ")
-                    assert len(kv) == 2, f"Failed to parse filename: {p.name}"
-                    k = kv[0]
-                    v = -float(kv[1]) if "loss" in k else float(kv[1])
-                    metrics[k] = v
-                return metrics[key]
-
-            return key_extractor
-
         all_ckpt = list(ckpt_path.glob("*.ckpt"))
-        last_ckpt = max(all_ckpt, key=make_key_extractor("epoch"))
-        best_ckpt = max(all_ckpt, key=make_key_extractor(self._ckpt_track_metric))
+        last_ckpt = max(all_ckpt, key=self._make_key_extractor("epoch"))
+        best_ckpt = max(all_ckpt, key=self._make_key_extractor(self._ckpt_track_metric))
         for p in all_ckpt:
             if p != last_ckpt and p != best_ckpt:
                 p.unlink()
@@ -505,21 +505,8 @@ class BaseTrainer:
 
         ckpt_path = Path(ckpt_path)
 
-        def make_key_extractor(key):
-            def key_extractor(p: Path) -> float:
-                metrics = {}
-                for it in p.stem.split(" - "):
-                    kv = it.split(": ")
-                    assert len(kv) == 2, f"Failed to parse filename: {p.name}"
-                    k = kv[0]
-                    v = -float(kv[1]) if "loss" in k else float(kv[1])
-                    metrics[k] = v
-                return metrics[key]
-
-            return key_extractor
-
         all_ckpt = list(ckpt_path.glob("*.ckpt"))
-        best_ckpt = max(all_ckpt, key=make_key_extractor(self._ckpt_track_metric))
+        best_ckpt = max(all_ckpt, key=self._make_key_extractor(self._ckpt_track_metric))
         print(best_ckpt)
         self.load_ckpt(best_ckpt)
 

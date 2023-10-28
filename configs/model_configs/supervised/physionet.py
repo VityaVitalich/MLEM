@@ -58,9 +58,9 @@ def model_configs():
     loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
     # loss.loss_fn = "RINCELoss"
-    # loss.temperature = 0.03
-    # loss.projector = "Linear"
-    # loss.project_dim = 128
+    loss.temperature = 0.03
+    loss.projector = "Linear"
+    loss.project_dim = 128
     # loss.q = 0.01
     # loss.lam = 0.1
 
