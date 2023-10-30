@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 12
+    config.features_emb_dim = 16
     config.use_numeric_emb = True
-    config.numeric_emb_size = 12
+    config.numeric_emb_size = 16
     config.encoder_feature_mixer = True
     config.decoder_feature_mixer = True
 
@@ -56,7 +56,7 @@ def model_configs():
     config.delta_weight = 5
 
     ### DISCRIMINATOR ###
-    config.use_discriminator = True
+    config.use_discriminator = False
 
     ### LOSS ###
     config.mse_weight = 1

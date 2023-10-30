@@ -36,6 +36,7 @@ class Pipeline:
         self.log_dir = log_dir
         self.console_log = console_log
         self.file_log = file_log
+        self.device = device
         """
         TrainerClass - class from src.trainers
         """

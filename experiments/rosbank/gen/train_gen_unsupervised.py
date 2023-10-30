@@ -17,7 +17,7 @@ from src.trainers.randomness import seed_everything
 import src.models.gen_models
 import src.models.base_models
 
-from experiments.supervised_pipeline import run_experiment, get_trainer_class
+from experiments.pipeline_supervised import SupervisedPipeline, get_trainer_class
 from configs.model_configs.gen.rosbank_genval import (
     model_configs as model_configs_genval,
 )
@@ -182,15 +182,17 @@ if __name__ == "__main__":
         model_conf_genval = model_configs_genval()
         log_dir = "./logs/generations/"
         trainer_class = get_trainer_class("rosbank")
-        generated_test_metric, train_metrics, val_metrics = run_experiment(
-            run_name,
-            args.device,
-            total_epochs,
+        pipeline = SupervisedPipeline(
+            run_name=run_name,
+            device=args.device,
+            total_epochs=total_epochs,
             conf=conf,
             model_conf=model_conf_genval,
+            TrainerClass=trainer_class,
             resume=None,
             log_dir=log_dir,
-            TrainerClass=trainer_class,
-            seed=conf.client_list_shuffle_seed,
+        )
+        generated_test_metric = pipeline.run_experiment(
+            run_name=run_name, conf=conf, model_conf=model_conf_genval, seed=0
         )
         logger.info(f"Generated test metric: {generated_test_metric};")

@@ -303,7 +303,7 @@ class SeqGen(BaseMixin):
         if self.model_conf.use_deltas:
             gt_delta = time_steps.diff(1)
             delta_feature = torch.cat(
-                [torch.zeros(x.size(0), 1, device=gt_delta.device), gt_delta], dim=1
+                [gt_delta, torch.zeros(x.size(0), 1, device=gt_delta.device)], dim=1
             )
             x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
 
@@ -327,7 +327,7 @@ class SeqGen(BaseMixin):
         if self.model_conf.use_deltas:
             gt_delta = time_steps.diff(1)
             delta_feature = torch.cat(
-                [torch.zeros(x.size(0), 1, device=gt_delta.device), gt_delta], dim=1
+                [gt_delta, torch.zeros(x.size(0), 1, device=gt_delta.device)], dim=1
             )
             x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
 
