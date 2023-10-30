@@ -12,7 +12,8 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
-    config.repeat_numerical_times = 8
+    config.use_numeric_emb = True
+    config.numeric_emb_size = 8
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 128

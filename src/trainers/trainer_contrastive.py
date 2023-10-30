@@ -113,7 +113,10 @@ class SimpleTrainerContrastive(BaseTrainer):
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
 
     def test(
-        self, test_loader: DataLoader, train_supervised_loader: DataLoader
+        self,
+        train_supervised_loader: DataLoader,
+        other_loaders: list,
+        cv=False,
     ) -> None:
         """
         Logs test metrics with self.compute_metrics
@@ -121,87 +124,94 @@ class SimpleTrainerContrastive(BaseTrainer):
 
         logger.info("Test started")
         train_embeddings, train_gts = self.predict(train_supervised_loader)
-        test_embeddings, test_gts = self.predict(test_loader)
+        other_embeddings, other_gts = [], []
+        for loader in other_loaders:
+            other_embedding, other_gt = (
+                self.predict(loader) if len(loader) > 0 else [],
+                [],
+            )
+            other_embeddings.append(other_embedding), other_gts.append(other_gt)
 
-        test_metric = self.compute_test_metric(
-            train_embeddings, train_gts, test_embeddings, test_gts
+        train_metric, other_metrics = self.compute_test_metric(
+            train_embeddings=train_embeddings,
+            train_gts=train_gts,
+            other_embeddings=other_embeddings,
+            other_gts=other_gts,
+            cv=cv,
         )
-        mean_metric = np.mean(test_metric)
-        print(test_metric)
-        logger.info("Test metrics: %s, Mean: %s", str(test_metric), str(mean_metric))
+        logger.info("Train metrics: %s", str(train_metric))
+        logger.info("Other metrics:", str(other_metrics))
         logger.info("Test finished")
 
-        return test_metric
+        return train_metric, other_metrics
+
+    def compute_test_metric(
+        self,
+        train_embeddings,
+        train_gts,
+        other_embeddings,
+        other_gts,
+        cv=False,
+    ):
+        skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
+        train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
+        train_embeddings = torch.cat(train_embeddings).cpu().numpy()
+        other_labels, other_embeddings_new = [], []
+        for other_gt in other_gts:
+            other_labels.append(torch.cat([gt[1].cpu() for gt in other_gt]).numpy())
+        for other_embedding in other_embeddings:
+            other_embeddings_new.append(torch.cat(other_embedding).cpu().numpy())
+
+        split_ids = (
+            skf.split(train_embeddings, train_labels)
+            if cv
+            else [(range(train_embeddings.shape[0]), None)]
+        )
+        train_metric = []
+        other_metrics = [[] * len(other_embeddings_new)]
+        for i, (train_index, test_index) in enumerate(split_ids):
+            train_emb_subset = train_embeddings[train_index]
+            train_labels_subset = train_labels[train_index]
+
+            model = self.get_model()
+            preprocessor = MaxAbsScaler()
+
+            train_emb_subset = preprocessor.fit_transform(train_emb_subset)
+            model.fit(train_emb_subset, train_labels_subset)
+
+            train_metric.append(
+                self.get_metric(model, train_emb_subset, train_labels_subset)
+            )
+            for i, (other_embedding, other_label) in enumerate(
+                zip(other_embeddings_new, other_labels)
+            ):
+                other_embedding_proccesed = preprocessor.transform(other_embedding)
+                other_metrics[i].append(
+                    self.get_metric(model, other_embedding_proccesed, other_label)
+                )
+        return train_metric, other_metrics
 
 
 class AucTrainerContrastive(SimpleTrainerContrastive):
-    def compute_test_metric(
-        self, train_embeddings, train_gts, test_embeddings, test_gts
-    ):
-        train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
-        train_embeddings = torch.cat(train_embeddings).cpu().numpy()
+    def get_metric(self, model, x, target):
+        pred = model.predict_proba(x)
+        auc_score = roc_auc_score(target, pred[:, 1])
+        return auc_score
 
-        test_labels = torch.cat([gt[1].cpu() for gt in test_gts]).numpy()
-        test_embeddings = torch.cat(test_embeddings).cpu().numpy()
-
-        skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
+    def get_model(self):
         args = params.copy()
         args["objective"] = "binary"
         args["metric"] = "auc"
-
-        results = []
-        for i, (train_index, test_index) in enumerate(
-            skf.split(train_embeddings, train_labels)
-        ):
-            train_emb_subset = train_embeddings[train_index]
-            train_labels_subset = train_labels[train_index]
-
-            model = LGBMClassifier(verbosity=-1, **args)
-            preprocessor = MaxAbsScaler()
-
-            train_emb_subset = preprocessor.fit_transform(train_emb_subset)
-            test_embeddings_subset = preprocessor.transform(test_embeddings)
-
-            model.fit(train_emb_subset, train_labels_subset)
-            y_pred = model.predict_proba(test_embeddings_subset)
-
-            auc_score = roc_auc_score(test_labels, y_pred[:, 1])
-            results.append(auc_score)
-
-        return results
+        return LGBMClassifier(verbosity=-1, **args)
 
 
 class AccuracyTrainerContrastive(SimpleTrainerContrastive):
-    def compute_test_metric(
-        self, train_embeddings, train_gts, test_embeddings, test_gts
-    ):
-        train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
-        train_embeddings = torch.cat(train_embeddings).cpu().numpy()
+    def get_metric(self, model, x, target):
+        pred = model.predict(x)
+        auc_score = accuracy_score(target, pred)
+        return auc_score
 
-        test_labels = torch.cat([gt[1].cpu() for gt in test_gts]).numpy()
-        test_embeddings = torch.cat(test_embeddings).cpu().numpy()
-
-        skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
+    def get_model(self):
         args = params.copy()
         args["objective"] = "multiclass"
-
-        results = []
-        for i, (train_index, test_index) in enumerate(
-            skf.split(train_embeddings, train_labels)
-        ):
-            train_emb_subset = train_embeddings[train_index]
-            train_labels_subset = train_labels[train_index]
-
-            model = LGBMClassifier(verbosity=-1, **args)
-            preprocessor = MaxAbsScaler()
-
-            train_emb_subset = preprocessor.fit_transform(train_emb_subset)
-            test_embeddings_subset = preprocessor.transform(test_embeddings)
-
-            model.fit(train_emb_subset, train_labels_subset)
-            y_pred = model.predict(test_embeddings_subset)
-
-            acc_score = accuracy_score(test_labels, y_pred)
-            results.append(acc_score)
-
-        return results
+        return LGBMClassifier(verbosity=-1, **args)

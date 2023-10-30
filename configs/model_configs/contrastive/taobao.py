@@ -13,15 +13,12 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
-    config.use_numeric_emb = True
+    config.use_numeric_emb = False
     config.numeric_emb_size = 8
-    config.encoder_feature_mixer = True
+
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
-
-    ### TIME DELTA ###
-    config.use_deltas = True
 
     ### TRANSFORMER ###
     config.encoder = "Identity"  # Identity or TransformerEncoder
@@ -60,12 +57,6 @@ def model_configs():
     loss.neg_count = 5
     loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
-    # loss.loss_fn = "RINCELoss"
-    loss.temperature = 0.03
-    loss.projector = "Linear"
-    loss.project_dim = 128
-    # loss.q = 0.01
-    # loss.lam = 0.1
 
     ### MTAND ###
     # # number of reference points on encoder

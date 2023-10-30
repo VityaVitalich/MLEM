@@ -8,35 +8,30 @@ def model_configs():
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
-    config.batch_first_encoder = [True, False]
+    config.batch_first_encoder = True
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = [4, 8, 16, 32]
+    config.features_emb_dim = 32
     config.use_numeric_emb = False
     config.numeric_emb_size = 8
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = [16, 23, 64, 128]
-    config.classifier_linear_hidden_dim = 300
+    config.classifier_gru_hidden_dim = 64
+    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
-    config.encoder = [
-        "Identity",
-        "TransformerEncoder",
-    ]  # Identity or TransformerEncoder
+    config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
     config.num_enc_layers = [1, 2]
     config.num_heads_enc = [1, 2, 4]
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = [
-        "Identity",
-        "LayerNorm",
-    ]  # if TransformerEncoder -> LayerNorm. else Identity
+    config.encoder_norm = "Identity"
+    # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
     ### DROPOUT ###
-    config.after_enc_dropout = [0.0, 0.1, 0.2]
+    config.after_enc_dropout = 0.0
 
     # we use GRU, not applicable
     # ### CONVOLUTIONAL ###
@@ -48,7 +43,7 @@ def model_configs():
     # conv.proj = "Linear"
 
     ### ACTIVATION ###
-    config.activation = ["ReLU", "LeakyReLU", "Mish", "Tanh"]
+    config.activation = "LeakyReLU"
 
     ### TIME TRICKS ###
     config.num_time_blocks = 50  # [4, 16]
@@ -58,21 +53,15 @@ def model_configs():
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
-    loss.loss_fn = [
-        "ContrastiveLoss",
-        "InfoNCELoss",
-        "DecoupledInfoNCELoss",
-        "DecoupledPairwiseInfoNCELoss",
-        "RINCELoss",
-    ]
-    loss.margin = [0.0, 0.1, 0.3, 0.5, 1.0]  # ContrastiveLoss only
+    loss.loss_fn = "ContrastiveLoss"
+    loss.margin = 0.3  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = ["Identity", "Linear", "MLP"]  # all losses
-    loss.project_dim = [32, 64, 128, 256]  # all losses
-    loss.temperature = [0.01, 0.03, 0.1, 0.3, 1.0]  # all except ContrastiveLoss
-    loss.angular_margin = [0.0, 0.3, 0.5, 0.7]  # InfoNCELoss only
-    loss.q = [0.01, 0.03, 0.1, 0.3]  # RINCELoss only
-    loss.lam = [0.003, 0.01, 0.03, 0.1, 0.3]  # RINCELoss only
+    loss.projector = "Linear"  # all losses
+    loss.project_dim = 32  # all losses
+    loss.temperature = 0.1  # all except ContrastiveLoss
+    loss.angular_margin = 0.3  # InfoNCELoss only
+    loss.q = 0.03  # RINCELoss only
+    loss.lam = 0.01  # RINCELoss only
 
     ### MTAND ###
     # # number of reference points on encoder
@@ -105,8 +94,8 @@ def model_configs():
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"
 
-    config.lr = [3e-4, 1e-3, 3e-3]
-    config.weight_decay = [1e-5, 1e-4, 1e-3]
+    config.lr = 0.0003
+    config.weight_decay = 0.001
     config.cv_splits = 5
 
     config.comments = ""

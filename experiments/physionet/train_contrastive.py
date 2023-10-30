@@ -10,7 +10,7 @@ import os
 sys.path.append("../../")
 
 from configs.data_configs.physionet_contrastive import data_configs
-from configs.model_configs.mTAN.physionet import model_configs
+from configs.model_configs.supervised.physionet import model_configs
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_contrastive import AucTrainerContrastive
 from src.trainers.randomness import seed_everything

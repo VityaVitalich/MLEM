@@ -11,99 +11,52 @@ def data_configs():
     config.train_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "physionet"
+        / "rosbank"
         / "data"
         / "train_trx.parquet"
     )
-
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "physionet"
+        / "rosbank"
         / "data"
         / "test_trx.parquet"
     )
 
+    config.track_metric = "roc_auc"
+
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation
+        0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
-    config.col_id = "user"  # column defining ids. used for sorting data
+    config.valid_size = 0.  # validation size
+    config.col_id = "cl_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "Gender": {"in": 3, "out": 24, "max_value": 4},
-        "ICUType": {"in": 5, "out": 4, "max_value": 5},
-        "MechVent": {"in": 2, "out": 4, "max_value": 4},
+        "mcc": {"in": 100, "out": 24, "max_value": 100},
+        "channel_type": {"in": 4, "out": 4, "max_value": 5},
+        "currency": {"in": 4, "out": 4, "max_value": 5},
+        "trx_category": {"in": 10, "out": 4, "max_value": 12},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
-    features.numeric_values = {
-        "Age": None,
-        "Height": None,
-        "Weight": None,
-        "Albumin": None,
-        "ALP": None,
-        "ALT": None,
-        "AST": None,
-        "Bilirubin": None,
-        "BUN": None,
-        "Cholesterol": None,
-        "Creatinine": None,
-        "DiasABP": None,
-        "FiO2": None,
-        "GCS": None,
-        "Glucose": None,
-        "HCO3": None,
-        "HCT": None,
-        "HR": None,
-        "K": None,
-        "Lactate": None,
-        "Mg": None,
-        "MAP": None,
-        "Na": None,
-        "NIDiasABP": None,
-        "NIMAP": None,
-        "NISysABP": None,
-        "PaCO2": None,
-        "PaO2": None,
-        "pH": None,
-        "Platelets": None,
-        "RespRate": None,
-        "SaO2": None,
-        "SysABP": None,
-        "Temp": None,
-        "TroponinI": None,
-        "TroponinT": None,
-        "Urine": None,
-        "WBC": None,
-    }
-
-    config.ckpt_path = (
-        Path(__file__).parent.parent.parent
-        / "experiments"
-        / "physionet"
-        / "ckpt"
-        / "CS_GRU128_LN_2023-09-26_07:39:48"
-        / "epoch: 0050 - total_loss: 78.45 - loss: 90.48.ckpt"
-    )
+    features.numeric_values = {"amount": "identity"}
 
     # name of target col
-    features.target_col = "target"
+    features.target_col = "target_target_flag"
     config.num_classes = 2
 
     ### TIME ###
-    config.max_time = 1.0
-    config.min_time = 0.0
+    config.max_time = 17623.972627314815
+    config.min_time = 17081.0
 
     # train specific parameters
     train = config.train = ml_collections.ConfigDict()
     # validation specific
     val = config.val = ml_collections.ConfigDict()
-    # test params
     test = config.test = ml_collections.ConfigDict()
 
     # splitters
@@ -125,11 +78,9 @@ def data_configs():
 
     # dropout
     train.dropout = 0.05
-
-    # seq len
     train.max_seq_len = 200
-    val.max_seq_len = 200
     test.max_seq_len = 200
+    val.max_seq_len = 200
 
     train.num_workers = 1
     val.num_workers = 1
@@ -137,6 +88,6 @@ def data_configs():
 
     train.batch_size = 128
     val.batch_size = 128
-    test.batch_size = 128
+    test.batch_size = 16
 
     return config

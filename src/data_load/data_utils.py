@@ -28,17 +28,12 @@ def read_pyarrow_file(path, use_threads=True):
     return get_records()
 
 
-def prepare_embeddings(seq, conf, is_train):
-    min_seq_len = 5
+def prepare_embeddings(seq, conf):
     embeddings = list(conf.features.embeddings.keys())
 
     feature_keys = embeddings + list(conf.features.numeric_values.keys())
 
     for rec in seq:
-        seq_len = len(rec["event_time"])
-        if is_train and seq_len < min_seq_len:
-            continue
-
         if "feature_arrays" in rec:
             feature_arrays = rec["feature_arrays"]
             feature_arrays = {
@@ -61,7 +56,6 @@ def prepare_embeddings(seq, conf, is_train):
         normed_time = (np.array(rec["event_time"]) - conf.min_time) / (
             conf.max_time - conf.min_time
         )
-        # print(normed_time)
         feature_arrays["event_time"] = normed_time
         rec["event_time"] = normed_time
 
@@ -70,48 +64,87 @@ def prepare_embeddings(seq, conf, is_train):
 
 
 def shuffle_client_list_reproducible(conf, data):
-    if conf.client_list_shuffle_seed != 0:
-        dataset_col_id = conf.get("col_id", "client_id")
-        data = sorted(
-            data, key=lambda x: x.get(dataset_col_id)
-        )  # changed from COLES a bit
-        random.Random(conf.client_list_shuffle_seed).shuffle(data)
+    dataset_col_id = conf.get("col_id", "client_id")
+    data = sorted(
+        data, key=lambda x: x.get(dataset_col_id)
+    )  # changed from COLES a bit
+    random.Random(conf.client_list_shuffle_seed).shuffle(data)
     return data
 
 
-def prepare_data(conf, supervised):
+def prepare_data(conf, supervised, pinch_test=False):
     train_path = conf.train_path
 
     data = read_pyarrow_file(train_path)
-    if supervised:
-        data = (rec for rec in data if rec[conf.features.target_col] is not None)
-        data = (
-            rec for rec in data if not np.isnan(float(rec[conf.features.target_col]))
-        )
     data = tqdm(data)
 
-    data = prepare_embeddings(data, conf, is_train=True)
+    data = prepare_embeddings(data, conf)
     data = shuffle_client_list_reproducible(conf, data)
     data = list(data)
-
-    valid_ix = np.arange(len(data))
-    valid_ix = np.random.choice(
-        valid_ix, size=int(len(data) * conf.valid_size), replace=False
+    train_data, valid_data, test_data = split_dataset(
+        data, conf, supervised, pinch_test
     )
-    valid_ix = set(valid_ix.tolist())
+    print(
+        "Data shapes: train %d, val %d, test %d" %
+        (len(train_data), len(valid_data), len(test_data))
+    )
+    return train_data, valid_data, test_data
 
-    # logger.info(f'Loaded {len(data)} rows. Split in progress...')
-    train_data = [rec for i, rec in enumerate(data) if i not in valid_ix]
-    valid_data = [rec for i, rec in enumerate(data) if i in valid_ix]
 
-    return train_data, valid_data
+def split_dataset(data, conf, supervised, pinch_test=False):
+    min_seq_len = 5
 
+    labeled_ix = []
+    unlabeled_ix = []
+    for i, rec in enumerate(data):
+        if (
+            rec[conf.features.target_col] is not None and 
+            not np.isnan(float(rec[conf.features.target_col]))
+        ):
+            labeled_ix.append(i)
+        else:
+            unlabeled_ix.append(i)
+    random.Random(conf.client_list_shuffle_seed).shuffle(labeled_ix)
+    random.Random(conf.client_list_shuffle_seed).shuffle(unlabeled_ix)
+
+    test_size = 0 if not pinch_test else int(len(labeled_ix) * conf.test_size)
+    val_labeled_size = int(len(labeled_ix) * conf.valid_size)
+    val_unlabeled_size = int(len(unlabeled_ix) * conf.valid_size)
+
+    test_ix = labeled_ix[: test_size]
+    val_labeled_ix = labeled_ix[test_size: test_size + val_labeled_size]
+    train_labeled_ix = labeled_ix[test_size + val_labeled_size: ]
+
+    val_unlabeled_ix = unlabeled_ix[: val_unlabeled_size]
+    train_unlabeled_ix = unlabeled_ix[val_unlabeled_size: ]
+
+    assert (
+        len(train_unlabeled_ix) + 
+        len(train_labeled_ix) + 
+        len(val_unlabeled_ix) + 
+        len(val_labeled_ix) + 
+        len(test_ix) == len(data)
+    )
+    if supervised:
+        train_unlabeled_ix = []
+        val_unlabeled_ix = []
+    train_data = [
+        data[i] for i in train_unlabeled_ix + train_labeled_ix if 
+        len(data[i]["event_time"]) >= min_seq_len
+    ]
+
+    valid_data = [
+        data[i] for i in val_unlabeled_ix + val_labeled_ix if 
+        len(data[i]["event_time"]) >= min_seq_len
+    ]
+    test_data = [data[i] for i in test_ix]
+    return train_data, valid_data, test_data
 
 def prepare_test_data(conf):
     data = read_pyarrow_file(conf.test_path)
     data = tqdm(data)
 
-    data = prepare_embeddings(data, conf, is_train=False)
+    data = prepare_embeddings(data, conf)
     #   data = shuffle_client_list_reproducible(conf, data)
     data = list(data)
 

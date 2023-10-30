@@ -9,7 +9,7 @@ def data_configs():
     ########## DATA ##############
 
     config.train_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "age"
         / "data"
@@ -17,7 +17,7 @@ def data_configs():
     )
 
     config.test_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "age"
         / "data"
@@ -29,7 +29,8 @@ def data_configs():
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.0  # validation size
+    config.valid_size = 0.1  # validation size
+    config.test_size = 0.1
     config.col_id = "client_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -98,8 +99,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 128
+    train.batch_size = 64
     val.batch_size = 128
-    test.batch_size = 16
+    test.batch_size = 8
 
     return config
