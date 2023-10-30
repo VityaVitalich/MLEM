@@ -58,6 +58,17 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
+        "--recon-val",
+        help="Whether to perform generated validation",
+        default=False,
+    )
+    parser.add_argument(
+        "--recon-val-epoch",
+        help="How many epochs to perform on generated samples",
+        default=25,
+        type=int,
+    )
+    parser.add_argument(
         "--gen-val",
         help="Whether to perform generated validation",
         default=False,
@@ -65,7 +76,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--gen-val-epoch",
         help="How many epochs to perform on generated samples",
-        default=15,
+        default=25,
         type=int,
     )
     args = parser.parse_args()
@@ -172,9 +183,33 @@ if __name__ == "__main__":
     # trainer.load_best_model()
     trainer.test(test_loader, train_supervised_loader)
 
+    if args.recon_val:
+        reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
+        conf.train_path = reconstructed_data_path
+        conf.valid_size = 0.1
+
+        run_name = run_name
+        total_epochs = args.recon_val_epoch
+        model_conf_genval = model_configs_genval()
+        log_dir = "./logs/generations/"
+        trainer_class = get_trainer_class("rosbank")
+        pipeline = SupervisedPipeline(
+            run_name=run_name,
+            device=args.device,
+            total_epochs=total_epochs,
+            conf=conf,
+            model_conf=model_conf_genval,
+            TrainerClass=trainer_class,
+            resume=None,
+            log_dir=log_dir,
+        )
+        generated_test_metric = pipeline.run_experiment(
+            run_name=run_name, conf=conf, model_conf=model_conf_genval, seed=0
+        )
+        logger.info(f"Reconstructed test metric: {generated_test_metric};")
     if args.gen_val:
         generated_data_path = trainer.generate_data(train_supervised_loader)
-        conf.train_supervised_path = generated_data_path
+        conf.train_path = generated_data_path
         conf.valid_size = 0.1
 
         run_name = run_name

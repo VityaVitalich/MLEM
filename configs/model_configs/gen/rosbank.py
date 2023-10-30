@@ -43,7 +43,7 @@ def model_configs():
 
     ### GENERATED EMBEDDINGS LOSS ###
     config.generative_embeddings_loss = True
-    config.gen_emb_loss_type = "l2"
+    config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.05
@@ -72,5 +72,6 @@ def model_configs():
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
+    config.gen_len = 100
     config.comments = ""
     return config

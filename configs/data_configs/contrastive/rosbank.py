@@ -28,7 +28,7 @@ def data_configs():
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.  # validation size
+    config.valid_size = 0.0  # validation size
     config.col_id = "cl_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()

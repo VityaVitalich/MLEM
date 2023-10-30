@@ -237,12 +237,42 @@ class GenTrainer(BaseTrainer):
 
         return out
 
-    def generate_data(self, train_supervised_loader):
-        logger.info("Generation started")
+    def reconstruct_data(self, train_supervised_loader):
+        logger.info("Reconstruction started")
         train_out, train_gts = self.predict(train_supervised_loader)
-        logger.info("Predictions convertation started")
+        logger.info("Reconstructions convertation started")
 
         generated_data = self.output_to_df(train_out, train_gts)
+        logger.info("Reconstructions converted")
+        gen_data_path = Path(self._ckpt_dir) / "generated_data"
+        gen_data_path.mkdir(parents=True, exist_ok=True)
+        save_path = gen_data_path / self._run_name
+
+        generated_data.to_parquet(save_path)
+        logger.info("Reconstructions saved")
+        return save_path
+
+    def generate(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+        self._model.eval()
+        preds, gts = [], []
+        with torch.no_grad():
+            for inp, gt in tqdm(loader):
+                gts.append(gt.to(self._device))
+                inp = inp.to(self._device)
+                out = self._model.generate(inp, self._model_conf.gen_len)
+                out = self.dict_to_cpu(out)
+                preds.append(out)
+
+        return preds, gts
+
+    def generate_data(self, train_supervised_loader):
+        logger.info("Generation started")
+        train_out, train_gts = self.generate(train_supervised_loader)
+        logger.info("Predictions convertation started")
+
+        generated_data = self.output_to_df(
+            train_out, train_gts, use_generated_time=True
+        )
         logger.info("Predictions converted")
         gen_data_path = Path(self._ckpt_dir) / "generated_data"
         gen_data_path.mkdir(parents=True, exist_ok=True)
@@ -252,7 +282,7 @@ class GenTrainer(BaseTrainer):
         logger.info("Predictions saved")
         return save_path
 
-    def output_to_df(self, outs, gts):
+    def output_to_df(self, outs, gts, use_generated_time=False):
         df_dic = {"event_time": [], "trx_count": [], "target_target_flag": []}
         for feature in self._data_conf.features.embeddings.keys():
             df_dic[feature] = []
@@ -267,9 +297,15 @@ class GenTrainer(BaseTrainer):
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
-            if self._model_conf.use_deltas:
-                pred_delta = out["pred"]["delta"]
-
+            if use_generated_time:
+                pred_delta = out["pred"]["delta"].cumsum(1)
+                df_dic["event_time"].extend(pred_delta.tolist())
+                df_dic["trx_count"].extend((pred_delta != -1).sum(dim=1).tolist())
+            else:
+                df_dic["event_time"].extend(out["gt"]["time_steps"][:, 1:].tolist())
+                df_dic["trx_count"].extend(
+                    (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
+                )
             # num_numeric = len(self._data_conf.features.numeric_values.keys())
             # numeric_pred = pred[:, :, -num_numeric:]
             # for i in range(num_numeric):
@@ -277,10 +313,6 @@ class GenTrainer(BaseTrainer):
             #     cur_val = numeric_pred[:, :, i].cpu().tolist()
             #     df_dic[cur_key].extend(cur_val)
 
-            df_dic["event_time"].extend(out["gt"]["time_steps"][:, 1:].tolist())
-            df_dic["trx_count"].extend(
-                (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
-            )
             df_dic["target_target_flag"].extend(gt[1].cpu().tolist())
 
         generated_df = pd.DataFrame.from_dict(df_dic)
