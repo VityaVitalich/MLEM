@@ -80,7 +80,7 @@ def parse_args():
     parser.add_argument(
         "--log-dir",
         help="directory to write log file to",
-        default="./logs",
+        default="./experiments/logs",
     )
     parser.add_argument(
         "--total-epochs",
