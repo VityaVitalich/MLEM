@@ -162,29 +162,23 @@ class GenTrainer(BaseTrainer):
         else:
             params["objective"] = "multiclass"
 
-        results = []
-        for i, (train_index, test_index) in enumerate(
-            skf.split(train_embeddings, train_labels)
-        ):
-            train_emb_subset = train_embeddings[train_index]
-            train_labels_subset = train_labels[train_index]
+        model = LGBMClassifier(
+            **params,
+        )
+        preprocessor = MaxAbsScaler()
 
-            model = LGBMClassifier(
-                **params,
-            )
-            preprocessor = MaxAbsScaler()
+        train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
+        test_embeddings_tr = preprocessor.transform(test_embeddings)
 
-            train_emb_subset = preprocessor.fit_transform(train_emb_subset)
-            test_embeddings_subset = preprocessor.transform(test_embeddings)
+        model.fit(train_embeddings_tr, train_labels)
+        y_pred = model.predict_proba(test_embeddings_tr)
 
-            model.fit(train_emb_subset, train_labels_subset)
-            y_pred = model.predict_proba(test_embeddings_subset)
-
+        if self._data_conf.num_classes == 2:
             score = roc_auc_score(test_labels, y_pred[:, 1])
-            # score = accuracy_score(test_labels, y_pred.argmax(axis=1))
-            results.append(score)
+        else:
+            score = accuracy_score(test_labels, y_pred.argmax(axis=1))
 
-        return results
+        return [score]
 
     def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
         self._model.eval()
@@ -243,12 +237,42 @@ class GenTrainer(BaseTrainer):
 
         return out
 
-    def generate_data(self, train_supervised_loader):
-        logger.info("Generation started")
+    def reconstruct_data(self, train_supervised_loader):
+        logger.info("Reconstruction started")
         train_out, train_gts = self.predict(train_supervised_loader)
-        logger.info("Predictions convertation started")
+        logger.info("Reconstructions convertation started")
 
         generated_data = self.output_to_df(train_out, train_gts)
+        logger.info("Reconstructions converted")
+        gen_data_path = Path(self._ckpt_dir) / "generated_data"
+        gen_data_path.mkdir(parents=True, exist_ok=True)
+        save_path = gen_data_path / self._run_name
+
+        generated_data.to_parquet(save_path)
+        logger.info("Reconstructions saved")
+        return save_path
+
+    def generate(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+        self._model.eval()
+        preds, gts = [], []
+        with torch.no_grad():
+            for inp, gt in tqdm(loader):
+                gts.append(gt.to(self._device))
+                inp = inp.to(self._device)
+                out = self._model.generate(inp, self._model_conf.gen_len)
+                out = self.dict_to_cpu(out)
+                preds.append(out)
+
+        return preds, gts
+
+    def generate_data(self, train_supervised_loader):
+        logger.info("Generation started")
+        train_out, train_gts = self.generate(train_supervised_loader)
+        logger.info("Predictions convertation started")
+
+        generated_data = self.output_to_df(
+            train_out, train_gts, use_generated_time=True
+        )
         logger.info("Predictions converted")
         gen_data_path = Path(self._ckpt_dir) / "generated_data"
         gen_data_path.mkdir(parents=True, exist_ok=True)
@@ -258,7 +282,7 @@ class GenTrainer(BaseTrainer):
         logger.info("Predictions saved")
         return save_path
 
-    def output_to_df(self, outs, gts):
+    def output_to_df(self, outs, gts, use_generated_time=False):
         df_dic = {"event_time": [], "trx_count": [], "target_target_flag": []}
         for feature in self._data_conf.features.embeddings.keys():
             df_dic[feature] = []
@@ -273,9 +297,15 @@ class GenTrainer(BaseTrainer):
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
-            if self._model_conf.use_deltas:
-                pred_delta = out["pred"]["delta"]
-
+            if use_generated_time:
+                pred_delta = out["pred"]["delta"].cumsum(1)
+                df_dic["event_time"].extend(pred_delta.tolist())
+                df_dic["trx_count"].extend((pred_delta != -1).sum(dim=1).tolist())
+            else:
+                df_dic["event_time"].extend(out["gt"]["time_steps"][:, 1:].tolist())
+                df_dic["trx_count"].extend(
+                    (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
+                )
             # num_numeric = len(self._data_conf.features.numeric_values.keys())
             # numeric_pred = pred[:, :, -num_numeric:]
             # for i in range(num_numeric):
@@ -283,10 +313,6 @@ class GenTrainer(BaseTrainer):
             #     cur_val = numeric_pred[:, :, i].cpu().tolist()
             #     df_dic[cur_key].extend(cur_val)
 
-            df_dic["event_time"].extend(out["gt"]["time_steps"][:, 1:].tolist())
-            df_dic["trx_count"].extend(
-                (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
-            )
             df_dic["target_target_flag"].extend(gt[1].cpu().tolist())
 
         generated_df = pd.DataFrame.from_dict(df_dic)
@@ -419,7 +445,9 @@ class GANGenTrainer(GenTrainer):
 
             ### Generator Step ###
             pred = self._model(inp)
-            d_pred = self.D(out_to_padded_batch(pred, self._data_conf).to(self.device))
+            d_pred = self.D(
+                out_to_padded_batch(pred, self._data_conf).to(self.device)
+            ).detach()
             if self._metrics_on_train:
                 preds.append(pred)
                 gts.append(gt)
@@ -472,7 +500,7 @@ class GANGenTrainer(GenTrainer):
         new_payload = {}
         for key in gen_batch.payload.keys():
             new_payload[key] = torch.cat(
-                [gen_batch.payload[key].detach(), true_batch.payload[key][:, 1:]], dim=0
+                [gen_batch.payload[key].detach(), true_batch.payload[key]], dim=0
             )
         new_lens = torch.cat([gen_batch.seq_lens, true_batch.seq_lens - 1])
 
@@ -500,8 +528,8 @@ class GANGenTrainer(GenTrainer):
         """
         # assert isinstance(self.model, MegaNet)
         losses = self.model.loss(model_output, ground_truth)
-        d_loss = F.softmax(d_pred, dim=1)[:, 1].mean()
-        return losses["total_loss"] + d_loss * self._model_conf.D_weight
+        d_loss = F.softmax(d_pred, dim=1)[:, 1]
+        return losses["total_loss"] + d_loss.mean() * self._model_conf.D_weight
 
     def validate(self) -> None:
         assert self._val_loader is not None, "Set a val loader first"

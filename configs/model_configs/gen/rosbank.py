@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 12
+    config.features_emb_dim = 16
     config.use_numeric_emb = True
-    config.numeric_emb_size = 12
+    config.numeric_emb_size = 16
     config.encoder_feature_mixer = True
     config.decoder_feature_mixer = True
 
@@ -42,8 +42,8 @@ def model_configs():
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
-    config.generative_embeddings_loss = False
-    config.gen_emb_loss_type = "l1"
+    config.generative_embeddings_loss = True
+    config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.05
@@ -56,21 +56,22 @@ def model_configs():
     config.delta_weight = 5
 
     ### DISCRIMINATOR ###
-    config.use_discriminator = True
+    config.use_discriminator = False
 
     ### LOSS ###
     config.mse_weight = 1
     config.CE_weight = 1
     config.l1_weight = 0.001
     config.gen_emb_weight = 1
-    config.D_weight = 1
+    config.D_weight = 20
 
     ### DEVICE + OPTIMIZER ###
-    config.device = "cuda:1"
+    config.device = "cuda"
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
+    config.gen_len = 100
     config.comments = ""
     return config

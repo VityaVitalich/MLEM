@@ -70,7 +70,7 @@ class FeatureProcessor(nn.Module):
 
             self.numeric_norms[name] = RBatchNormWithLens()
 
-    def forward(self, padded_batch):
+    def forward(self, padded_batch, use_norm=True):
         numeric_values = []
         categoric_values = []
 
@@ -80,11 +80,13 @@ class FeatureProcessor(nn.Module):
             if key in self.emb_names:
                 categoric_values.append(self.embed_layers[key](values.long()))
             elif key in self.numeric_names:
-                numeric_values.append(
-                    self.numeric_processor[key](
-                        self.numeric_norms[key](values.float(), seq_lens)
-                    )
-                )
+                if use_norm:
+                    cur_value = self.numeric_norms[key](values.float(), seq_lens)
+                else:  # we do not want to use normalization when applying decoder to our sequence
+                    # otherwise it would be hard to make true generation and lead to bias in forecasting
+                    cur_value = values.float().unsqueeze(-1)
+
+                numeric_values.append(self.numeric_processor[key](cur_value))
 
         if len(categoric_values) == 0:
             return torch.cat(numeric_values, dim=-1), time_steps

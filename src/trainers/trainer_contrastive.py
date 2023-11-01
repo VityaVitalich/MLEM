@@ -113,9 +113,9 @@ class SimpleTrainerContrastive(BaseTrainer):
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
 
     def test(
-        self, 
-        train_supervised_loader: DataLoader, 
-        other_loaders: list, 
+        self,
+        train_supervised_loader: DataLoader,
+        other_loaders: list,
         cv=False,
     ) -> None:
         """
@@ -127,16 +127,17 @@ class SimpleTrainerContrastive(BaseTrainer):
         other_embeddings, other_gts = [], []
         for loader in other_loaders:
             other_embedding, other_gt = (
-                self.predict(loader) if len(loader) > 0 else [], []
+                self.predict(loader) if len(loader) > 0 else [],
+                [],
             )
             other_embeddings.append(other_embedding), other_gts.append(other_gt)
 
         train_metric, other_metrics = self.compute_test_metric(
-            train_embeddings=train_embeddings, 
-            train_gts=train_gts, 
-            other_embeddings=other_embeddings, 
-            other_gts=other_gts, 
-            cv=cv
+            train_embeddings=train_embeddings,
+            train_gts=train_gts,
+            other_embeddings=other_embeddings,
+            other_gts=other_gts,
+            cv=cv,
         )
         logger.info("Train metrics: %s", str(train_metric))
         logger.info("Other metrics:", str(other_metrics))
@@ -162,7 +163,8 @@ class SimpleTrainerContrastive(BaseTrainer):
             other_embeddings_new.append(torch.cat(other_embedding).cpu().numpy())
 
         split_ids = (
-            skf.split(train_embeddings, train_labels) if cv 
+            skf.split(train_embeddings, train_labels)
+            if cv
             else [(range(train_embeddings.shape[0]), None)]
         )
         train_metric = []
@@ -188,7 +190,7 @@ class SimpleTrainerContrastive(BaseTrainer):
                     self.get_metric(model, other_embedding_proccesed, other_label)
                 )
         return train_metric, other_metrics
-    
+
 
 class AucTrainerContrastive(SimpleTrainerContrastive):
     def get_metric(self, model, x, target):
@@ -203,7 +205,6 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
         return LGBMClassifier(verbosity=-1, **args)
 
 
-
 class AccuracyTrainerContrastive(SimpleTrainerContrastive):
     def get_metric(self, model, x, target):
         pred = model.predict(x)
@@ -212,5 +213,5 @@ class AccuracyTrainerContrastive(SimpleTrainerContrastive):
 
     def get_model(self):
         args = params.copy()
-        args["objective"] = "multiclass" 
+        args["objective"] = "multiclass"
         return LGBMClassifier(verbosity=-1, **args)

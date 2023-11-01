@@ -13,11 +13,15 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
-    config.use_numeric_emb = False
+    config.use_numeric_emb = True
     config.numeric_emb_size = 8
+    config.encoder_feature_mixer = True
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
+
+    ### TIME DELTA ###
+    config.use_deltas = True
 
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder

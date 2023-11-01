@@ -57,13 +57,13 @@ class SimpleTrainerSupervised(BaseTrainer):
         if metrics is not None:
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
 
+
 class AucTrainerSupervised(SimpleTrainerSupervised):
     def compute_metrics(
         self,
         model_outputs: List[Any],
         ground_truths: List[Any],  # pyright: ignore unused
     ) -> Dict[str, Any]:
-
         loss_dicts = [
             self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
         ]
@@ -79,13 +79,13 @@ class AucTrainerSupervised(SimpleTrainerSupervised):
 
         return losses_dict
 
+
 class AccuracyTrainerSupervised(SimpleTrainerSupervised):
     def compute_metrics(
         self,
         model_outputs: List[Any],
         ground_truths: List[Any],  # pyright: ignore unused
     ) -> Dict[str, Any]:
-
         loss_dicts = [
             self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
         ]

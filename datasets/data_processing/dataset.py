@@ -214,7 +214,7 @@ class SberSequenceDataset(SequenceDataset):
         return self
 
     def split_dataset(self, all_data, train_ids, first_test_date):
-    # def split_dataset(self, all_data, shuffle=True):
+        # def split_dataset(self, all_data, shuffle=True):
         if self.spark is None or self.spark._jsc.sc().isStopped():
             self.spark = SparkSession.builder.getOrCreate()
         spark = self.spark
@@ -222,13 +222,15 @@ class SberSequenceDataset(SequenceDataset):
         s_clients = (
             pd.Series(
                 cl[0]
-                for cl in s_clients.select(self.cfg["index_column"]).distinct().collect()
+                for cl in s_clients.select(self.cfg["index_column"])
+                .distinct()
+                .collect()
             )
             .str.split("_", expand=True)
             .rename({0: "date", 1: "epk_id"}, axis=1)
             .assign(
-                date   = lambda df: pd.to_datetime(df["date"]),
-                epk_id = lambda df: df["epk_id"].astype(int),
+                date=lambda df: pd.to_datetime(df["date"]),
+                epk_id=lambda df: df["epk_id"].astype(int),
             )
         )
         train_clients = s_clients.query(
@@ -236,14 +238,12 @@ class SberSequenceDataset(SequenceDataset):
         )
         test_clients = s_clients.query("date >= @first_test_date")
         s_clients_train = (
-            train_clients["date"].astype(str) 
-            + "_" 
+            train_clients["date"].astype(str)
+            + "_"
             + train_clients["epk_id"].astype(str)
         ).tolist()
         s_clients_test = (
-            test_clients["date"].astype(str) 
-            + "_" 
-            + test_clients["epk_id"].astype(str)
+            test_clients["date"].astype(str) + "_" + test_clients["epk_id"].astype(str)
         ).tolist()
 
         s_clients_train = spark.createDataFrame(
@@ -276,7 +276,6 @@ class SberSequenceDataset(SequenceDataset):
         test = labeled_test
         # val = labeled_val
         return train, test
-
 
 
 if __name__ == "__main__":
