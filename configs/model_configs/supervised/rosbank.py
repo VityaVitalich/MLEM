@@ -91,11 +91,22 @@ def model_configs():
     config.classification_weight = 1
 
     ### DEVICE + OPTIMIZER ###
-    config.device = "cuda:0"
+    config.device = "cpu"
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
     config.comments = ""
+
+    ### CKCONV ###
+    ckconv = config.ckconv = ml_collections.ConfigDict()
+    ckconv.hidden_channels = 32
+    ckconv.num_blocks = 3
+    ckconv.kernel_hidden_channels = 32
+    ckconv.kernel_activation = "Sine"
+    ckconv.kernel_norm = ""
+    ckconv.omega = 30
+    ckconv.dropout = 0.0
+    ckconv.weight_dropout = 0.0
     return config

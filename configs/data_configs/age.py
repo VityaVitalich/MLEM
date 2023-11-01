@@ -77,16 +77,16 @@ def data_configs():
     train.dropout = 0.05
 
     # seq len
-    train.max_seq_len = 500
-    val.max_seq_len = 500
-    test.max_seq_len = 500
+    train.max_seq_len = 1000
+    val.max_seq_len = 1000
+    test.max_seq_len = 1000
 
     train.num_workers = 1
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 128
-    val.batch_size = 128
+    train.batch_size = 256
+    val.batch_size = 256
     test.batch_size = 16
 
     return config

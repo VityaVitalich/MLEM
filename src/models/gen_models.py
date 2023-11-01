@@ -271,7 +271,7 @@ class BaseMixin(nn.Module):
             mask = output["gt"]["time_steps"] != -1
             #  print('gen loss', loss.size(), mask.size())
             loss = loss * mask
-            loss = loss.sum() / (mask != 0).sum()
+            loss = loss.sum()  # / (mask != 0).sum()
         else:
             loss = torch.tensor(0)
 
@@ -317,10 +317,10 @@ class SeqGen(BaseMixin):
         if self.model_conf.generative_embeddings_loss:
             res_dict["all_latents"] = all_hidden
             gen_batch = out_to_padded_batch(res_dict, self.data_conf)
-            with torch.no_grad():
-                gen_all_hidden, gen_global_hidden, time_steps = self.encode(
-                    gen_batch.to(self.model_conf.device)
-                )
+            #  with torch.no_grad():
+            gen_all_hidden, gen_global_hidden, time_steps = self.encode(
+                gen_batch.to(self.model_conf.device)
+            )
             res_dict["gen_all_latents"] = gen_all_hidden
             res_dict["gen_latent"] = gen_global_hidden
 

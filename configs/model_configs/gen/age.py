@@ -16,12 +16,12 @@ def model_configs():
     config.features_emb_dim = 12
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
-    config.encoder_feature_mixer = False
-    config.decoder_feature_mixer = False
+    config.encoder_feature_mixer = True
+    config.decoder_feature_mixer = True
 
     ### ENCODER ###
     config.encoder = "GRU"
-    config.encoder_hidden = 64
+    config.encoder_hidden = 128
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
@@ -29,7 +29,7 @@ def model_configs():
 
     ### DECODER ###
     config.decoder = "GRU"
-    config.decoder_hidden = 16
+    config.decoder_hidden = 32
     config.decoder_num_layers = 1
 
     ### TRANSFORMER DECODER ###
@@ -71,4 +71,5 @@ def model_configs():
 
     config.use_discriminator = False
     config.comments = ""
+    config.gen_len = 200
     return config

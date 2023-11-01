@@ -16,6 +16,7 @@ from src.trainers.trainer_gen import GenTrainer, GANGenTrainer
 from src.trainers.randomness import seed_everything
 import src.models.gen_models
 import src.models.base_models
+from copy import deepcopy
 
 from experiments.pipeline_supervised import SupervisedPipeline, get_trainer_class
 from configs.model_configs.gen.rosbank_genval import (
@@ -186,37 +187,40 @@ if __name__ == "__main__":
     if args.recon_val:
         reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
         conf.train_path = reconstructed_data_path
+        print(conf.train_path)
         conf.valid_size = 0.1
 
         run_name = run_name
         total_epochs = args.recon_val_epoch
         model_conf_genval = model_configs_genval()
-        log_dir = "./logs/generations/"
-        trainer_class = get_trainer_class("rosbank")
-        pipeline = SupervisedPipeline(
+        log_dir = "./logs/reconstructions/"
+        recon_trainer_class = get_trainer_class("rosbank")
+        recon_pipeline = SupervisedPipeline(
             run_name=run_name,
             device=args.device,
             total_epochs=total_epochs,
             conf=conf,
             model_conf=model_conf_genval,
-            TrainerClass=trainer_class,
+            TrainerClass=recon_trainer_class,
             resume=None,
             log_dir=log_dir,
         )
-        generated_test_metric = pipeline.run_experiment(
+        recon_test_metric = recon_pipeline.run_experiment(
             run_name=run_name, conf=conf, model_conf=model_conf_genval, seed=0
         )
-        logger.info(f"Reconstructed test metric: {generated_test_metric};")
+        logger.info(f"Reconstructed test metric: {recon_test_metric};")
     if args.gen_val:
         generated_data_path = trainer.generate_data(train_supervised_loader)
         conf.train_path = generated_data_path
+        print(conf.train_path)
         conf.valid_size = 0.1
 
         run_name = run_name
         total_epochs = args.gen_val_epoch
         model_conf_genval = model_configs_genval()
         log_dir = "./logs/generations/"
-        trainer_class = get_trainer_class("rosbank")
+        trainer_class = deepcopy(get_trainer_class("rosbank"))
+        # fix where the best model saves
         pipeline = SupervisedPipeline(
             run_name=run_name,
             device=args.device,

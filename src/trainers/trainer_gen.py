@@ -242,13 +242,13 @@ class GenTrainer(BaseTrainer):
         train_out, train_gts = self.predict(train_supervised_loader)
         logger.info("Reconstructions convertation started")
 
-        generated_data = self.output_to_df(train_out, train_gts)
+        reconstructed_data = self.output_to_df(train_out, train_gts)
         logger.info("Reconstructions converted")
-        gen_data_path = Path(self._ckpt_dir) / "generated_data"
-        gen_data_path.mkdir(parents=True, exist_ok=True)
-        save_path = gen_data_path / self._run_name
+        reconstructed_data_path = Path(self._ckpt_dir) / "reconstructed_data"
+        reconstructed_data_path.mkdir(parents=True, exist_ok=True)
+        save_path = reconstructed_data_path / self._run_name
 
-        generated_data.to_parquet(save_path)
+        reconstructed_data.to_parquet(save_path)
         logger.info("Reconstructions saved")
         return save_path
 
@@ -283,7 +283,11 @@ class GenTrainer(BaseTrainer):
         return save_path
 
     def output_to_df(self, outs, gts, use_generated_time=False):
-        df_dic = {"event_time": [], "trx_count": [], "target_target_flag": []}
+        df_dic = {
+            "event_time": [],
+            "trx_count": [],
+            self._data_conf.features.target_col: [],
+        }
         for feature in self._data_conf.features.embeddings.keys():
             df_dic[feature] = []
 
@@ -313,7 +317,7 @@ class GenTrainer(BaseTrainer):
             #     cur_val = numeric_pred[:, :, i].cpu().tolist()
             #     df_dic[cur_key].extend(cur_val)
 
-            df_dic["target_target_flag"].extend(gt[1].cpu().tolist())
+            df_dic[self._data_conf.features.target_col].extend(gt[1].cpu().tolist())
 
         generated_df = pd.DataFrame.from_dict(df_dic)
         generated_df["event_time"] = generated_df["event_time"].apply(

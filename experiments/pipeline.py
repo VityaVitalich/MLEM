@@ -9,6 +9,9 @@ import optuna
 import pandas as pd
 import torch
 from optuna.samplers import TPESampler
+import sys
+
+sys.path.append("../")
 from src.trainers.randomness import seed_everything
 
 

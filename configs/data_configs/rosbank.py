@@ -15,6 +15,8 @@ def data_configs():
         / "data"
         / "train_trx.parquet"
     )
+    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/generated_data/delta100_2023-10-31_16:32:20'
+    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/reconstructed_data/delta100_2023-10-31_16:32:20'
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"

@@ -1,9 +1,12 @@
 #!/bin/bash
 
-EPOCHS=100
+EPOCHS=1
 DEVICE="cuda"
-NAME='cosine'
+NAME='test'
 RECON=true
+RECON_EPOCHS=1
 GEN=true
+GEN_EPOCHS=1
 
-python train_gen_unsupervised.py --total-epochs=$EPOCHS --device=$DEVICE --run-name=$NAME --recon-val=$RECON --gen-val=$GEN
+python train_gen_unsupervised.py --total-epochs=$EPOCHS --device=$DEVICE --run-name=$NAME \
+ --recon-val=$RECON --recon-val-epoch=$RECON_EPOCHS --gen-val=$GEN --gen-val-epoch=$GEN_EPOCHS
