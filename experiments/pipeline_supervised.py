@@ -4,23 +4,25 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from pipeline import Pipeline
-from utils import parse_args
+from .pipeline import Pipeline
+from .utils import parse_args
 
 sys.path.append("../")
 
 import src.models.base_models
-from configs.data_configs.supervised.age import data_configs as age_data
-from configs.data_configs.supervised.physionet import data_configs as physionet_data
-from configs.data_configs.supervised.rosbank import data_configs as rosbank_data
-from configs.data_configs.supervised.taobao import data_configs as taobao_data
+from configs.data_configs.age import data_configs as age_data
+from configs.data_configs.physionet import data_configs as physionet_data
+from configs.data_configs.rosbank import data_configs as rosbank_data
+from configs.data_configs.taobao import data_configs as taobao_data
 from configs.model_configs.supervised.age import model_configs as age_model
 from configs.model_configs.supervised.physionet import model_configs as physionet_model
 from configs.model_configs.supervised.rosbank import model_configs as rosbank_model
 from configs.model_configs.supervised.taobao import model_configs as taobao_model
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_supervised import (AccuracyTrainerSupervised,
-                                             AucTrainerSupervised)
+from src.trainers.trainer_supervised import (
+    AccuracyTrainerSupervised,
+    AucTrainerSupervised,
+)
 
 
 class SupervisedPipeline(Pipeline):
@@ -39,7 +41,7 @@ class SupervisedPipeline(Pipeline):
         opt = torch.optim.Adam(
             net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
         )
-        trainer = TrainerClass(
+        trainer = self.TrainerClass(
             model=net,
             optimizer=opt,
             train_loader=train_loader,
@@ -64,7 +66,7 @@ class SupervisedPipeline(Pipeline):
         another_test_metric = trainer.test(another_test_loader)
 
         return {
-            "train_metric": train_metric, 
+            "train_metric": train_metric,
             "val_metric": val_metric,
             # "test_metric": test_metric,
             "another_test_metric": another_test_metric,

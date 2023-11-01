@@ -46,6 +46,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+
 def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
     study = optuna.load_study(study_name=name, storage="sqlite:///example.db")
 
@@ -59,7 +60,7 @@ def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
             "user_attrs": trial.user_attrs,
             "value": trial.value,
             "datetime_start": trial.datetime_start,
-            "datetime_complete": trial.datetime_complete
+            "datetime_complete": trial.datetime_complete,
         }
         data.append(trial_data)
 
@@ -69,9 +70,18 @@ def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
         df[k] = [i.get(k, "NaT") for i in df["user_attrs"]]
         params = pd.DataFrame([r for r in df["params"]], index=df.index)
     df = pd.concat([df, params], axis=1)
-    df = df.drop(columns=["params", "datetime_start", "datetime_complete", "number", "user_attrs"])
-    
+    df = df.drop(
+        columns=[
+            "params",
+            "datetime_start",
+            "datetime_complete",
+            "number",
+            "user_attrs",
+        ]
+    )
+
     return df
+
 
 if __name__ == "__main__":
     args = parse_args()

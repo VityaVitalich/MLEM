@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from ..data_load import split_strategy
 from .data_utils import prepare_data, prepare_test_data
 from .splitting_dataset import (
-    ConvertingTrxDataset, 
+    ConvertingTrxDataset,
     DropoutTrxDataset,
     SplittingDataset,
     SberSplittingDataset,

@@ -13,14 +13,16 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
-    config.use_numeric_emb = False
+    config.use_numeric_emb = True
     config.numeric_emb_size = 8
+    config.encoder_feature_mixer = False
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
-    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
+    config.classifier_gru_hidden_dim = 128
 
+    ### TIME DELTA ###
+    config.use_deltas = True
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # Identity or TransformerEncoder
+    config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
@@ -28,11 +30,11 @@ def model_configs():
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
     config.encoder_norm = (
-        "Identity"  # if TransformerEncoder -> LayerNorm. else Identity
+        "LayerNorm"  # if TransformerEncoder -> LayerNorm. else Identity
     )
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.3
+    config.after_enc_dropout = 0.0
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
