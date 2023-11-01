@@ -13,7 +13,7 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 12
+    config.features_emb_dim = 12 # for conflict
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
     config.encoder_feature_mixer = True
