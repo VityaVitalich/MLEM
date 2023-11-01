@@ -160,34 +160,18 @@ class Pipeline:
             first = False
             study = optuna.load_study(
                 study_name=f"{self.log_dir / self.run_name}",
-                storage="sqlite:///example.db",
+                storage=f"sqlite:///{self.log_dir / self.run_name}/study.db",
             )
         except:
             first = True
         study = optuna.create_study(
-            storage="sqlite:///example.db",
+            storage=f"sqlite:///{self.log_dir / self.run_name}/study.db",
             sampler=sampler,
             study_name=f"{self.log_dir / self.run_name}",
             direction="maximize",
             load_if_exists=True,
         )
 
-        if first:
-            print("First!!!!!")
-            study.enqueue_trial(
-                {
-                    "features_emb_dim": 32,
-                    "classifier_gru_hidden_dim": 128,
-                    "encoder": "TransformerEncoder",
-                    "num_enc_layers": 2,
-                    "use_numeric_emb": True,
-                    "loss.projector": "Linear",
-                    "loss.project_dim": 256,
-                    "num_heads_enc": 4,
-                    "loss.loss_fn": "ContrastiveLoss",
-                    "encoder_norm": "LayerNorm",
-                }
-            )  # TODO move somewhere else
         for request in request_list:
             study.enqueue_trial(request)
 

@@ -197,3 +197,23 @@ if __name__ == "__main__":
         console_log=args.console_log,
         file_log=args.file_log,
     )
+
+    request = {
+        "features_emb_dim": 32,
+        "classifier_gru_hidden_dim": 128,
+        "encoder": "TransformerEncoder",
+        "num_enc_layers": 2,
+        "use_numeric_emb": True,
+        "loss.projector": "Linear",
+        "loss.project_dim": 256,
+        "num_heads_enc": 4,
+        "loss.loss_fn": "ContrastiveLoss",
+        "encoder_norm": "LayerNorm",
+    }
+    pipeline.optuna_setup(
+        "val_metric",
+        request_list=[request],
+        n_startup_trials=0,
+        n_trials=1,
+        n_runs=3,
+    )
