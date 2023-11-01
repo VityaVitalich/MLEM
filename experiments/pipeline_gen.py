@@ -25,7 +25,11 @@ from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_gen import GenTrainer, GANGenTrainer
 import src.models.gen_models
 
-from pipeline_supervised import SupervisedPipeline, get_trainer_class as get_supervised_trainer_class
+from pipeline_supervised import (
+    SupervisedPipeline,
+    get_trainer_class as get_supervised_trainer_class,
+)
+
 # from configs.model_configs.gen.age_genval import (
 #     model_configs as model_configs_genval,
 # )
@@ -36,6 +40,7 @@ from pipeline_supervised import SupervisedPipeline, get_trainer_class as get_sup
 # model_conf.D = model_configs_D
 # model_conf.genval = model_configs_genval
 
+
 class GenerativePipeline(Pipeline):
     def _train_eval(self, run_name, conf, model_conf):
         """
@@ -43,12 +48,18 @@ class GenerativePipeline(Pipeline):
         Make sure that metric_value is going to be MAXIMIZED (higher -> better)
         """
         ### Create loaders and train ###
-        train_loader, valid_loader, _ = create_data_loaders(conf, supervised=False, pinch_test=True)
+        train_loader, valid_loader, _ = create_data_loaders(
+            conf, supervised=False, pinch_test=True
+        )
         another_test_loader = create_test_loader(conf)
         # conf.valid_size = 0
         conf.train.split_strategy = {"split_strategy": "NoSplit"}
         conf.val.split_strategy = {"split_strategy": "NoSplit"}
-        train_supervised_loader, valid_supervised_loader, test_loader = create_data_loaders(conf, pinch_test=True)
+        (
+            train_supervised_loader,
+            valid_supervised_loader,
+            test_loader,
+        ) = create_data_loaders(conf, pinch_test=True)
 
         net = getattr(src.models.gen_models, model_conf.model_name)(
             model_conf=model_conf, data_conf=conf
@@ -106,15 +117,15 @@ class GenerativePipeline(Pipeline):
         trainer.run()
 
         # trainer.load_best_model()
-        trainer.test(test_loader, train_supervised_loader) # TODO return metrics
+        trainer.test(test_loader, train_supervised_loader)  # TODO return metrics
 
-        if self.gen_val: # TODO прокинуть в init
+        if self.gen_val:  # TODO прокинуть в init
             generated_data_path = trainer.generate_data(train_supervised_loader)
             conf.train_supervised_path = generated_data_path
             conf.valid_size = 0.1
 
-            run_name = run_name # TODO check that there is no logging colision. Maybe go to subdir. E.g. run_name=run_name/"sup"
-            total_epochs = self.gen_val_epoch # TODO прокинуть в init
+            run_name = run_name  # TODO check that there is no logging colision. Maybe go to subdir. E.g. run_name=run_name/"sup"
+            total_epochs = self.gen_val_epoch  # TODO прокинуть в init
             model_conf_genval = model_conf.genval
             log_dir = "./logs/generations/"
             trainer_class = self.TrainerClass
@@ -130,10 +141,9 @@ class GenerativePipeline(Pipeline):
                 console_log=self.console_log,
                 file_log=self.file_log,
             )
-            summary_df = super_pipe.do_n_runs(
-                n_runs=3
-            )
+            summary_df = super_pipe.do_n_runs(n_runs=3)
             # logger.info(f"Generated test metric: {generated_test_metric};") TODO return metric
+
 
 def get_data_config(dataset):
     config_dict = {

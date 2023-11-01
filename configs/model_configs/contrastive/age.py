@@ -20,7 +20,7 @@ def model_configs():
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
-    config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder 
+    config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
     config.num_enc_layers = 2
     config.num_heads_enc = 1
 
@@ -46,24 +46,22 @@ def model_configs():
     config.activation = "LeakyReLU"
 
     ### TIME TRICKS ###
-    config.num_time_blocks = 50 #[4, 16] 
-    config.time_preproc = (
-        "Identity"  # Identity or TimeConcater or MultiTimeSummator 
-    )
+    config.num_time_blocks = 50  # [4, 16]
+    config.time_preproc = "Identity"  # Identity or TimeConcater or MultiTimeSummator
     config.entropy_weight = 0.0
 
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.loss_fn = "ContrastiveLoss"
-    loss.margin = 0.3 # ContrastiveLoss only
+    loss.margin = 0.3  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = "Linear" # all losses
+    loss.projector = "Linear"  # all losses
     loss.project_dim = 32  # all losses
-    loss.temperature = 0.1 # all except ContrastiveLoss
-    loss.angular_margin = 0.3 # InfoNCELoss only
-    loss.q = 0.03 # RINCELoss only
-    loss.lam = 0.01 # RINCELoss only
+    loss.temperature = 0.1  # all except ContrastiveLoss
+    loss.angular_margin = 0.3  # InfoNCELoss only
+    loss.q = 0.03  # RINCELoss only
+    loss.lam = 0.01  # RINCELoss only
 
     ### MTAND ###
     # # number of reference points on encoder

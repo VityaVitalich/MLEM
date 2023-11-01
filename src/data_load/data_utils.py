@@ -65,9 +65,7 @@ def prepare_embeddings(seq, conf):
 
 def shuffle_client_list_reproducible(conf, data):
     dataset_col_id = conf.get("col_id", "client_id")
-    data = sorted(
-        data, key=lambda x: x.get(dataset_col_id)
-    )  # changed from COLES a bit
+    data = sorted(data, key=lambda x: x.get(dataset_col_id))  # changed from COLES a bit
     random.Random(conf.client_list_shuffle_seed).shuffle(data)
     return data
 
@@ -85,8 +83,8 @@ def prepare_data(conf, supervised, pinch_test=False):
         data, conf, supervised, pinch_test
     )
     print(
-        "Data shapes: train %d, val %d, test %d" %
-        (len(train_data), len(valid_data), len(test_data))
+        "Data shapes: train %d, val %d, test %d"
+        % (len(train_data), len(valid_data), len(test_data))
     )
     return train_data, valid_data, test_data
 
@@ -97,9 +95,8 @@ def split_dataset(data, conf, supervised, pinch_test=False):
     labeled_ix = []
     unlabeled_ix = []
     for i, rec in enumerate(data):
-        if (
-            rec[conf.features.target_col] is not None and 
-            not np.isnan(float(rec[conf.features.target_col]))
+        if rec[conf.features.target_col] is not None and not np.isnan(
+            float(rec[conf.features.target_col])
         ):
             labeled_ix.append(i)
         else:
@@ -111,12 +108,12 @@ def split_dataset(data, conf, supervised, pinch_test=False):
     val_labeled_size = int(len(labeled_ix) * conf.valid_size)
     val_unlabeled_size = int(len(unlabeled_ix) * conf.valid_size)
 
-    test_ix = labeled_ix[: test_size]
-    val_labeled_ix = labeled_ix[test_size: test_size + val_labeled_size]
-    train_labeled_ix = labeled_ix[test_size + val_labeled_size: ]
+    test_ix = labeled_ix[:test_size]
+    val_labeled_ix = labeled_ix[test_size : test_size + val_labeled_size]
+    train_labeled_ix = labeled_ix[test_size + val_labeled_size :]
 
-    val_unlabeled_ix = unlabeled_ix[: val_unlabeled_size]
-    train_unlabeled_ix = unlabeled_ix[val_unlabeled_size: ]
+    val_unlabeled_ix = unlabeled_ix[:val_unlabeled_size]
+    train_unlabeled_ix = unlabeled_ix[val_unlabeled_size:]
 
     assert (
         len(train_unlabeled_ix) + 
@@ -129,16 +126,19 @@ def split_dataset(data, conf, supervised, pinch_test=False):
         train_unlabeled_ix = []
         val_unlabeled_ix = []
     train_data = [
-        data[i] for i in train_unlabeled_ix + train_labeled_ix if 
-        len(data[i]["event_time"]) >= min_seq_len
+        data[i]
+        for i in train_unlabeled_ix + train_labeled_ix
+        if len(data[i]["event_time"]) >= min_seq_len
     ]
 
     valid_data = [
-        data[i] for i in val_unlabeled_ix + val_labeled_ix if 
-        len(data[i]["event_time"]) >= min_seq_len
+        data[i]
+        for i in val_unlabeled_ix + val_labeled_ix
+        if len(data[i]["event_time"]) >= min_seq_len
     ]
     test_data = [data[i] for i in test_ix]
     return train_data, valid_data, test_data
+
 
 def prepare_test_data(conf):
     data = read_pyarrow_file(conf.test_path)

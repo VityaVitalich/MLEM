@@ -338,7 +338,7 @@ class BaseTrainer:
         assert self._val_loader is not None, "Set a val loader first"
 
         if len(self._val_loader) == 0:
-            self._metric_values = {"placeholder":0}
+            self._metric_values = {"placeholder": 0}
             return
 
         logger.info("Epoch %04d: validation started", self._last_epoch + 1)
