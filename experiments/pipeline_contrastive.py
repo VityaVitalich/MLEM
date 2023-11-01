@@ -1,52 +1,42 @@
-import sys
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import torch
-from pipeline import Pipeline
-from utils import parse_args
-
-sys.path.append("../")
+import logging
 
 import src.models.base_models
-from configs.data_configs.contrastive.age import data_configs as age_data
-from configs.data_configs.contrastive.physionet import data_configs as physionet_data
-from configs.data_configs.contrastive.rosbank import data_configs as rosbank_data
-from configs.data_configs.contrastive.taobao import data_configs as taobao_data
-from configs.model_configs.contrastive.age import model_configs as age_model
-from configs.model_configs.contrastive.physionet import model_configs as physionet_model
-from configs.model_configs.contrastive.rosbank import model_configs as rosbank_model
-from configs.model_configs.contrastive.taobao import model_configs as taobao_model
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_contrastive import (
     AccuracyTrainerContrastive,
     AucTrainerContrastive,
+    SimpleTrainerContrastive,
 )
+from experiments.utils import parse_args, read_config
+from experiments.pipeline import Pipeline
 
 
 class ContrastivePipeline(Pipeline):
-    def _train_eval(self, run_name, conf, model_conf):
+    def _train_eval(self, run_name, data_conf, model_conf):
         """
         Returns metrics dict like {"train_acc": metric_value, "val_acc": metric_value}
         Make sure that metric_value is going to be MAXIMIZED (higher -> better)
         """
         ### Create loaders and train ###
         train_loader, valid_loader, _ = create_data_loaders(
-            conf, supervised=False, pinch_test=True
+            data_conf, supervised=False, pinch_test=True
         )
-        another_test_loader = create_test_loader(conf)
+        another_test_loader = create_test_loader(data_conf)
 
-        conf.train.split_strategy = {"split_strategy": "NoSplit"}
-        conf.val.split_strategy = {"split_strategy": "NoSplit"}
+        data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
+        data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
         (
             train_supervised_loader,
             valid_supervised_loader,
             test_supervised_loader,
-        ) = create_data_loaders(conf, pinch_test=True)
+        ) = create_data_loaders(data_conf, pinch_test=True)
 
         net = getattr(src.models.base_models, model_conf.model_name)(
-            model_conf=model_conf, data_conf=conf
+            model_conf=model_conf, data_conf=data_conf
         )
         opt = torch.optim.Adam(
             net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
@@ -145,51 +135,49 @@ class ContrastivePipeline(Pipeline):
         return trial, model_conf, conf
 
 
-def get_data_config(dataset):
-    config_dict = {
-        "taobao": taobao_data,
-        "age": age_data,
-        "rosbank": rosbank_data,
-        "physionet": physionet_data,
+def get_trainer_class(data_conf) -> type:
+    logger = logging.getLogger("event_seq")
+    metric = None
+    trainer_types = {
+        "accuracy": AccuracyTrainerContrastive,
+        "roc_auc": AucTrainerContrastive,
+        None: SimpleTrainerContrastive,
     }
-    return config_dict[dataset]()
 
+    if hasattr(data_conf, "main_metric"):
+        metric = data_conf.main_metric
+    elif hasattr(data_conf, "track_metric"):
+        logger.warning(
+            "`main_metric` field is not set in data config. "
+            "Picking apropriate trainer based on `track_metric` field."
+        )
+        metric = data_conf.track_metric
+    else:
+        logger.warning(
+            "Neither the `main_metric`, nor the `track_metric` fields are specified"
+            " in the data config. Falling back to the simple contrastive trainer."
+        )
 
-def get_model_config(dataset):
-    config_dict = {
-        "taobao": taobao_model,
-        "age": age_model,
-        "rosbank": rosbank_model,
-        "physionet": physionet_model,
-    }
-    return config_dict[dataset]()
-
-
-def get_trainer_class(dataset):
-    trainer_dict = {
-        "taobao": AucTrainerContrastive,
-        "age": AccuracyTrainerContrastive,
-        "rosbank": AucTrainerContrastive,
-        "physionet": AucTrainerContrastive,
-    }
-    return trainer_dict[dataset]
+    try:
+        return trainer_types[metric]
+    except KeyError:
+        raise ValueError(f"Unkown metric: {metric}")
 
 
 if __name__ == "__main__":
     args = parse_args()
 
     ### TRAINING SETUP ###
-    dataset = args.dataset
-    conf = get_data_config(dataset)
-    model_conf = get_model_config(dataset)
-    TrainerClass = get_trainer_class(dataset)
-    log_dir = Path(dataset) / args.log_dir
+    data_conf = read_config(args.data_conf, "data_configs")
+    model_conf = read_config(args.model_conf, "model_configs")
+    TrainerClass = get_trainer_class(data_conf)
+    log_dir = args.log_dir
 
     pipeline = ContrastivePipeline(
         run_name=args.run_name,
         device=args.device,
         total_epochs=args.total_epochs,
-        conf=conf,
+        data_conf=data_conf,
         model_conf=model_conf,
         TrainerClass=TrainerClass,
         resume=args.resume,

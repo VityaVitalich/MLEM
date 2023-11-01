@@ -1,12 +1,63 @@
 from argparse import ArgumentParser
 
-import optuna
 import pandas as pd
+from pathlib import Path
+from ml_collections import ConfigDict
+import logging
+from contextlib import contextmanager
+from typing import Union
+
+
+@contextmanager
+def log_to_file(filename: Path, file_lvl="info", cons_lvl="warning"):
+    if isinstance(file_lvl, str):
+        file_lvl = getattr(logging, file_lvl.upper())
+    if isinstance(cons_lvl, str):
+        cons_lvl = getattr(logging, cons_lvl.upper())
+
+    ch = logging.StreamHandler()
+    ch.setLevel(cons_lvl)
+    cfmt = logging.Formatter("{levelname:8} - {asctime} - {message}", style="{")
+    ch.setFormatter(cfmt)
+
+    fh = logging.FileHandler(filename)
+    fh.setLevel(file_lvl)
+    ffmt = logging.Formatter(
+        "{levelname:8} - {process: ^6} - {name: ^16} - {asctime} - {message}",
+        style="{",
+    )
+    fh.setFormatter(ffmt)
+    logger = logging.getLogger("event_seq")
+    logger.setLevel(min(file_lvl, cons_lvl))
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+    try:
+        yield
+    finally:
+        fh.close()
+        logger.removeHandler(fh)
+        logger.removeHandler(ch)
+
+
+def read_config(conf_path: Union[Path, str], func_name: str) -> ConfigDict:
+    if isinstance(conf_path, str):
+        conf_path = Path(conf_path)
+
+    source = conf_path.read_text()
+    bytecode = compile(source, conf_path.as_posix(), "exec")
+    namespace = {
+        "__file__": conf_path.as_posix(),
+    }
+    exec(bytecode, namespace)
+    return namespace[func_name]()  # type: ignore
 
 
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--run-name", help="run name for Trainer", default=None)
+    parser.add_argument("--data-conf", help="path to data config", required=True)
+    parser.add_argument("--model-conf", help="path to model config", required=True)
     parser.add_argument(
         "--console-log",
         help="console log level",
@@ -23,7 +74,7 @@ def parse_args():
     parser.add_argument(
         "--log-dir",
         help="directory to write log file to",
-        default="./logs",
+        default="./experiments/logs",
     )
     parser.add_argument(
         "--total-epochs",
@@ -42,12 +93,13 @@ def parse_args():
         default=3,
         type=int,
     )
-    parser.add_argument("--dataset", help="dataset", type=str, default="physionet")
     args = parser.parse_args()
     return args
 
 
 def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
+    import optuna
+
     study = optuna.load_study(study_name=name, storage="sqlite:///example.db")
 
     # Retrieve data from the study and construct a pandas DataFrame

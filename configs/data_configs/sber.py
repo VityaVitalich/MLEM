@@ -36,7 +36,7 @@ def data_configs():
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.1  # validation size
-    config.col_id = "user"  # column defining ids. used for sorting data
+    config.col_id = "index"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.

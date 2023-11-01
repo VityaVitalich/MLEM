@@ -5,11 +5,10 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-import optuna
 import pandas as pd
 import torch
-from optuna.samplers import TPESampler
 from src.trainers.randomness import seed_everything
+from experiments.utils import log_to_file
 
 
 class Pipeline:
@@ -18,80 +17,52 @@ class Pipeline:
         run_name,
         device,
         total_epochs,
-        conf,
-        model_conf,
-        TrainerClass,
-        resume,
-        log_dir,
-        console_log="warning",
-        file_log="info",
+        data_conf,
+        model_conf, 
+        TrainerClass, 
+        resume, 
+        log_dir, 
+        console_lvl="warning",
+        file_lvl="info",
     ):
-        self.run_name = run_name
-        self.total_epochs = total_epochs
-        self.conf = conf
-        self.model_conf = model_conf
-        self.model_conf.device = device
-        self.TrainerClass = TrainerClass
-        self.resume = resume
-        self.log_dir = log_dir
-        self.console_log = console_log
-        self.file_log = file_log
-        self.device = device
         """
         TrainerClass - class from src.trainers
         """
 
-    def setup_logging(
-        self,
-        run_name,
-        log_dir,
-        console_log="warning",
-        file_log="info",
-    ):
-        ### SETUP LOGGING ###
-        ch = logging.StreamHandler()
-        cons_lvl = getattr(logging, console_log.upper())
-        ch.setLevel(cons_lvl)
-        cfmt = logging.Formatter("{levelname:8} - {asctime} - {message}", style="{")
-        ch.setFormatter(cfmt)
+        self.run_name = run_name
+        self.total_epochs = total_epochs
+        self.data_conf = data_conf
+        self.model_conf = model_conf
+        self.model_conf.device = device
+        self.device = device
+        self.TrainerClass = TrainerClass
+        self.resume = resume
+        self.log_dir = Path(log_dir)
+        self.console_lvl = console_lvl
+        self.file_lvl = file_lvl
+        """
+        TrainerClass - class from src.trainers
+        """
 
-        (Path(log_dir) / run_name).parent.mkdir(parents=True, exist_ok=True)
-        log_file = Path(log_dir) / f"{run_name}.log"
-        fh = logging.FileHandler(log_file)
-        file_lvl = getattr(logging, file_log.upper())
-        fh.setLevel(file_lvl)
-        ffmt = logging.Formatter(
-            "{levelname:8} - {process: ^6} - {name: ^16} - {asctime} - {message}",
-            style="{",
-        )
-        fh.setFormatter(ffmt)
-
-        logger = logging.getLogger("event_seq")
-        logger.setLevel(min(file_lvl, cons_lvl))
-        logger.addHandler(ch)
-        logger.addHandler(fh)
-        return logger, ch, fh
 
     def run_experiment(self, run_name=None, conf=None, model_conf=None, seed=0):
         run_name = f"{run_name or self.run_name}/seed_{seed}"
-        conf = conf or copy.deepcopy(self.conf)
+        conf = conf or copy.deepcopy(self.data_conf)
         model_conf = model_conf or copy.deepcopy(self.model_conf)
 
         conf.client_list_shuffle_seed = seed
-        logger, ch, fh = self.setup_logging(
-            run_name, self.log_dir, self.console_log, self.file_log
-        )
-        ### Fix randomness ###
-        seed_everything(
-            conf.client_list_shuffle_seed,
-            avoid_benchmark_noise=True,
-            only_deterministic_algorithms=False,
-        )
-        metrics = self._train_eval(run_name, conf, model_conf)
 
-        logger.removeHandler(fh)
-        logger.removeHandler(ch)
-        fh.close()
+        log_file = self.log_dir / run_name
+        log_file.parent.mkdir(exist_ok=True, parents=True)
+
+        with log_to_file(log_file, self.file_lvl, self.console_lvl):
+            ### Fix randomness ###
+            seed_everything(
+                conf.client_list_shuffle_seed,
+                avoid_benchmark_noise=True,
+                only_deterministic_algorithms=False,
+            )
+            metrics = self._train_eval(run_name, conf, model_conf)
         return metrics
 
     def _run_experiment_helper(self, *args, **kwargs):
@@ -108,7 +79,7 @@ class Pipeline:
         Expects run_experiment() to return dict like {metric_name: metric_value}
         """
         run_name = f"{run_name or self.run_name}/{datetime.now():%F_%T}"
-        conf = conf or copy.deepcopy(self.conf)
+        conf = conf or copy.deepcopy(self.data_conf)
         model_conf = model_conf or copy.deepcopy(self.model_conf)
 
         args = [(run_name, conf, model_conf, seed) for seed in range(n_runs)]
@@ -150,6 +121,10 @@ class Pipeline:
         n_trials == n_trials total by this function call(doesn't affect parallel runs).
         n_runs - better not torch it
         """
+
+        import optuna
+        from optuna.samplers import TPESampler
+
         sampler = TPESampler(
             # seed=0, important to NOT specify, otherwise parallel scripts repeat themself
             multivariate=True,
@@ -187,7 +162,7 @@ class Pipeline:
         n_runs=3,
         target_metric="val_metric",
     ):
-        conf = copy.deepcopy(self.conf)
+        conf = copy.deepcopy(self.data_conf)
         model_conf = copy.deepcopy(self.model_conf)
         trial, model_conf, conf = self._param_grid(trial, model_conf, conf)
 
