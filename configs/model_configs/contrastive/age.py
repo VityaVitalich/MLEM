@@ -21,8 +21,8 @@ def model_configs():
 
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
-    config.num_enc_layers = [1, 2]
-    config.num_heads_enc = [1, 2, 4]
+    config.num_enc_layers = 2
+    config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
