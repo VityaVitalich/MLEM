@@ -15,7 +15,7 @@ def model_configs():
     config.features_emb_dim = 12
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
-    config.encoder_feature_mixer = False
+    config.encoder_feature_mixer = True
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 512

@@ -15,14 +15,17 @@ def model_configs():
     config.features_emb_dim = 32
     config.use_numeric_emb = False
     config.numeric_emb_size = 8
+    config.encoder_feature_mixer = False
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
+    ### TIME DELTA ###
+    config.use_deltas = True
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
-    config.num_enc_layers = [1, 2]
-    config.num_heads_enc = [1, 2, 4]
+    config.num_enc_layers = 2
+    config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
@@ -55,9 +58,15 @@ def model_configs():
     loss.sampling_strategy = "HardNegativePair"
     loss.loss_fn = "ContrastiveLoss"
     loss.margin = 0.3  # ContrastiveLoss only
+    loss.margin = 0.3  # ContrastiveLoss only
     loss.neg_count = 5
     loss.projector = "Linear"  # all losses
+    loss.projector = "Linear"  # all losses
     loss.project_dim = 32  # all losses
+    loss.temperature = 0.1  # all except ContrastiveLoss
+    loss.angular_margin = 0.3  # InfoNCELoss only
+    loss.q = 0.03  # RINCELoss only
+    loss.lam = 0.01  # RINCELoss only
     loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only

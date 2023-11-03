@@ -39,6 +39,7 @@ params = {
     "reg_lambda": None,
     "colsample_bytree": None,
     "min_child_samples": None,
+    "verbosity": -1,
 }
 
 
@@ -122,81 +123,112 @@ class GenTrainer(BaseTrainer):
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
 
     def test(
-        self, test_loader: DataLoader, train_supervised_loader: DataLoader
-    ) -> None:
+        self, train_supervised_loader: DataLoader, other_loaders: List[DataLoader]
+    ) -> Dict[str, float]:
         """
         Logs test metrics with self.compute_metrics
         """
-
         logger.info("Test started")
         train_out, train_gts = self.predict(train_supervised_loader)
-        test_out, test_gts = self.predict(test_loader)
+        other_outs, other_gts = [], []
+        for other_loader in other_loaders:
+            other_out, other_gt = (
+                self.predict(other_loader) if len(other_loader) > 0 else (None, None)
+            )
+            other_outs.append(other_out), other_gts.append(other_gt)
 
         train_embeddings = [out["latent"] for out in train_out]
-        test_embeddings = [out["latent"] for out in test_out]
+        other_embeddings = [
+            [out["latent"] for out in other_out] if other_out is not None else None
+            for other_out in other_outs
+        ]
 
-        test_metric = self.compute_test_metric(
-            train_embeddings, train_gts, test_embeddings, test_gts
+        train_metric, other_metrics = self.compute_test_metric(
+            train_embeddings, train_gts, other_embeddings, other_gts
         )
-        mean_metric = np.mean(test_metric)
-        print(test_metric)
-        logger.info("Test metrics: %s, Mean: %s", str(test_metric), str(mean_metric))
+        logger.info("Train metrics: %s", str(train_metric))
+        logger.info("Other metrics: %s", str(other_metrics))
         logger.info("Test finished")
 
-        return test_metric
+        return train_metric, other_metrics
 
     def compute_test_metric(
-        self, train_embeddings, train_gts, test_embeddings, test_gts
+        self,
+        train_embeddings,
+        train_gts,
+        other_embeddings,
+        other_gts,
     ):
         train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
         train_embeddings = torch.cat(train_embeddings).cpu().numpy()
 
-        test_labels = torch.cat([gt[1].cpu() for gt in test_gts]).numpy()
-        test_embeddings = torch.cat(test_embeddings).cpu().numpy()
+        other_labels, other_embeddings_new = [], []
+        for other_gt in other_gts:
+            other_labels.append(
+                torch.cat([gt[1].cpu() for gt in other_gt]).numpy()
+                if other_gt is not None
+                else None
+            )
+        for other_embedding in other_embeddings:
+            other_embeddings_new.append(
+                torch.cat(other_embedding).cpu().numpy()
+                if other_embedding is not None
+                else None
+            )
 
-        skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
+        if hasattr(self._data_conf, "main_metric"):
+            metric = self._data_conf.main_metric
+        elif hasattr(self._data_conf, "track_metric"):
+            metric = self._data_conf.track_metric
+        else:
+            raise NotImplementedError("no metric name provided")
 
-        if self._data_conf.num_classes == 2:
+        if metric == "roc_auc":
             params["objective"] = "binary"
             params["metric"] = "auc"
-        else:
+        elif metric == "accuracy":
             params["objective"] = "multiclass"
+        else:
+            raise NotImplementedError(f"Unknown objective {metric}")
+
+        def get_metric(model, x, target):
+            if metric == "roc_auc":
+                return roc_auc_score(target, model.predict_proba(x)[:, 1])
+            elif metric == "accuracy":
+                return accuracy_score(target, model.predict(x))
+            else:
+                raise NotImplementedError(f"Unknown objective {metric}")
 
         model = LGBMClassifier(
             **params,
         )
         preprocessor = MaxAbsScaler()
-
         train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
-        test_embeddings_tr = preprocessor.transform(test_embeddings)
-
         model.fit(train_embeddings_tr, train_labels)
-        y_pred = model.predict_proba(test_embeddings_tr)
 
-        if self._data_conf.num_classes == 2:
-            score = roc_auc_score(test_labels, y_pred[:, 1])
-        else:
-            score = accuracy_score(test_labels, y_pred.argmax(axis=1))
-
-        return [score]
+        train_metric = get_metric(model, train_embeddings_tr, train_labels)
+        other_metrics = []
+        for i, (other_embedding, other_label) in enumerate(
+            zip(other_embeddings_new, other_labels)
+        ):
+            if other_embedding is not None:
+                other_embedding_proccesed = preprocessor.transform(other_embedding)
+                other_metrics.append(
+                    get_metric(model, other_embedding_proccesed, other_label)
+                )
+            else:
+                other_metrics.append(0)
+        return train_metric, other_metrics
 
     def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
         self._model.eval()
         preds, gts = [], []
-        self.order = {}
         with torch.no_grad():
             for inp, gt in tqdm(loader):
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 out = self._model(inp)
                 out = self.dict_to_cpu(out)
-
-                if not self.order:
-                    k = 0
-                    for key in out["gt"]["input_batch"].payload.keys():
-                        if key in self._data_conf.features.numeric_values.keys():
-                            self.order[k] = key
-                            k += 1
 
                 out["gt"].pop("input_batch")
                 out.pop("all_latents", None)
@@ -244,9 +276,9 @@ class GenTrainer(BaseTrainer):
 
         reconstructed_data = self.output_to_df(train_out, train_gts)
         logger.info("Reconstructions converted")
-        reconstructed_data_path = Path(self._ckpt_dir) / "reconstructed_data"
-        reconstructed_data_path.mkdir(parents=True, exist_ok=True)
-        save_path = reconstructed_data_path / self._run_name
+        save_path = (
+            Path(self._ckpt_dir) / f"{self._run_name}" / "reconstructed_data.parquet"
+        )
 
         reconstructed_data.to_parquet(save_path)
         logger.info("Reconstructions saved")
@@ -274,9 +306,10 @@ class GenTrainer(BaseTrainer):
             train_out, train_gts, use_generated_time=True
         )
         logger.info("Predictions converted")
-        gen_data_path = Path(self._ckpt_dir) / "generated_data"
-        gen_data_path.mkdir(parents=True, exist_ok=True)
-        save_path = gen_data_path / self._run_name
+        save_path = (
+            Path(self._ckpt_dir) / f"{self._run_name}" / "generated_data.parquet"
+        )
+        save_path.parent.mkdir(parents=True, exist_ok=True)
 
         generated_data.to_parquet(save_path)
         logger.info("Predictions saved")
@@ -448,6 +481,9 @@ class GANGenTrainer(GenTrainer):
 
             ### Generator Step ###
             pred = self._model(inp)
+            d_pred = self.D(
+                out_to_padded_batch(pred, self._data_conf).to(self.device)
+            ).detach()
             d_pred = self.D(
                 out_to_padded_batch(pred, self._data_conf).to(self.device)
             ).detach()

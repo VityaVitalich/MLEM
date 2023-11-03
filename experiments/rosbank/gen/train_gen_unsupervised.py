@@ -70,6 +70,17 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
+        "--recon-val",
+        help="Whether to perform generated validation",
+        default=False,
+    )
+    parser.add_argument(
+        "--recon-val-epoch",
+        help="How many epochs to perform on generated samples",
+        default=25,
+        type=int,
+    )
+    parser.add_argument(
         "--gen-val",
         help="Whether to perform generated validation",
         default=False,
@@ -77,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--gen-val-epoch",
         help="How many epochs to perform on generated samples",
+        default=25,
         default=25,
         type=int,
     )
@@ -232,6 +244,7 @@ if __name__ == "__main__":
             total_epochs=total_epochs,
             conf=conf,
             model_conf=model_conf_genval,
+            TrainerClass=trainer_class,
             TrainerClass=trainer_class,
             resume=None,
             log_dir=log_dir,

@@ -227,6 +227,7 @@ class BaseMixin(nn.Module):
         for key, values in output["gt"]["input_batch"].payload.items():
             if key in self.processor.numeric_names:
                 gt_val = values.float()
+                gt_val = values.float()
                 pred_val = output["pred"][key].squeeze(-1)
 
                 mse_loss = self.mse_fn(
@@ -275,7 +276,7 @@ class BaseMixin(nn.Module):
             mask = output["gt"]["time_steps"] != -1
             #  print('gen loss', loss.size(), mask.size())
             loss = loss * mask
-            loss = loss.sum()   / (mask != 0).sum()
+            loss = loss.sum() / (mask != 0).sum()
         else:
             loss = torch.tensor(0)
 
@@ -394,12 +395,6 @@ class SeqGen(BaseMixin):
                 tgt_mask=mask,
             )
 
-        # out = self.out_proj(dec_out)
-        # if self.model_conf.use_deltas:
-        #     out_mixed = self.decoder_feature_mixer(out[:, :, :-1])
-        #     out = torch.cat([out_mixed, out[:, :, -1].unsqueeze(-1)], dim=-1)
-        # else:
-        #     out = self.decoder_feature_mixer(out)
         out = self.dec_out_proj(dec_out)
         out = out[:, :-1, :]
 
@@ -408,6 +403,22 @@ class SeqGen(BaseMixin):
         if self.model_conf.use_deltas:
             pred["delta"] = out[:, :, -1].squeeze(-1)
 
+        return pred
+
+    def generate_sequence(self, global_hidden, lens):
+        gens = self.decoder.generate(
+            global_hidden=global_hidden, length=lens, pred_layers=self.dec_out_proj
+        )
+        pred = self.embedding_predictor(gens)
+        pred.update(self.numeric_projector(gens))
+        if self.model_conf.use_deltas:
+            pred["delta"] = gens[:, :, -1].squeeze(-1)
+
+        return pred
+
+    def generate(self, padded_batch, lens):
+        all_hid, global_hidden, time_steps = self.encode(padded_batch)
+        return {"pred": self.generate_sequence(global_hidden, lens)}
         return pred
 
     def generate_sequence(self, global_hidden, lens):
@@ -628,8 +639,6 @@ class DecoderGRU(nn.Module):
                     )
                 hidden[layer] = hidden_l
 
-                hidden[layer] = hidden_l
-
             outs.append(hidden_l.unsqueeze(1))
 
         return torch.cat(outs, dim=1)
@@ -663,7 +672,6 @@ class DecoderGRU(nn.Module):
                     hidden_l = self.rnn_cell_list[layer](
                         hidden[layer - 1], global_hidden, hidden[layer]
                     )
-                hidden[layer] = hidden_l
 
                 hidden[layer] = hidden_l
 

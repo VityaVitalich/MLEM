@@ -284,7 +284,7 @@ class CKConv(torch.nn.Module):
         # Construct kernel
         x_shape = x.shape
 
-        #print(x_shape)
+        # print(x_shape)
         rel_pos = self.handle_rel_positions(x)
         conv_kernel = self.Kernel(rel_pos).view(-1, x_shape[1], *x_shape[2:])
 

@@ -7,6 +7,7 @@ from .ckconv.model import CKCONV_Classifier as ckconv
 
 CKCONV_Classifier = ckconv
 
+
 class BaseMixin(nn.Module):
     def __init__(self, model_conf, data_conf):
         super().__init__()
@@ -112,6 +113,7 @@ class GRUClassifier(BaseMixin):
                 [torch.zeros(x.size(0), 1, device=gt_delta.device), gt_delta], dim=1
             )
             x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
+
         encoded = self.encoder(x)
 
         all_hiddens, hn = self.gru(self.pre_gru_norm(self.after_enc_dropout(encoded)))

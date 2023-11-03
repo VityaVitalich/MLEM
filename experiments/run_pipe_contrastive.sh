@@ -1,9 +1,16 @@
 #!/bin/bash
 
-EPOCHS=70
-DEVICE="cuda:2"
-NAME='debug'
-N_RUNS=3
-DATASET="age"
+EPOCHS=1
+DEVICE="cuda:1"
+NAME='debug_con'
+DATA_C="../configs/data_configs/contrastive/age.py"
+MODEL_C="../configs/model_configs/contrastive/age.py"
+LOG_D="./age/logs/"
 
-python contrastive_pipeline.py --total-epochs=$EPOCHS --device=$DEVICE --run-name=$NAME --n-runs=$N_RUNS --dataset=$DATASET
+python pipeline_contrastive.py \
+    --run-name=$NAME \
+    --data-conf=$DATA_C \
+    --model-conf=$MODEL_C \
+    --device=$DEVICE \
+    --log-dir=$LOG_D \
+    --total-epochs=$EPOCHS \
