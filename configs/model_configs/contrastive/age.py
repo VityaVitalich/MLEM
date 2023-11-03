@@ -15,10 +15,13 @@ def model_configs():
     config.features_emb_dim = 32
     config.use_numeric_emb = False
     config.numeric_emb_size = 8
+    config.encoder_feature_mixer = False
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
+    ### TIME DELTA ###
+    config.use_deltas = True
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
     config.num_enc_layers = 2

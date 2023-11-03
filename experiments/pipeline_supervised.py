@@ -2,8 +2,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-
 import logging
+
+import sys 
+sys.path.append("../")
 
 import src.models.base_models
 from src.data_load.dataloader import create_data_loaders, create_test_loader
@@ -12,22 +14,22 @@ from src.trainers.trainer_supervised import (
     AucTrainerSupervised,
     SimpleTrainerSupervised,
 )
-from experiments.utils import parse_args, read_config
+from experiments.utils import get_parser, read_config
 from experiments.pipeline import Pipeline
 
 
 class SupervisedPipeline(Pipeline):
-    def _train_eval(self, run_name, conf, model_conf):
+    def _train_eval(self, run_name, data_conf, model_conf):
         """
         Returns metrics dict like {"train_acc": metric_value, "val_acc": metric_value}
         Make sure that metric_value is going to be MAXIMIZED (higher -> better)
         """
         ### Create loaders and train ###
-        train_loader, valid_loader = create_data_loaders(conf)
-        another_test_loader = create_test_loader(conf)
+        train_loader, valid_loader = create_data_loaders(data_conf)
+        another_test_loader = create_test_loader(data_conf)
 
         net = getattr(src.models.base_models, model_conf.model_name)(
-            model_conf=model_conf, data_conf=conf
+            model_conf=model_conf, data_conf=data_conf
         )
         opt = torch.optim.Adam(
             net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
@@ -41,7 +43,7 @@ class SupervisedPipeline(Pipeline):
             ckpt_dir=Path(self.log_dir).parent / "ckpt",
             ckpt_replace=True,
             ckpt_resume=self.resume,
-            ckpt_track_metric=conf.track_metric,
+            ckpt_track_metric=data_conf.track_metric,
             metrics_on_train=False,
             total_epochs=self.total_epochs,
             device=self.device,
@@ -54,14 +56,17 @@ class SupervisedPipeline(Pipeline):
         trainer.load_best_model()
         train_metric = trainer.test(train_loader)
         val_metric = trainer.test(valid_loader)
-        another_test_metric = trainer.test(another_test_loader)
+        test_metric = trainer.test(another_test_loader)
 
         return {
-            "train_metric": train_metric,
-            "val_metric": val_metric,
-            # "test_metric": test_metric,
-            "another_test_metric": another_test_metric,
+            "train_metric": train_metric[data_conf.track_metric],
+            "val_metric": val_metric[data_conf.track_metric],
+            "test_metric": test_metric[data_conf.track_metric],
         }
+
+    def _param_grid(self, trial, model_conf, data_conf):
+        model_conf.classifier_gru_hidden_dim = trial.suggest_int("classifier_gru_hidden_dim", 64, 800)
+        return trial, model_conf, data_conf
 
 
 def get_trainer_class(data_conf) -> type:
@@ -94,15 +99,11 @@ def get_trainer_class(data_conf) -> type:
 
 
 if __name__ == "__main__":
-    args = parse_args()
-
+    args = get_parser().parse_args()
     ### TRAINING SETUP ###
     data_conf = read_config(args.data_conf, "data_configs")
     model_conf = read_config(args.model_conf, "model_configs")
-
     TrainerClass = get_trainer_class(data_conf)
-    log_dir = args.log_dir
-
     pipeline = SupervisedPipeline(
         run_name=args.run_name,
         device=args.device,
@@ -111,7 +112,19 @@ if __name__ == "__main__":
         model_conf=model_conf,
         TrainerClass=TrainerClass,
         resume=args.resume,
-        log_dir=log_dir,
-        console_log=args.console_log,
-        file_log=args.file_log,
+        log_dir=args.log_dir,
+        console_lvl=args.console_lvl,
+        file_lvl=args.file_lvl,
     )
+    request = {
+        "classifier_gru_hidden_dim": 800
+    }
+    # metrics = pipeline.run_experiment()
+    # metrics = pipeline.do_n_runs()
+    metrics = pipeline.optuna_setup(
+        "val_metric",
+        request_list=[request],
+        n_startup_trials=2,
+        n_trials=3,
+    )
+    print(metrics)

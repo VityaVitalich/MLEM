@@ -116,7 +116,7 @@ class SimpleTrainerContrastive(BaseTrainer):
         self,
         train_supervised_loader: DataLoader,
         other_loaders: list,
-        cv=False,
+        # cv=False,
     ) -> None:
         """
         Logs test metrics with self.compute_metrics
@@ -127,8 +127,7 @@ class SimpleTrainerContrastive(BaseTrainer):
         other_embeddings, other_gts = [], []
         for loader in other_loaders:
             other_embedding, other_gt = (
-                self.predict(loader) if len(loader) > 0 else [],
-                [],
+                self.predict(loader) if len(loader) > 0 else (None, None)
             )
             other_embeddings.append(other_embedding), other_gts.append(other_gt)
 
@@ -137,10 +136,10 @@ class SimpleTrainerContrastive(BaseTrainer):
             train_gts=train_gts,
             other_embeddings=other_embeddings,
             other_gts=other_gts,
-            cv=cv,
+            # cv=cv,
         )
         logger.info("Train metrics: %s", str(train_metric))
-        logger.info("Other metrics:", str(other_metrics))
+        logger.info("Other metrics: %s", str(other_metrics))
         logger.info("Test finished")
 
         return train_metric, other_metrics
@@ -151,44 +150,53 @@ class SimpleTrainerContrastive(BaseTrainer):
         train_gts,
         other_embeddings,
         other_gts,
-        cv=False,
+        # cv=False,
     ):
-        skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
+        # cv = False
+        # skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
         train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
         train_embeddings = torch.cat(train_embeddings).cpu().numpy()
         other_labels, other_embeddings_new = [], []
         for other_gt in other_gts:
-            other_labels.append(torch.cat([gt[1].cpu() for gt in other_gt]).numpy())
-        for other_embedding in other_embeddings:
-            other_embeddings_new.append(torch.cat(other_embedding).cpu().numpy())
-
-        split_ids = (
-            skf.split(train_embeddings, train_labels)
-            if cv
-            else [(range(train_embeddings.shape[0]), None)]
-        )
-        train_metric = []
-        other_metrics = [[] * len(other_embeddings_new)]
-        for i, (train_index, test_index) in enumerate(split_ids):
-            train_emb_subset = train_embeddings[train_index]
-            train_labels_subset = train_labels[train_index]
-
-            model = self.get_model()
-            preprocessor = MaxAbsScaler()
-
-            train_emb_subset = preprocessor.fit_transform(train_emb_subset)
-            model.fit(train_emb_subset, train_labels_subset)
-
-            train_metric.append(
-                self.get_metric(model, train_emb_subset, train_labels_subset)
+            other_labels.append(
+                torch.cat([gt[1].cpu() for gt in other_gt]).numpy()
+                if other_gt is not None else None
             )
-            for i, (other_embedding, other_label) in enumerate(
-                zip(other_embeddings_new, other_labels)
-            ):
+        for other_embedding in other_embeddings:
+            other_embeddings_new.append(
+                torch.cat(other_embedding).cpu().numpy()
+                if other_embedding is not None else None
+            )
+
+        # split_ids = (
+        #     skf.split(train_embeddings, train_labels)
+        #     if cv
+        #     else [(range(train_embeddings.shape[0]), None)]
+        # )
+        # train_metric = []
+        other_metrics = [] #[[] * len(other_embeddings_new)]
+        # for i, (train_index, test_index) in enumerate(split_ids):
+        train_emb_subset = train_embeddings #[train_index]
+        train_labels_subset = train_labels #[train_index]
+
+        model = self.get_model()
+        preprocessor = MaxAbsScaler()
+
+        train_emb_subset = preprocessor.fit_transform(train_emb_subset)
+        model.fit(train_emb_subset, train_labels_subset)
+
+        train_metric = self.get_metric(model, train_emb_subset, train_labels_subset)
+
+        for i, (other_embedding, other_label) in enumerate(
+            zip(other_embeddings_new, other_labels)
+        ):
+            if other_embedding is not None:
                 other_embedding_proccesed = preprocessor.transform(other_embedding)
-                other_metrics[i].append(
+                other_metrics.append(
                     self.get_metric(model, other_embedding_proccesed, other_label)
                 )
+            else:
+                other_metrics.append(0)
         return train_metric, other_metrics
 
 

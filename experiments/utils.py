@@ -53,19 +53,19 @@ def read_config(conf_path: Union[Path, str], func_name: str) -> ConfigDict:
     return namespace[func_name]()  # type: ignore
 
 
-def parse_args():
+def get_parser():
     parser = ArgumentParser()
     parser.add_argument("--run-name", help="run name for Trainer", default=None)
     parser.add_argument("--data-conf", help="path to data config", required=True)
     parser.add_argument("--model-conf", help="path to model config", required=True)
     parser.add_argument(
-        "--console-log",
+        "--console-lvl",
         help="console log level",
         choices=["debug", "info", "warning", "error", "critical"],
         default="warning",
     )
     parser.add_argument(
-        "--file-log",
+        "--file-lvl",
         help="file log level",
         choices=["debug", "info", "warning", "error", "critical"],
         default="info",
@@ -93,42 +93,17 @@ def parse_args():
         default=3,
         type=int,
     )
-    args = parser.parse_args()
-    return args
+    return parser
 
 
 def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
     import optuna
 
-    study = optuna.load_study(study_name=name, storage="sqlite:///example.db")
-
-    # Retrieve data from the study and construct a pandas DataFrame
-    data = []
-
-    for trial in study.trials:
-        trial_data = {
-            "number": trial.number,
-            "params": trial.params,
-            "user_attrs": trial.user_attrs,
-            "value": trial.value,
-            "datetime_start": trial.datetime_start,
-            "datetime_complete": trial.datetime_complete,
-        }
-        data.append(trial_data)
-
-    df = pd.DataFrame(data)
-    df["time"] = df["datetime_complete"] - df["datetime_start"]
-    for k in df["user_attrs"].iloc[0]:
-        df[k] = [i.get(k, "NaT") for i in df["user_attrs"]]
-        params = pd.DataFrame([r for r in df["params"]], index=df.index)
-    df = pd.concat([df, params], axis=1)
+    study = optuna.load_study(study_name=name, storage=f"sqlite:///{name}/study.db")
+    df = study.trials_dataframe()
     df = df.drop(
         columns=[
-            "params",
-            "datetime_start",
-            "datetime_complete",
             "number",
-            "user_attrs",
         ]
     )
 
@@ -136,4 +111,4 @@ def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    args = get_parser().parse_args()

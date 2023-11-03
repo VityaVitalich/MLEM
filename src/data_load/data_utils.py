@@ -74,7 +74,7 @@ def prepare_data(conf, supervised, pinch_test=False):
     train_path = conf.train_path
 
     data = read_pyarrow_file(train_path)
-    data = tqdm(data)
+    data = data
 
     data = prepare_embeddings(data, conf)
     data = shuffle_client_list_reproducible(conf, data)
@@ -142,7 +142,7 @@ def split_dataset(data, conf, supervised, pinch_test=False):
 
 def prepare_test_data(conf):
     data = read_pyarrow_file(conf.test_path)
-    data = tqdm(data)
+    data = data
 
     data = prepare_embeddings(data, conf)
     #   data = shuffle_client_list_reproducible(conf, data)
