@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "GRUClassifier"
+    config.model_name = "CKCONV_Classifier"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -95,4 +95,16 @@ def model_configs():
     config.cv_splits = 5
 
     config.comments = ""
+
+    ### CKCONV ###
+    ckconv = config.ckconv = ml_collections.ConfigDict()
+    ckconv.hidden_channels = 32
+    ckconv.num_blocks = 3
+    ckconv.kernel_hidden_channels = 32
+    ckconv.kernel_activation = "Sine"
+    ckconv.kernel_norm = ""
+    ckconv.omega = 30
+    ckconv.dropout = 0.0
+    ckconv.weight_dropout = 0.0
+    ckconv.use_real_time = True
     return config

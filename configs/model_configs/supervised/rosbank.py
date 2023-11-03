@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "GRUClassifier"
+    config.model_name = "CKCONV_Classifier"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -15,7 +15,7 @@ def model_configs():
     config.features_emb_dim = 12
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
-    config.encoder_feature_mixer = True
+    config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 512
@@ -91,7 +91,7 @@ def model_configs():
     config.classification_weight = 1
 
     ### DEVICE + OPTIMIZER ###
-    config.device = "cpu"
+    config.device = "cuda"
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
@@ -101,12 +101,13 @@ def model_configs():
 
     ### CKCONV ###
     ckconv = config.ckconv = ml_collections.ConfigDict()
-    ckconv.hidden_channels = 32
+    ckconv.hidden_channels = 64
     ckconv.num_blocks = 3
-    ckconv.kernel_hidden_channels = 32
+    ckconv.kernel_hidden_channels = 64
     ckconv.kernel_activation = "Sine"
     ckconv.kernel_norm = ""
     ckconv.omega = 30
-    ckconv.dropout = 0.0
+    ckconv.dropout = 0.1
     ckconv.weight_dropout = 0.0
+    ckconv.use_real_time = True
     return config

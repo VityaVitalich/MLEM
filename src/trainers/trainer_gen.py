@@ -301,14 +301,13 @@ class GenTrainer(BaseTrainer):
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
+            pred_delta = out["pred"]["delta"].cumsum(1)
+            df_dic["event_time"].extend(pred_delta.tolist())
             if use_generated_time:
-                pred_delta = out["pred"]["delta"].cumsum(1)
-                df_dic["event_time"].extend(pred_delta.tolist())
                 df_dic["trx_count"].extend((pred_delta != -1).sum(dim=1).tolist())
             else:
-                df_dic["event_time"].extend(out["gt"]["time_steps"][:, 1:].tolist())
                 df_dic["trx_count"].extend(
-                    (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
+                    (out["gt"]["time_steps"] != -1).sum(dim=1).tolist()
                 )
             # num_numeric = len(self._data_conf.features.numeric_values.keys())
             # numeric_pred = pred[:, :, -num_numeric:]

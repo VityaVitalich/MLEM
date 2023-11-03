@@ -3,7 +3,9 @@ import torch.nn as nn
 from . import preprocessors as prp
 from ..trainers.losses import get_loss
 from .model_utils import L2Normalization, FeatureMixer
+from .ckconv.model import CKCONV_Classifier as ckconv
 
+CKCONV_Classifier = ckconv
 
 class BaseMixin(nn.Module):
     def __init__(self, model_conf, data_conf):

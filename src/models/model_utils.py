@@ -7,6 +7,12 @@ import torch.nn.functional as F
 from ..data_load.dataloader import PaddedBatch
 
 
+def set_grad(layers, flag):
+    for layer in layers:
+        for parameter in layer.parameters():
+            parameter.requires_grad_(flag)
+
+
 class L2Normalization(nn.Module):
     def __init__(self):
         super(L2Normalization, self).__init__()

@@ -5,6 +5,7 @@ from typing import Dict
 
 import torch
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
 
 from ..data_load import split_strategy
 from .data_utils import prepare_data, prepare_test_data
@@ -114,14 +115,23 @@ def padded_collate(batch):
             new_x_[k].append(v)
 
     lengths = torch.LongTensor([len(e) for e in next(iter(new_x_.values()))])
-
+    #max_len = 1000
     new_x = {}
     for k, v in new_x_.items():
         if k == "event_time":
+
+            # pad first seq to desired length
+          #  v[0] = torch.nn.ConstantPad1d((0, max_len - v[0].shape[0]), -1.0)(v[0])
+
+            # pad all seqs to desired length
+            #seqs = pad_sequence(seqs)
+
             new_x[k] = torch.nn.utils.rnn.pad_sequence(
                 v, batch_first=True, padding_value=-1.0
             )
         else:
+        #    v[0] = torch.nn.ConstantPad1d((0, max_len - v[0].shape[0]), 0.0)(v[0])
+
             new_x[k] = torch.nn.utils.rnn.pad_sequence(
                 v, batch_first=True, padding_value=0.0
             )

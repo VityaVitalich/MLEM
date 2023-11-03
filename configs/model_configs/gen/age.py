@@ -16,8 +16,8 @@ def model_configs():
     config.features_emb_dim = 12
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
-    config.encoder_feature_mixer = True
-    config.decoder_feature_mixer = True
+    config.encoder_feature_mixer = False
+    config.decoder_feature_mixer = False
 
     ### ENCODER ###
     config.encoder = "GRU"
@@ -42,8 +42,8 @@ def model_configs():
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
-    config.generative_embeddings_loss = False
-    config.gen_emb_loss_type = "l2"
+    config.generative_embeddings_loss = True
+    config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.05
@@ -59,7 +59,7 @@ def model_configs():
     config.mse_weight = 1
     config.CE_weight = 1
     config.l1_weight = 0.0001
-    config.gen_emb_weight = 1
+    config.gen_emb_weight = 10
     config.D_weight = 20
 
     ### DEVICE + OPTIMIZER ###
@@ -71,5 +71,5 @@ def model_configs():
 
     config.use_discriminator = False
     config.comments = ""
-    config.gen_len = 200
+    config.gen_len = 500
     return config

@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
+import copy
+import logging
 from .pipeline import Pipeline
 from .utils import parse_args
 
@@ -23,6 +25,9 @@ from src.trainers.trainer_supervised import (
     AccuracyTrainerSupervised,
     AucTrainerSupervised,
 )
+from src.trainers.randomness import seed_everything
+
+logger = logging.getLogger("event_seq")
 
 
 class SupervisedPipeline(Pipeline):
@@ -63,6 +68,83 @@ class SupervisedPipeline(Pipeline):
         trainer.load_best_model()
         train_metric = trainer.test(train_loader)
         val_metric = trainer.test(valid_loader)
+        another_test_metric = trainer.test(another_test_loader)
+
+        return {
+            "train_metric": train_metric,
+            "val_metric": val_metric,
+            # "test_metric": test_metric,
+            "another_test_metric": another_test_metric,
+        }
+
+
+class GenSupervisedPipeline(Pipeline):
+    def run_experiment(
+        self,
+        run_name=None,
+        conf=None,
+        model_conf=None,
+        seed=0,
+        valid_supervised_loader=None,
+    ):
+        run_name = f"{run_name or self.run_name}/seed_{seed}"
+        conf = conf or copy.deepcopy(self.conf)
+        model_conf = model_conf or copy.deepcopy(self.model_conf)
+
+        conf.client_list_shuffle_seed = seed
+        logger, ch, fh = self.setup_logging(
+            run_name, self.log_dir, self.console_log, self.file_log
+        )
+        ### Fix randomness ###
+        seed_everything(
+            conf.client_list_shuffle_seed,
+            avoid_benchmark_noise=True,
+            only_deterministic_algorithms=False,
+        )
+        metrics = self._train_eval(run_name, conf, model_conf, valid_supervised_loader)
+
+        logger.removeHandler(fh)
+        logger.removeHandler(ch)
+        fh.close()
+        return metrics
+
+    def _train_eval(self, run_name, conf, model_conf, valid_supervised_loader):
+        """
+        Returns metrics dict like {"train_acc": metric_value, "val_acc": metric_value}
+        Make sure that metric_value is going to be MAXIMIZED (higher -> better)
+        """
+        ### Create loaders and train ###
+        train_loader, _ = create_data_loaders(conf)
+        another_test_loader = create_test_loader(conf)
+
+        net = getattr(src.models.base_models, model_conf.model_name)(
+            model_conf=model_conf, data_conf=conf
+        )
+        opt = torch.optim.Adam(
+            net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
+        )
+        trainer = self.TrainerClass(
+            model=net,
+            optimizer=opt,
+            train_loader=train_loader,
+            val_loader=valid_supervised_loader,
+            run_name=run_name,
+            ckpt_dir=Path(self.log_dir).parent / "ckpt",
+            ckpt_replace=True,
+            ckpt_resume=self.resume,
+            ckpt_track_metric=conf.track_metric,
+            metrics_on_train=False,
+            total_epochs=self.total_epochs,
+            device=self.device,
+            model_conf=model_conf,
+        )
+
+        ### RUN TRAINING ###
+        trainer.run()
+
+        trainer.load_best_model()
+        train_metric = trainer.test(train_loader)
+        val_metric = trainer.test(valid_supervised_loader)
         another_test_metric = trainer.test(another_test_loader)
 
         return {

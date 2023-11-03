@@ -1,8 +1,8 @@
 #!/bin/bash
 
-EPOCHS=10
+EPOCHS=30
 DEVICE="cuda"
-NAME='test'
+NAME='10_cosine_mean'
 RECON=true
 RECON_EPOCHS=15
 GEN=true

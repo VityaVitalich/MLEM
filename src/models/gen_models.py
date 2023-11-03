@@ -5,7 +5,7 @@ from ..trainers.losses import get_loss
 import numpy as np
 import torch.nn.functional as F
 from torch.autograd import Variable
-from .model_utils import out_to_padded_batch, FeatureMixer, L2Normalization
+from .model_utils import out_to_padded_batch, FeatureMixer, L2Normalization, set_grad
 from functools import partial
 
 
@@ -96,6 +96,7 @@ class BaseMixin(nn.Module):
                 batch_first=True,
                 num_layers=self.model_conf.encoder_num_layers,
             )
+            self.encoder_proj = nn.Identity()
         elif self.model_conf.encoder == "LSTM":
             self.encoder = nn.LSTM(
                 self.input_dim,
@@ -103,6 +104,7 @@ class BaseMixin(nn.Module):
                 batch_first=True,
                 num_layers=self.model_conf.encoder_num_layers,
             )
+            self.encoder_proj = nn.Identity()
         elif self.model_conf.encoder == "TR":
             self.encoder_proj = nn.Linear(
                 self.input_dim, self.model_conf.encoder_hidden
@@ -174,6 +176,8 @@ class BaseMixin(nn.Module):
         self.ce_fn = torch.nn.CrossEntropyLoss(
             reduction="mean", ignore_index=0, label_smoothing=0.15
         )
+
+        self.register_encoder_layers()
 
     def loss(self, output, ground_truth):
         """
@@ -271,7 +275,7 @@ class BaseMixin(nn.Module):
             mask = output["gt"]["time_steps"] != -1
             #  print('gen loss', loss.size(), mask.size())
             loss = loss * mask
-            loss = loss.sum()  # / (mask != 0).sum()
+            loss = loss.sum()   / (mask != 0).sum()
         else:
             loss = torch.tensor(0)
 
@@ -297,6 +301,18 @@ class BaseMixin(nn.Module):
 
         return out
 
+    def register_encoder_layers(self):
+        self.encoder_layers = [
+            self.processor,
+            self.pre_encoder_norm,
+            self.encoder_norm,
+            self.post_encoder_norm,
+            self.encoder_feature_mixer,
+            self.preENC_TR,
+            self.encoder_proj,
+            self.encoder,
+        ]
+
 
 class SeqGen(BaseMixin):
     def __init__(self, model_conf, data_conf):
@@ -317,10 +333,11 @@ class SeqGen(BaseMixin):
         if self.model_conf.generative_embeddings_loss:
             res_dict["all_latents"] = all_hidden
             gen_batch = out_to_padded_batch(res_dict, self.data_conf)
-            #  with torch.no_grad():
+            set_grad(self.encoder_layers, False)
             gen_all_hidden, gen_global_hidden, time_steps = self.encode(
                 gen_batch.to(self.model_conf.device)
             )
+            set_grad(self.encoder_layers, True)
             res_dict["gen_all_latents"] = gen_all_hidden
             res_dict["gen_latent"] = gen_global_hidden
 

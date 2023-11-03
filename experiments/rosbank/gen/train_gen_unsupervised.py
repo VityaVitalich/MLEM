@@ -18,7 +18,7 @@ import src.models.gen_models
 import src.models.base_models
 from copy import deepcopy
 
-from experiments.pipeline_supervised import SupervisedPipeline, get_trainer_class
+from experiments.pipeline_supervised import GenSupervisedPipeline, get_trainer_class
 from configs.model_configs.gen.rosbank_genval import (
     model_configs as model_configs_genval,
 )
@@ -123,9 +123,9 @@ if __name__ == "__main__":
     ### Create loaders and train ###
     train_loader, valid_loader = create_data_loaders(conf, supervised=False)
     test_loader = create_test_loader(conf)
-    conf.valid_size = 0
+    conf.valid_size = 0.1
     conf.train.split_strategy = {"split_strategy": "NoSplit"}
-    train_supervised_loader, _ = create_data_loaders(conf)
+    train_supervised_loader, valid_supervised_loader = create_data_loaders(conf)
 
     model = getattr(src.models.gen_models, model_conf.model_name)
     net = model(model_conf=model_conf, data_conf=conf)
@@ -188,14 +188,14 @@ if __name__ == "__main__":
         reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
         conf.train_path = reconstructed_data_path
         print(conf.train_path)
-        conf.valid_size = 0.1
+        conf.valid_size = 0.0
 
-        run_name = run_name
+        run_name = run_name + "_recon"
         total_epochs = args.recon_val_epoch
         model_conf_genval = model_configs_genval()
         log_dir = "./logs/reconstructions/"
         recon_trainer_class = get_trainer_class("rosbank")
-        recon_pipeline = SupervisedPipeline(
+        recon_pipeline = GenSupervisedPipeline(
             run_name=run_name,
             device=args.device,
             total_epochs=total_epochs,
@@ -205,23 +205,28 @@ if __name__ == "__main__":
             resume=None,
             log_dir=log_dir,
         )
+
         recon_test_metric = recon_pipeline.run_experiment(
-            run_name=run_name, conf=conf, model_conf=model_conf_genval, seed=0
+            run_name=run_name,
+            conf=conf,
+            model_conf=model_conf_genval,
+            seed=0,
+            valid_supervised_loader=valid_supervised_loader,
         )
         logger.info(f"Reconstructed test metric: {recon_test_metric};")
     if args.gen_val:
         generated_data_path = trainer.generate_data(train_supervised_loader)
         conf.train_path = generated_data_path
         print(conf.train_path)
-        conf.valid_size = 0.1
+        conf.valid_size = 0.0
 
-        run_name = run_name
+        run_name = run_name + "_gen"
         total_epochs = args.gen_val_epoch
         model_conf_genval = model_configs_genval()
         log_dir = "./logs/generations/"
         trainer_class = deepcopy(get_trainer_class("rosbank"))
         # fix where the best model saves
-        pipeline = SupervisedPipeline(
+        pipeline = GenSupervisedPipeline(
             run_name=run_name,
             device=args.device,
             total_epochs=total_epochs,
@@ -232,6 +237,10 @@ if __name__ == "__main__":
             log_dir=log_dir,
         )
         generated_test_metric = pipeline.run_experiment(
-            run_name=run_name, conf=conf, model_conf=model_conf_genval, seed=0
+            run_name=run_name,
+            conf=conf,
+            model_conf=model_conf_genval,
+            seed=0,
+            valid_supervised_loader=valid_supervised_loader,
         )
         logger.info(f"Generated test metric: {generated_test_metric};")

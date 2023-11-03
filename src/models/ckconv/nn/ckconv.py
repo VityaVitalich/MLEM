@@ -284,6 +284,7 @@ class CKConv(torch.nn.Module):
         # Construct kernel
         x_shape = x.shape
 
+        #print(x_shape)
         rel_pos = self.handle_rel_positions(x)
         conv_kernel = self.Kernel(rel_pos).view(-1, x_shape[1], *x_shape[2:])
 
@@ -343,6 +344,7 @@ class CKConv(torch.nn.Module):
                 torch.linspace(-1.0, max_relative_pos, x.shape[-1])
                 .unsqueeze(0)
                 .unsqueeze(0)
+                .to(self.bias.device)
             )  # -> With form: [batch_size=1, in_channels=1, x_dimension]
 
             # calculate and save the sr ratio for later
