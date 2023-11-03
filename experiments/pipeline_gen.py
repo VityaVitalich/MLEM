@@ -3,32 +3,59 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from pipeline import Pipeline
 
+import sys 
+sys.path.append("../")
 
 import src.models.base_models
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_gen import GenTrainer, GANGenTrainer
+from src.trainers.trainer_gen import (
+    GenTrainer,
+    GANGenTrainer,
+)
 import src.models.gen_models
-
-from experiments.utils import parse_args, read_config
+from experiments.utils import get_parser, read_config
+from experiments.pipeline import Pipeline
 from experiments.pipeline_supervised import (
     SupervisedPipeline,
     get_trainer_class as get_supervised_trainer_class,
 )
 
-# from configs.model_configs.gen.age_genval import (
-#     model_configs as model_configs_genval,
-# )
-# from configs.model_configs.gen.age_D import (
-#     model_configs as model_configs_D,
-# )
-# Dont spam new condigs!!!!!! TODO
-# model_conf.D = model_configs_D
-# model_conf.genval = model_configs_genval
-
 
 class GenerativePipeline(Pipeline):
+    def __init__(self,
+            run_name,
+            device,
+            total_epochs,
+            data_conf,
+            model_conf,
+            TrainerClass,
+            resume,
+            log_dir,
+            gen_val,
+            gen_val_epoch,
+            recon_val,
+            recon_val_epoch,
+            console_lvl="warning",
+            file_lvl="info"
+        ):
+        super().__init__(
+            run_name,
+            device,
+            total_epochs,
+            data_conf,
+            model_conf,
+            TrainerClass,
+            resume,
+            log_dir,
+            console_lvl,
+            file_lvl
+        )
+        self.gen_val = gen_val
+        self.gen_val_epoch = gen_val_epoch
+        self.recon_val = recon_val
+        self.recon_val_epoch = recon_val_epoch
+
     def _train_eval(self, run_name, data_conf, model_conf):
         """
         Returns metrics dict like {"train_acc": metric_value, "val_acc": metric_value}
@@ -36,16 +63,16 @@ class GenerativePipeline(Pipeline):
         """
         ### Create loaders and train ###
         train_loader, valid_loader, _ = create_data_loaders(
-             data_conf, supervised=False, pinch_test=True
+            data_conf, supervised=False, pinch_test=True
         )
         another_test_loader = create_test_loader(data_conf)
-        # conf.valid_size = 0
+
         data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
         data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
         (
             train_supervised_loader,
             valid_supervised_loader,
-            test_loader,
+            test_supervised_loader,
         ) = create_data_loaders(data_conf, pinch_test=True)
 
         net = getattr(src.models.gen_models, model_conf.model_name)(
@@ -57,7 +84,7 @@ class GenerativePipeline(Pipeline):
         if model_conf.use_discriminator:
             model_conf_D = model_conf.D
             D = getattr(src.models.base_models, model_conf_D.model_name)(
-                model_conf=model_conf, data_conf=data_conf
+                model_conf=model_conf_D, data_conf=data_conf 
             )
             D_opt = torch.optim.Adam(
                 D.parameters(), model_conf_D.lr, weight_decay=model_conf_D.weight_decay
@@ -104,20 +131,28 @@ class GenerativePipeline(Pipeline):
         trainer.run()
 
         # trainer.load_best_model()
-        trainer.test(test_loader, train_supervised_loader)  # TODO return metrics
+        train_metric, (val_metric, test_metric, another_test_metric) = trainer.test(
+            train_supervised_loader,
+            (valid_supervised_loader, test_supervised_loader, another_test_loader),
+        )
+        metrics = {
+            "train_metric": train_metric,
+            "val_metric": val_metric,
+            "test_metric": test_metric,
+            "another_test_metric": another_test_metric,
+        }
 
-        if self.gen_val:  # TODO прокинуть в init
-            generated_data_path = trainer.generate_data(train_supervised_loader)
-            data_conf.train_supervised_path = generated_data_path
+        if self.recon_val:
+            reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
+            data_conf.train_path = reconstructed_data_path
             data_conf.valid_size = 0.1
 
-            run_name = run_name  # TODO check that there is no logging colision. Maybe go to subdir. E.g. run_name=run_name/"sup"
-            total_epochs = self.gen_val_epoch  # TODO прокинуть в init
+            total_epochs = self.recon_val_epoch
             model_conf_genval = model_conf.genval
-            log_dir = "./logs/generations/"
+            log_dir = self.log_dir
             trainer_class = self.TrainerClass
             super_pipe = SupervisedPipeline(
-                run_name=run_name,
+                run_name=f"{run_name}/reconstruction",
                 device=self.device,
                 total_epochs=total_epochs,
                 data_conf=data_conf,
@@ -125,16 +160,46 @@ class GenerativePipeline(Pipeline):
                 TrainerClass=trainer_class,
                 resume=None,
                 log_dir=log_dir,
-                file_log=self.file_log,
+                console_lvl=self.console_lvl,
+                file_lvl=self.file_lvl,
             )
-            summary_df = super_pipe.do_n_runs(n_runs=3)
-            # logger.info(f"Generated test metric: {generated_test_metric};") TODO return metric
+            super_df = super_pipe.do_n_runs(n_runs=3, max_workers=3) # if you short in gpu, change max_workers=1
+            for k in super_df:
+                metrics[f"reconstruction_mean_{k}"] = super_df.loc["mean", k]
+        if self.gen_val:
+            generated_data_path = trainer.generate_data(train_supervised_loader)
+            data_conf.train_path = generated_data_path
+            data_conf.valid_size = 0.1
+
+            total_epochs = self.gen_val_epoch
+            model_conf_genval = model_conf.genval
+            log_dir = self.log_dir 
+            trainer_class = self.TrainerClass
+            super_pipe = SupervisedPipeline(
+                run_name=f"{run_name}/generation",
+                device=self.device,
+                total_epochs=total_epochs,
+                data_conf=data_conf,
+                model_conf=model_conf_genval,
+                TrainerClass=trainer_class,
+                resume=None,
+                log_dir=log_dir,
+                console_lvl=self.console_lvl,
+                file_lvl=self.file_lvl,
+            )
+            super_df = super_pipe.do_n_runs(n_runs=3, max_workers=3) # if you short in gpu, change max_workers=1
+            for k in super_df:
+                metrics[f"generation_mean_{k}"] = super_df.loc["mean", k]
+        return metrics
+
+    def _param_grid(self, trial, model_conf, data_conf):
+        model_conf.classifier_gru_hidden_dim = trial.suggest_int("classifier_gru_hidden_dim", 16, 64)
+        return trial, model_conf, data_conf
 
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    parser = ArgumentParser()
+    parser = get_parser()
     parser.add_argument(
         "--gen-val",
         help="Whether to perform generated validation",
@@ -146,16 +211,23 @@ if __name__ == "__main__":
         default=15,
         type=int,
     )
-    new_args = parser.parse_args()
-    args.gen_val = new_args.gen_val
-    args.gen_val_epoch = new_args.gen_val_epoch
-
+    parser.add_argument(
+        "--recon-val",
+        help="Whether to perform generated validation",
+        default=False,
+    )
+    parser.add_argument(
+        "--recon-val-epoch",
+        help="How many epochs to perform on generated samples",
+        default=25,
+        type=int,
+    )
+    args = parser.parse_args()
+    
     ## TRAINING SETUP ###
     data_conf = read_config(args.data_conf, "data_configs")
     model_conf = read_config(args.model_conf, "model_configs")
     TrainerClass = get_supervised_trainer_class(data_conf)
-    log_dir = args.log_dir
-
     pipeline = GenerativePipeline(
         run_name=args.run_name,
         device=args.device,
@@ -164,7 +236,23 @@ if __name__ == "__main__":
         model_conf=model_conf,
         TrainerClass=TrainerClass,
         resume=args.resume,
-        log_dir=log_dir,
-        console_log=args.console_log,
-        file_log=args.file_log,
+        log_dir=args.log_dir,
+        gen_val=args.gen_val,
+        gen_val_epoch=args.gen_val_epoch,
+        recon_val=args.recon_val,
+        recon_val_epoch=args.recon_val_epoch,
+        console_lvl=args.console_lvl,
+        file_lvl=args.file_lvl,
     )
+    request = {
+        "classifier_gru_hidden_dim": 16
+    }
+    metrics = pipeline.run_experiment()
+    # metrics = pipeline.do_n_runs()
+    # metrics = pipeline.optuna_setup(
+    #     "val_metric",
+    #     request_list=[request],
+    #     n_startup_trials=2,
+    #     n_trials=3,
+    # )
+    print(metrics)

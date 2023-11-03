@@ -4,6 +4,9 @@ import pandas as pd
 import torch
 import logging
 
+import sys 
+sys.path.append("../")
+
 import src.models.base_models
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_contrastive import (
@@ -11,7 +14,7 @@ from src.trainers.trainer_contrastive import (
     AucTrainerContrastive,
     SimpleTrainerContrastive,
 )
-from experiments.utils import parse_args, read_config
+from experiments.utils import get_parser, read_config
 from experiments.pipeline import Pipeline
 
 
@@ -41,7 +44,7 @@ class ContrastivePipeline(Pipeline):
         opt = torch.optim.Adam(
             net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
         )
-        trainer = TrainerClass(
+        trainer = self.TrainerClass(
             model=net,
             optimizer=opt,
             train_loader=train_loader,
@@ -63,9 +66,7 @@ class ContrastivePipeline(Pipeline):
         train_metric, (val_metric, test_metric, another_test_metric) = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, another_test_loader),
-            cv=False,
         )
-        assert len(train_metric) == 1
         return {
             "train_metric": train_metric,
             "val_metric": val_metric,
@@ -73,7 +74,7 @@ class ContrastivePipeline(Pipeline):
             "another_test_metric": another_test_metric,
         }
 
-    def _param_grid(self, trial, model_conf, conf):
+    def _param_grid(self, trial, model_conf, data_conf):
         for param in (
             ("batch_first_encoder", [True, False]),
             ("features_emb_dim", [4, 8, 16, 32]),
@@ -90,7 +91,7 @@ class ContrastivePipeline(Pipeline):
         if model_conf["use_numeric_emb"]:
             model_conf["numeric_emb_size"] = model_conf["features_emb_dim"]
             model_conf["num_heads_enc"] = trial.suggest_categorical(
-                "num_heads_enc", [1, 2, 4]
+                "num_heads_enc", [1] # TODO complicated not to fail
             )
         else:
             model_conf["num_heads_enc"] = 1
@@ -132,7 +133,7 @@ class ContrastivePipeline(Pipeline):
             model_conf.loss.lam = trial.suggest_categorical(
                 "loss.lam", [0.003, 0.01, 0.03, 0.1, 0.3]
             )
-        return trial, model_conf, conf
+        return trial, model_conf, data_conf
 
 
 def get_trainer_class(data_conf) -> type:
@@ -165,14 +166,11 @@ def get_trainer_class(data_conf) -> type:
 
 
 if __name__ == "__main__":
-    args = parse_args()
-
+    args = get_parser().parse_args()
     ### TRAINING SETUP ###
     data_conf = read_config(args.data_conf, "data_configs")
     model_conf = read_config(args.model_conf, "model_configs")
     TrainerClass = get_trainer_class(data_conf)
-    log_dir = args.log_dir
-
     pipeline = ContrastivePipeline(
         run_name=args.run_name,
         device=args.device,
@@ -181,11 +179,10 @@ if __name__ == "__main__":
         model_conf=model_conf,
         TrainerClass=TrainerClass,
         resume=args.resume,
-        log_dir=log_dir,
-        console_log=args.console_log,
-        file_log=args.file_log,
+        log_dir=args.log_dir,
+        console_lvl=args.console_lvl,
+        file_lvl=args.file_lvl,
     )
-
     request = {
         "features_emb_dim": 32,
         "classifier_gru_hidden_dim": 128,
@@ -194,14 +191,16 @@ if __name__ == "__main__":
         "use_numeric_emb": True,
         "loss.projector": "Linear",
         "loss.project_dim": 256,
-        "num_heads_enc": 4,
+        "num_heads_enc": 1,
         "loss.loss_fn": "ContrastiveLoss",
         "encoder_norm": "LayerNorm",
     }
-    pipeline.optuna_setup(
+    # metrics = pipeline.run_experiment()
+    # metrics = pipeline.do_n_runs()
+    metrics = pipeline.optuna_setup(
         "val_metric",
         request_list=[request],
-        n_startup_trials=0,
-        n_trials=1,
-        n_runs=3,
+        n_startup_trials=2,
+        n_trials=3,
     )
+    print(metrics)
