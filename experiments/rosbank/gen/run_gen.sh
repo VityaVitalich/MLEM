@@ -2,7 +2,7 @@
 
 EPOCHS=60
 DEVICE="cuda"
-NAME='1_l2_mean'
+NAME='cls_token'
 RECON=true
 RECON_EPOCHS=20
 GEN=true

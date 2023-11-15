@@ -14,21 +14,44 @@ from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger("event_seq")
 
+# params = {
+#     "n_estimators": 500,
+#     "boosting_type": "gbdt",
+#     # "objective": "binary",
+#     # "metric": "auc",
+#     "subsample": 0.5,
+#     "subsample_freq": 1,
+#     "learning_rate": 0.02,
+#     "feature_fraction": 0.75,
+#     "max_depth": 6,
+#     "lambda_l1": 1,
+#     "lambda_l2": 1,
+#     "min_data_in_leaf": 50,
+#     "random_state": 42,
+#     "n_jobs": 8,
+#     "reg_alpha": None,
+#     "reg_lambda": None,
+#     "colsample_bytree": None,
+#     "min_child_samples": None,
+# }
+
+# taken from coles age
 params = {
-    "n_estimators": 500,
+    "n_estimators": 1000,
     "boosting_type": "gbdt",
     # "objective": "binary",
     # "metric": "auc",
-    "subsample": 0.5,
+    "subsample": 0.75,
     "subsample_freq": 1,
     "learning_rate": 0.02,
     "feature_fraction": 0.75,
-    "max_depth": 6,
+    "max_depth": 12,
     "lambda_l1": 1,
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
     "random_state": 42,
     "n_jobs": 8,
+    "num_leaves": 50,
     "reg_alpha": None,
     "reg_lambda": None,
     "colsample_bytree": None,
@@ -224,4 +247,5 @@ class AccuracyTrainerContrastive(SimpleTrainerContrastive):
     def get_model(self):
         args = params.copy()
         args["objective"] = "multiclass"
+        args["metric"] = "multi_error"
         return LGBMClassifier(verbosity=-1, **args)

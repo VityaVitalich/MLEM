@@ -1,11 +1,11 @@
 #!/bin/bash
 
-EPOCHS=1
-DEVICE="cuda:1"
-NAME='debug_p2'
-DATA_C="../configs/data_configs/age.py"
-MODEL_C="../configs/model_configs/supervised/age.py"
-LOG_D="./age/logs/"
+EPOCHS=15
+DEVICE="cuda"
+NAME='GRUD_64h_l1_no_numemb'
+DATA_C="../configs/data_configs/physionet.py"
+MODEL_C="../configs/model_configs/supervised/physionet.py"
+LOG_D="./physionet/logs/"
 
 python pipeline_supervised.py \
     --run-name=$NAME \

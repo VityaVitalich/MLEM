@@ -16,12 +16,12 @@ def model_configs():
     config.features_emb_dim = 16
     config.use_numeric_emb = True
     config.numeric_emb_size = 16
-    config.encoder_feature_mixer = True
-    config.decoder_feature_mixer = True
+    config.encoder_feature_mixer = False
+    config.decoder_feature_mixer = False
 
     ### ENCODER ###
     config.encoder = "GRU"  # GRU LSTM TR
-    config.encoder_hidden = 128
+    config.encoder_hidden = 32
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
@@ -29,8 +29,8 @@ def model_configs():
 
     ### DECODER ###
     config.decoder = "GRU"  # GRU TR
-    config.decoder_hidden = 32
-    config.decoder_num_layers = 1
+    config.decoder_hidden = 64
+    config.decoder_num_layers = 2
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 1
@@ -42,7 +42,7 @@ def model_configs():
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
-    config.generative_embeddings_loss = True
+    config.generative_embeddings_loss = False
     config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
@@ -56,7 +56,6 @@ def model_configs():
     config.delta_weight = 10
 
     ### DISCRIMINATOR ###
-    config.use_discriminator = False
     config.use_discriminator = False
 
     ### LOSS ###
@@ -77,6 +76,12 @@ def model_configs():
     config.comments = ""
     config.genval = genval_config()
     config.D = d_config()
+
+    ### Time GAN ###
+    timegan = config.timegan = ml_collections.ConfigDict()
+    timegan.rnn_hidden = 128
+    timegan.num_layers = 1
+    timegan.gamma = 1
     return config
 
 

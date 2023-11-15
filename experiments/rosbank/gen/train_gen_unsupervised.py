@@ -89,7 +89,6 @@ if __name__ == "__main__":
         "--gen-val-epoch",
         help="How many epochs to perform on generated samples",
         default=25,
-        default=25,
         type=int,
     )
     args = parser.parse_args()

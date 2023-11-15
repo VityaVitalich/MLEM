@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from .model_utils import out_to_padded_batch, FeatureMixer, L2Normalization, set_grad
 from functools import partial
+from einops import repeat
 
 
 class BaseMixin(nn.Module):
@@ -106,11 +107,14 @@ class BaseMixin(nn.Module):
             )
             self.encoder_proj = nn.Identity()
         elif self.model_conf.encoder == "TR":
+            self.pos_encoding = nn.Embedding(201, self.input_dim)
+            self.cls_token = nn.Parameter(torch.rand(self.input_dim))
             self.encoder_proj = nn.Linear(
                 self.input_dim, self.model_conf.encoder_hidden
             )
             encoder_layer = nn.TransformerEncoderLayer(
-                d_model=self.model_conf.encoder_hidden,
+                #   d_model=self.model_conf.encoder_hidden,
+                d_model=self.input_dim,
                 nhead=self.model_conf.encoder_num_heads,
                 batch_first=True,
             )
@@ -237,7 +241,7 @@ class BaseMixin(nn.Module):
                 mask = gt_val != 0
                 masked_mse = mse_loss * mask
                 total_mse_loss += (
-                    masked_mse.sum(dim=1) / (mask != 0).sum(dim=1)
+                    masked_mse.sum(dim=1)  # / (mask != 0).sum(dim=1)
                 ).mean()
 
         return total_mse_loss
@@ -361,9 +365,17 @@ class SeqGen(BaseMixin):
             lens = padded_batch.seq_lens - 1
             global_hidden = self.post_encoder_norm(all_hid[:, lens, :].diagonal().T)
         elif self.model_conf.encoder == "TR":
-            x_proj = self.encoder_proj(x)
+            # x_proj = self.encoder_proj(x)
+            x_proj = x
+            x_proj = torch.cat(
+                [repeat(self.cls_token, "d -> b l d", b=x_proj.size(0), l=1), x_proj],
+                dim=1,
+            )
+            x_proj = x_proj + self.pos_encoding(
+                torch.arange(x_proj.size(1), device=self.model_conf.device)
+            )
             all_hid = self.encoder(x_proj)
-            global_hidden = all_hid[:, 0, :]
+            global_hidden = self.encoder_proj(all_hid[:, 0, :])
 
         global_hidden = self.global_hid_dropout(global_hidden)
 
@@ -443,7 +455,7 @@ class EmbeddingPredictor(nn.Module):
         self.model_conf = model_conf
         self.data_conf = data_conf
 
-        self.criterion = nn.CrossEntropyLoss(reduction="mean", ignore_index=0)
+        self.criterion = nn.CrossEntropyLoss(reduction="none", ignore_index=0)
 
         self.emb_names = list(self.data_conf.features.embeddings.keys())
         self.num_embeds = len(self.emb_names)
@@ -483,8 +495,10 @@ class EmbeddingPredictor(nn.Module):
         for name, dist in embedding_distribution.items():
             if name in self.emb_names:
                 shifted_labels = padded_batch.payload[name].long()  # [:, 1:]
-                embed_losses[name] = self.criterion(
-                    dist.permute(0, 2, 1), shifted_labels
+                embed_losses[name] = (
+                    self.criterion(dist.permute(0, 2, 1), shifted_labels)
+                    .sum(dim=1)
+                    .mean()
                 )
 
         return embed_losses

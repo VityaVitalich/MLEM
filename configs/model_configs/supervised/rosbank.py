@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "CKCONV_Classifier"
+    config.model_name = "GRUClassifier"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -12,13 +12,13 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 12
+    config.features_emb_dim = 8
     config.use_numeric_emb = True
-    config.numeric_emb_size = 12
-    config.encoder_feature_mixer = True
+    config.numeric_emb_size = 8
+    config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 512
+    config.classifier_gru_hidden_dim = 64
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TIME DELTA ###
@@ -37,7 +37,7 @@ def model_configs():
     )
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.3
+    config.after_enc_dropout = 0.0
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()

@@ -31,8 +31,8 @@ class ContrastivePipeline(Pipeline):
         )
         another_test_loader = create_test_loader(data_conf)
 
-        data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
-        data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
+        # data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
+        # data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
         (
             train_supervised_loader,
             valid_supervised_loader,
@@ -196,12 +196,12 @@ if __name__ == "__main__":
         "loss.loss_fn": "ContrastiveLoss",
         "encoder_norm": "LayerNorm",
     }
-    # metrics = pipeline.run_experiment()
+    metrics = pipeline.run_experiment()
     # metrics = pipeline.do_n_runs()
-    metrics = pipeline.optuna_setup(
-        "val_metric",
-        request_list=[request],
-        n_startup_trials=2,
-        n_trials=3,
-    )
+    # metrics = pipeline.optuna_setup(
+    #     "val_metric",
+    #     request_list=[request],
+    #     n_startup_trials=2,
+    #     n_trials=3,
+    # )
     print(metrics)

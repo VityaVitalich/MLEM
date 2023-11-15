@@ -201,12 +201,12 @@ if __name__ == "__main__":
         file_lvl=args.file_lvl,
     )
     request = {"classifier_gru_hidden_dim": 800}
-    # metrics = pipeline.run_experiment()
+    metrics = pipeline.run_experiment()
     # metrics = pipeline.do_n_runs()
-    metrics = pipeline.optuna_setup(
-        "val_metric",
-        request_list=[request],
-        n_startup_trials=2,
-        n_trials=3,
-    )
+    # metrics = pipeline.optuna_setup(
+    #     "val_metric",
+    #     request_list=[request],
+    #     n_startup_trials=2,
+    #     n_trials=3,
+    # )
     print(metrics)

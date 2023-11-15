@@ -90,7 +90,7 @@ def prepare_data(conf, supervised, pinch_test=False):
 
 
 def split_dataset(data, conf, supervised, pinch_test=False):
-    min_seq_len = 5
+    min_seq_len = conf.get("min_seq_len", 5)
 
     labeled_ix = []
     unlabeled_ix = []
