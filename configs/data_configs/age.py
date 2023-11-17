@@ -24,7 +24,7 @@ def data_configs():
         / "test_trx.parquet"
     )
 
-    config.track_metric = "accuracy"
+    config.track_metric = "mse"
 
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
@@ -78,6 +78,7 @@ def data_configs():
     train.dropout = 0.05
 
     # seq len
+    config.use_constant_pad = False
     train.max_seq_len = 1000
     val.max_seq_len = 1000
     test.max_seq_len = 1000
@@ -86,8 +87,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 512
-    val.batch_size = 512
+    train.batch_size = 128
+    val.batch_size = 128
     test.batch_size = 16
 
     return config

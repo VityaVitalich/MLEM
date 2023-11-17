@@ -128,6 +128,7 @@ def data_configs():
     train.dropout = 0.05
 
     # seq len
+    config.use_constant_pad = False
     train.max_seq_len = 200
     val.max_seq_len = 200
     test.max_seq_len = 200

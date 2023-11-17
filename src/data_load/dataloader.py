@@ -33,10 +33,17 @@ def create_data_loaders(conf, supervised=True, pinch_test=False):
     train_dataset = DropoutTrxDataset(
         train_dataset, trx_dropout=conf.train.dropout, seq_len=conf.train.max_seq_len
     )
+    if conf.use_constant_pad:
+        collate_func = functools.partial(
+            collate_splitted_rows_constant, max_len=conf.train.max_seq_len
+        )
+    else:
+        collate_func = collate_splitted_rows
+
     train_loader = DataLoader(
         dataset=train_dataset,
         shuffle=True,
-        collate_fn=collate_splitted_rows,
+        collate_fn=collate_func,
         num_workers=conf.train.num_workers,
         batch_size=conf.train.batch_size,
     )
@@ -54,7 +61,7 @@ def create_data_loaders(conf, supervised=True, pinch_test=False):
     valid_loader = DataLoader(
         dataset=valid_dataset,
         shuffle=False,
-        collate_fn=collate_splitted_rows,
+        collate_fn=collate_func,
         num_workers=conf.val.num_workers,
         batch_size=conf.val.batch_size,
     )
@@ -72,7 +79,7 @@ def create_data_loaders(conf, supervised=True, pinch_test=False):
     test_loader = DataLoader(
         dataset=test_dataset,
         shuffle=False,
-        collate_fn=collate_splitted_rows,
+        collate_fn=collate_func,
         num_workers=conf.test.num_workers,
         batch_size=conf.test.batch_size,
     )
@@ -126,7 +133,7 @@ def padded_collate(batch):
             # seqs = pad_sequence(seqs)
 
             new_x[k] = torch.nn.utils.rnn.pad_sequence(
-                v, batch_first=True, padding_value=-1.0
+                v, batch_first=True, padding_value=2.0
             )
         else:
             #    v[0] = torch.nn.ConstantPad1d((0, max_len - v[0].shape[0]), 0.0)(v[0])
@@ -150,6 +157,48 @@ def collate_splitted_rows(batch):
     # flattens samples in list of lists to samples in list
     batch = functools.reduce(operator.iadd, batch)
     return padded_collate(batch)
+
+
+def collate_splitted_rows_constant(batch, max_len):
+    batch = functools.reduce(operator.iadd, batch)
+    return padded_collate_constant(batch, max_len)
+
+
+def padded_collate_constant(batch, max_len):
+    new_x_ = defaultdict(list)
+    for x, _ in batch:
+        for k, v in x.items():
+            new_x_[k].append(v)
+
+    lengths = torch.LongTensor([len(e) for e in next(iter(new_x_.values()))])
+    new_x = {}
+    for k, v in new_x_.items():
+        if k == "event_time":
+            # pad first seq to desired length
+            v[0] = torch.nn.ConstantPad1d((0, max_len - v[0].shape[0]), -1.0)(v[0])
+
+            # pad all seqs to desired length
+            # seqs = pad_sequence(seqs)
+
+            new_x[k] = torch.nn.utils.rnn.pad_sequence(
+                v, batch_first=True, padding_value=2.0
+            )
+        else:
+            v[0] = torch.nn.ConstantPad1d((0, max_len - v[0].shape[0]), 0.0)(v[0])
+
+            new_x[k] = torch.nn.utils.rnn.pad_sequence(
+                v, batch_first=True, padding_value=0.0
+            )
+    # new_x = {
+    #     k: torch.nn.utils.rnn.pad_sequence(v, batch_first=True)
+    #     for k, v in new_x_.items()
+    # }
+    new_idx = torch.tensor([y[0] for _, y in batch])
+    new_y = torch.tensor([y[1] for _, y in batch])
+
+    return PaddedBatch(new_x, lengths), torch.cat(
+        [new_idx.unsqueeze(0), new_y.unsqueeze(0)], dim=0
+    )
 
 
 class PaddedBatch:

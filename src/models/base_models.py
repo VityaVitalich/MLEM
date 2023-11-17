@@ -23,6 +23,7 @@ class BaseMixin(nn.Module):
         self.time_processor = getattr(prp, self.model_conf.time_preproc)(
             self.model_conf.num_time_blocks, model_conf.device
         )
+        self.time_encoder = prp.TimeEncoder(data_conf=data_conf, model_conf=model_conf)
 
         ### INPUT SIZE ###
         all_emb_size = self.model_conf.features_emb_dim * len(
@@ -32,16 +33,32 @@ class BaseMixin(nn.Module):
             self.model_conf.numeric_emb_size if self.model_conf.use_numeric_emb else 1
         )
         self.input_dim = all_emb_size + all_numeric_size + self.model_conf.use_deltas
+        if self.model_conf.time_embedding:
+            self.input_dim += self.model_conf.time_embedding * 2 - 1
 
         ### MIXER ###
         if self.model_conf.encoder_feature_mixer:
             assert self.model_conf.features_emb_dim == self.model_conf.numeric_emb_size
-            self.encoder_feature_mixer = FeatureMixer(
-                num_features=len(self.data_conf.features.numeric_values)
-                + len(self.data_conf.features.embeddings),
-                feature_dim=self.model_conf.features_emb_dim,
-                num_layers=1,
-            )
+            if self.model_conf.time_embedding:
+                assert (
+                    self.model_conf.features_emb_dim
+                    == self.model_conf.time_embedding * 2
+                )
+
+                self.encoder_feature_mixer = FeatureMixer(
+                    num_features=len(self.data_conf.features.numeric_values)
+                    + len(self.data_conf.features.embeddings)
+                    + 1,
+                    feature_dim=self.model_conf.features_emb_dim,
+                    num_layers=1,
+                )
+            else:
+                self.encoder_feature_mixer = FeatureMixer(
+                    num_features=len(self.data_conf.features.numeric_values)
+                    + len(self.data_conf.features.embeddings),
+                    feature_dim=self.model_conf.features_emb_dim,
+                    num_layers=1,
+                )
         else:
             self.encoder_feature_mixer = nn.Identity()
 
@@ -81,7 +98,10 @@ class BaseMixin(nn.Module):
         if self.model_conf.predict_head == "Identity":
             loss = self.loss_fn(out, gt[0])
         else:
-            loss = self.loss_fn(out, gt[1])
+            if self.model_conf.loss.loss_fn == "MSE":
+                loss = self.loss_fn(out.squeeze(-1), gt[1].float())
+            else:
+                loss = self.loss_fn(out, gt[1])
 
         if self.model_conf.time_preproc == "MultiTimeSummator":
             # logp = torch.log(self.time_processor.softmaxed_weights)
@@ -108,13 +128,13 @@ class GRUClassifier(BaseMixin):
     def forward(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
         x, time_steps = self.time_processor(x, time_steps)
-        x = self.encoder_feature_mixer(x)
-        if self.model_conf.use_deltas:
-            gt_delta = time_steps.diff(1)
-            delta_feature = torch.cat(
-                [torch.zeros(x.size(0), 1, device=gt_delta.device), gt_delta], dim=1
-            )
-            x = torch.cat([x, delta_feature.unsqueeze(-1)], dim=-1)
+
+        if self.model_conf.time_embedding:
+            x = self.time_encoder(x, time_steps)
+            x = self.encoder_feature_mixer(x)
+        else:
+            x = self.encoder_feature_mixer(x)
+            x = self.time_encoder(x, time_steps)
 
         encoded = self.encoder(x)
 

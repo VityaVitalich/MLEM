@@ -15,7 +15,7 @@ from src.trainers.trainer_gen import (
     GANGenTrainer,
 )
 import src.models.gen_models
-from experiments.utils import get_parser, read_config
+from experiments.utils import get_parser, read_config, draw_generated
 from experiments.pipeline import Pipeline
 from experiments.pipeline_supervised import (
     GenSupervisedPipeline,
@@ -41,6 +41,7 @@ class GenerativePipeline(Pipeline):
         recon_val_epoch,
         console_lvl="warning",
         file_lvl="info",
+        draw_generated=False,
     ):
         super().__init__(
             run_name,
@@ -58,6 +59,7 @@ class GenerativePipeline(Pipeline):
         self.gen_val_epoch = gen_val_epoch
         self.recon_val = recon_val
         self.recon_val_epoch = recon_val_epoch
+        self.draw_generated = draw_generated
 
     def _train_eval(self, run_name, data_conf, model_conf):
         """
@@ -145,6 +147,7 @@ class GenerativePipeline(Pipeline):
             "another_test_metric": another_test_metric,
         }
 
+        true_train_path = data_conf.train_path
         if self.recon_val:
             reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
             data_conf.train_path = reconstructed_data_path
@@ -195,10 +198,20 @@ class GenerativePipeline(Pipeline):
                 valid_supervised_loader=valid_supervised_loader,
             )
             super_df = super_pipe.do_n_runs(
-                n_runs=3, max_workers=1
+                n_runs=3, max_workers=3
             )  # if you short in gpu, change max_workers=1
             for k in super_df:
                 metrics[f"generation_mean_{k}"] = super_df.loc["mean", k]
+
+        if self.draw_generated:
+            save_path = self.log_dir / run_name / "distributions.png"
+            draw_generated(
+                generated_path=generated_data_path,
+                true_path=true_train_path,
+                reconstructed_path=reconstructed_data_path,
+                data_conf=self.data_conf,
+                out_path=save_path,
+            )
         return metrics
 
     def _param_grid(self, trial, model_conf, data_conf):
@@ -232,6 +245,12 @@ if __name__ == "__main__":
         default=25,
         type=int,
     )
+    parser.add_argument(
+        "--draw",
+        help="if to draw distributions of gen and recon",
+        default=False,
+        type=bool,
+    )
     args = parser.parse_args()
 
     ## TRAINING SETUP ###
@@ -253,6 +272,7 @@ if __name__ == "__main__":
         recon_val_epoch=args.recon_val_epoch,
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
+        draw_generated=args.draw,
     )
     request = {"classifier_gru_hidden_dim": 16}
     metrics = pipeline.run_experiment()

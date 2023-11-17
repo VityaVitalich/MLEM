@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "CKCONV_Classifier"
+    config.model_name = "GRUClassifier"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -17,10 +17,12 @@ def model_configs():
     config.numeric_emb_size = 8
     config.encoder_feature_mixer = False
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 128
+    config.classifier_gru_hidden_dim = 256
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.use_time_embedding = False
+
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
     config.num_enc_layers = 1
@@ -56,7 +58,7 @@ def model_configs():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "MSE"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
 
     ### MTAND ###

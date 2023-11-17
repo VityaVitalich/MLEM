@@ -371,11 +371,7 @@ class TG(nn.Module):
         gen_latens = self.supervisor(gen_E)
         latens = self.encoder(x)
 
-        mse = (
-            F.mse_loss(latens.detach(), gen_latens, reduction="none")
-            .sum(dim=[1, 2])
-            .mean()
-        )
+        mse = F.mse_loss(latens, gen_latens, reduction="none").sum(dim=[1, 2]).mean()
         return mse
 
     def train_joint(self, padded_batch):
@@ -398,9 +394,7 @@ class TG(nn.Module):
             .mean()
         )
         g_loss_s = (
-            F.mse_loss(latens.detach(), gen_latens, reduction="none")
-            .sum(dim=[1, 2])
-            .mean()
+            F.mse_loss(latens, gen_latens, reduction="none").sum(dim=[1, 2]).mean()
         )
 
         var_loss = torch.abs(

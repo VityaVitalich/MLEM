@@ -13,24 +13,24 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 16
+    config.features_emb_dim = 12
     config.use_numeric_emb = True
-    config.numeric_emb_size = 16
+    config.numeric_emb_size = 12
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
     ### ENCODER ###
     config.encoder = "GRU"  # GRU LSTM TR
-    config.encoder_hidden = 32
+    config.encoder_hidden = 128
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
     config.encoder_num_heads = 1
 
     ### DECODER ###
-    config.decoder = "GRU"  # GRU TR
+    config.decoder = "TR"  # GRU TR
     config.decoder_hidden = 64
-    config.decoder_num_layers = 2
+    config.decoder_num_layers = 1
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 1
@@ -53,6 +53,8 @@ def model_configs():
 
     ### TIME ###
     config.use_deltas = True
+    config.time_embedding = 2
+    config.use_log_delta = False
     config.delta_weight = 10
 
     ### DISCRIMINATOR ###
@@ -82,6 +84,12 @@ def model_configs():
     timegan.rnn_hidden = 128
     timegan.num_layers = 1
     timegan.gamma = 1
+
+    ### Time VAE ###
+    timevae = config.timevae = ml_collections.ConfigDict()
+    timevae.hiddens = [64, 64]
+    timevae.latent_dim = 32
+    timevae.recon_weight = 3
     return config
 
 
@@ -106,6 +114,7 @@ def genval_config():
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.time_embedding = 2
 
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder
@@ -175,7 +184,7 @@ def d_config():
     config.features_emb_dim = 8
     config.use_numeric_emb = True
     config.numeric_emb_size = 8
-    config.encoder_feature_mixer = True
+    config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 32
@@ -183,6 +192,7 @@ def d_config():
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.time_embedding = 2
 
     ### TRANSFORMER ###
     config.encoder = "Identity"  # IDnetity or TransformerEncoder

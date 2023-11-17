@@ -16,7 +16,7 @@ def model_configs():
     config.features_emb_dim = 12
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
-    config.encoder_feature_mixer = False
+    config.encoder_feature_mixer = True
     config.decoder_feature_mixer = False
 
     ### ENCODER ###
@@ -42,7 +42,7 @@ def model_configs():
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
-    config.generative_embeddings_loss = True
+    config.generative_embeddings_loss = False
     config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
@@ -53,7 +53,9 @@ def model_configs():
 
     ### TIME ###
     config.use_deltas = True
-    config.delta_weight = 5
+    config.time_embedding = 6
+    config.use_log_delta = False
+    config.delta_weight = 10
 
     ### LOSS ###
     config.mse_weight = 1
@@ -95,6 +97,7 @@ def genval_config():
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.time_embedding = 2
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
@@ -166,10 +169,11 @@ def d_config():
     config.features_emb_dim = 8
     config.use_numeric_emb = True
     config.numeric_emb_size = 8
-    config.encoder_feature_mixer = True
+    config.encoder_feature_mixer = False
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.time_embedding = 2
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64

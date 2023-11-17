@@ -1,10 +1,64 @@
 import math
 
 import numpy as np
+import scipy
+from sklearn.linear_model import LinearRegression
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..data_load.dataloader import PaddedBatch
+
+
+def calc_intrinsic_dimension(train_embeddings, other_embeddings):
+    all_embeddings = []
+    train_embeddings = torch.cat(train_embeddings).cpu()
+    for other_embedding in other_embeddings:
+        if other_embedding is not None:
+            all_embeddings.append(torch.cat(other_embedding).cpu())
+
+    X = torch.cat(all_embeddings, dim=0).numpy()
+
+    N = X.shape[0]
+
+    dist = scipy.spatial.distance.squareform(
+        scipy.spatial.distance.pdist(X, metric="euclidean")
+    )
+
+    # FOR EACH POINT, COMPUTE mu_i = r_2 / r_1,
+    # where r_1 and r_2 are first and second shortest distances
+    mu = np.zeros(N)
+
+    for i in range(N):
+        sort_idx = np.argsort(dist[i, :])
+        mu[i] = dist[i, sort_idx[2]] / (dist[i, sort_idx[1]] + 1e-15)
+
+    # COMPUTE EMPIRICAL CUMULATE
+    sort_idx = np.argsort(mu)
+    Femp = np.arange(N) / N
+
+    # FIT (log(mu_i), -log(1-F(mu_i))) WITH A STRAIGHT LINE THROUGH ORIGIN
+    lr = LinearRegression(fit_intercept=False)
+    features = np.log(mu[sort_idx]).reshape(-1, 1)
+    features = np.clip(features, 1e-15, 1e15)
+    lr.fit(features, -np.log(1 - Femp).reshape(-1, 1))
+
+    d = lr.coef_[0][0]  # extract slope
+
+    return d
+
+
+def calc_anisotropy(train_embeddings, other_embeddings):
+    all_embeddings = []
+    train_embeddings = torch.cat(train_embeddings).cpu()
+    for other_embedding in other_embeddings:
+        if other_embedding is not None:
+            all_embeddings.append(torch.cat(other_embedding).cpu())
+
+    all_embeddings = torch.cat(all_embeddings, dim=0)
+
+    U, S, Vt = torch.linalg.svd(all_embeddings, full_matrices=False)
+
+    return S[0] / S.sum()
 
 
 def set_grad(layers, flag):

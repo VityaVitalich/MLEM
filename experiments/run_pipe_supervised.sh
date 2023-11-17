@@ -1,11 +1,11 @@
 #!/bin/bash
 
-EPOCHS=15
+EPOCHS=1
 DEVICE="cuda"
-NAME='GRUD_64h_l1_no_numemb'
-DATA_C="../configs/data_configs/physionet.py"
-MODEL_C="../configs/model_configs/supervised/physionet.py"
-LOG_D="./physionet/logs/"
+NAME='debug_time_emb4_fm'
+DATA_C="../configs/data_configs/rosbank.py"
+MODEL_C="../configs/model_configs/supervised/rosbank.py"
+LOG_D="./rosbank/logs/"
 
 python pipeline_supervised.py \
     --run-name=$NAME \

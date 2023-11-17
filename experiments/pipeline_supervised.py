@@ -14,6 +14,7 @@ from src.trainers.trainer_supervised import (
     AccuracyTrainerSupervised,
     AucTrainerSupervised,
     SimpleTrainerSupervised,
+    MSETrainerSupervised,
 )
 from experiments.utils import get_parser, read_config
 from experiments.pipeline import Pipeline
@@ -78,6 +79,7 @@ def get_trainer_class(data_conf) -> type:
     trainer_types = {
         "accuracy": AccuracyTrainerSupervised,
         "roc_auc": AucTrainerSupervised,
+        "mse": MSETrainerSupervised,
         None: SimpleTrainerSupervised,
     }
 

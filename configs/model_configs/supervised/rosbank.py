@@ -15,7 +15,7 @@ def model_configs():
     config.features_emb_dim = 8
     config.use_numeric_emb = True
     config.numeric_emb_size = 8
-    config.encoder_feature_mixer = False
+    config.encoder_feature_mixer = True
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
@@ -23,6 +23,7 @@ def model_configs():
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.time_embedding = 4
 
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder

@@ -19,7 +19,11 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
 from datetime import datetime
 from tqdm import tqdm
-from ..models.model_utils import out_to_padded_batch
+from ..models.model_utils import (
+    out_to_padded_batch,
+    calc_anisotropy,
+    calc_intrinsic_dimension,
+)
 
 
 params = {
@@ -143,13 +147,21 @@ class GenTrainer(BaseTrainer):
             for other_out in other_outs
         ]
 
+        anisotropy = calc_anisotropy(train_embeddings, other_embeddings).item()
+        logger.info("Anisotropy: %s", str(anisotropy))
+
+        intrinsic_dimension = calc_intrinsic_dimension(
+            train_embeddings, other_embeddings
+        )
+        logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
+
         train_metric, other_metrics = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
         logger.info("Other metrics: %s", str(other_metrics))
-        logger.info("Test finished")
 
+        logger.info("Test finished")
         return train_metric, other_metrics
 
     def compute_test_metric(
@@ -334,7 +346,13 @@ class GenTrainer(BaseTrainer):
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
-            pred_delta = out["pred"]["delta"].cumsum(1)
+            if self._model_conf.use_log_delta and (
+                not use_generated_time
+            ):  # use generated time equals to gen. not use to recon
+                pred_delta = torch.exp(out["pred"]["delta"]).cumsum(1)
+            else:
+                pred_delta = out["pred"]["delta"].cumsum(1)
+
             df_dic["event_time"].extend(pred_delta.tolist())
             if use_generated_time:
                 df_dic["trx_count"].extend((pred_delta != -1).sum(dim=1).tolist())
