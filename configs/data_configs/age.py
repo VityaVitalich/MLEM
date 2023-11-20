@@ -24,7 +24,7 @@ def data_configs():
         / "test_trx.parquet"
     )
 
-    config.track_metric = "mse"
+    config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation

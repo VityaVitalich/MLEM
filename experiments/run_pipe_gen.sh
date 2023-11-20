@@ -1,16 +1,16 @@
 #!/bin/bash
 
-EPOCHS=10
+EPOCHS=70
 DEVICE="cuda"
-NAME='GRU128-64-mean'
+NAME='seq2seq_32-32-pred-cur_step'
 DATA_C="../configs/data_configs/rosbank.py"
 MODEL_C="../configs/model_configs/gen/rosbank.py"
 LOG_D="./rosbank/logs/"
-GENVAL=True
-GENVAL_EPOCH=5
-RECON_VAL=True
-RECON_VAL_EPOCH=5
-DRAW=True
+GENVAL=0
+GENVAL_EPOCH=20
+RECON_VAL=1
+RECON_VAL_EPOCH=20
+DRAW=0
 
 python pipeline_gen.py \
     --run-name=$NAME \
@@ -19,7 +19,7 @@ python pipeline_gen.py \
     --device=$DEVICE \
     --log-dir=$LOG_D \
     --total-epochs=$EPOCHS \
-    --gen-val=false \
+    --gen-val=$GENVAL \
     --gen-val-epoch=$GENVAL_EPOCH \
     --recon-val=$RECON_VAL \
     --recon-val-epoch=$RECON_VAL_EPOCH  \

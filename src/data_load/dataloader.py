@@ -104,10 +104,18 @@ def create_test_loader(conf):
     test_dataset = DropoutTrxDataset(
         test_dataset, trx_dropout=0.0, seq_len=conf.test.max_seq_len
     )
+
+    if conf.use_constant_pad:
+        collate_func = functools.partial(
+            collate_splitted_rows_constant, max_len=conf.train.max_seq_len
+        )
+    else:
+        collate_func = collate_splitted_rows
+
     test_loader = DataLoader(
         dataset=test_dataset,
         shuffle=False,
-        collate_fn=collate_splitted_rows,
+        collate_fn=collate_func,
         num_workers=conf.test.num_workers,
         batch_size=conf.test.batch_size,
     )

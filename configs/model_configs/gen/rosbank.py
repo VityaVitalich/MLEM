@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "Seq2Seq"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -21,15 +21,15 @@ def model_configs():
 
     ### ENCODER ###
     config.encoder = "GRU"  # GRU LSTM TR
-    config.encoder_hidden = 128
+    config.encoder_hidden = 32
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
     config.encoder_num_heads = 1
 
     ### DECODER ###
-    config.decoder = "TR"  # GRU TR
-    config.decoder_hidden = 64
+    config.decoder = "GRU"  # GRU TR
+    config.decoder_hidden = 32
     config.decoder_num_layers = 1
 
     ### TRANSFORMER DECODER ###
@@ -55,7 +55,7 @@ def model_configs():
     config.use_deltas = True
     config.time_embedding = 2
     config.use_log_delta = False
-    config.delta_weight = 10
+    config.delta_weight = 1
 
     ### DISCRIMINATOR ###
     config.use_discriminator = False
@@ -87,8 +87,8 @@ def model_configs():
 
     ### Time VAE ###
     timevae = config.timevae = ml_collections.ConfigDict()
-    timevae.hiddens = [64, 64]
-    timevae.latent_dim = 32
+    timevae.hiddens = [128, 128]
+    timevae.latent_dim = 64
     timevae.recon_weight = 3
     return config
 
@@ -117,14 +117,14 @@ def genval_config():
     config.time_embedding = 2
 
     ### TRANSFORMER ###
-    config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder
+    config.encoder = "Identity"  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "LayerNorm"
+    config.encoder_norm = "Identity"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.0

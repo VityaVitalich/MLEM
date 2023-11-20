@@ -224,9 +224,7 @@ class GenerativePipeline(Pipeline):
 if __name__ == "__main__":
     parser = get_parser()
     parser.add_argument(
-        "--gen-val",
-        help="Whether to perform generated validation",
-        default=False,
+        "--gen-val", help="Whether to perform generated validation", default=0, type=int
     )
     parser.add_argument(
         "--gen-val-epoch",
@@ -237,7 +235,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--recon-val",
         help="Whether to perform generated validation",
-        default=False,
+        default=0,
+        type=int,
     )
     parser.add_argument(
         "--recon-val-epoch",
@@ -248,11 +247,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--draw",
         help="if to draw distributions of gen and recon",
-        default=False,
-        type=bool,
+        default=0,
+        type=int,
     )
     args = parser.parse_args()
 
+    print(args.recon_val)
     ## TRAINING SETUP ###
     data_conf = read_config(args.data_conf, "data_configs")
     model_conf = read_config(args.model_conf, "model_configs")

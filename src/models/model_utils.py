@@ -9,6 +9,104 @@ import torch.nn.functional as F
 from ..data_load.dataloader import PaddedBatch
 
 
+class EmbeddingPredictor(nn.Module):
+    def __init__(self, model_conf, data_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.criterion = nn.CrossEntropyLoss(reduction="none", ignore_index=0)
+
+        self.emb_names = list(self.data_conf.features.embeddings.keys())
+        self.num_embeds = len(self.emb_names)
+        self.categorical_len = self.num_embeds * self.model_conf.features_emb_dim
+
+        self.init_embed_predictors()
+
+    def init_embed_predictors(self):
+        self.embed_predictors = nn.ModuleDict()
+
+        for name in self.emb_names:
+            vocab_size = self.data_conf.features.embeddings[name]["max_value"]
+            self.embed_predictors[name] = nn.Linear(
+                self.model_conf.features_emb_dim, vocab_size
+            )
+
+    def forward(self, x_recon):
+        batch_size, seq_len, out_dim = x_recon.size()
+
+        resized_x = x_recon[:, :, : self.categorical_len].view(
+            batch_size,
+            seq_len,
+            self.num_embeds,
+            self.model_conf.features_emb_dim,
+        )
+
+        embeddings_distribution = {}
+        for i, name in enumerate(self.emb_names):
+            embeddings_distribution[name] = self.embed_predictors[name](
+                resized_x[:, :, i, :]
+            )
+
+        return embeddings_distribution
+
+    def loss(self, embedding_distribution, padded_batch):
+        embed_losses = {}
+        for name, dist in embedding_distribution.items():
+            if name in self.emb_names:
+                shifted_labels = padded_batch.payload[name].long()  # [:, 1:]
+                embed_losses[name] = (
+                    self.criterion(dist.permute(0, 2, 1), shifted_labels)
+                    .sum(dim=1)
+                    .mean()
+                )
+
+        return embed_losses
+
+
+class NumericalFeatureProjector(nn.Module):
+    def __init__(self, model_conf, data_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.numerical_names = list(self.data_conf.features.numeric_values.keys())
+        self.num_embeds = len(self.numerical_names)
+        self.numerical_len = (
+            self.num_embeds * self.model_conf.numeric_emb_size
+            + self.model_conf.use_deltas
+        )
+
+        self.init_embed_predictors()
+
+    def init_embed_predictors(self):
+        self.embed_predictors = nn.ModuleDict()
+
+        for name in self.numerical_names:
+            self.embed_predictors[name] = nn.Linear(self.model_conf.numeric_emb_size, 1)
+
+    def forward(self, x_recon):
+        batch_size, seq_len, out_dim = x_recon.size()
+
+        if self.model_conf.use_deltas:
+            resized_x = x_recon[:, :, -self.numerical_len : -1]
+        else:
+            resized_x = x_recon[:, :, -self.numerical_len :]
+        # print(resized_x.size())
+        resized_x = resized_x.view(
+            batch_size,
+            seq_len,
+            self.num_embeds,
+            self.model_conf.numeric_emb_size,
+        )
+
+        pred_numeric = {}
+        for i, name in enumerate(self.numerical_names):
+            pred_numeric[name] = self.embed_predictors[name](resized_x[:, :, i, :])
+
+        return pred_numeric
+
+
 def calc_intrinsic_dimension(train_embeddings, other_embeddings):
     all_embeddings = []
     train_embeddings = torch.cat(train_embeddings).cpu()

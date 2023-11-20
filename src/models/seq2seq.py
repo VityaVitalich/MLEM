@@ -16,7 +16,6 @@ from .model_utils import (
 from functools import partial
 from einops import repeat
 from .timevae import TimeVAE
-from .seq2seq import Seq2Seq
 
 
 class BaseMixin(nn.Module):
@@ -158,12 +157,12 @@ class BaseMixin(nn.Module):
             )
 
         ### HIDDEN TO X0 PROJECTION ###
-        self.hidden_to_x0 = nn.Linear(self.model_conf.encoder_hidden, self.input_dim)
+        #  self.hidden_to_x0 = nn.Linear(self.model_conf.encoder_hidden, self.)
 
         ### DECODER ###
         if self.model_conf.decoder == "GRU":
             self.decoder = DecoderGRU(
-                input_size=self.input_dim,
+                input_size=self.model_conf.encoder_hidden,
                 hidden_size=self.model_conf.decoder_hidden,
                 global_hidden_size=self.model_conf.encoder_hidden,
                 num_layers=self.model_conf.decoder_num_layers,
@@ -380,13 +379,13 @@ class BaseMixin(nn.Module):
         ]
 
 
-class SeqGen(BaseMixin):
+class Seq2Seq(BaseMixin):
     def __init__(self, model_conf, data_conf):
         super().__init__(model_conf=model_conf, data_conf=data_conf)
 
     def forward(self, padded_batch):
         all_hidden, global_hidden, time_steps = self.encode(padded_batch)
-        pred = self.decode(padded_batch, global_hidden)
+        pred = self.decode(all_hidden, global_hidden)
 
         gt = {"input_batch": padded_batch, "time_steps": time_steps}
 
@@ -442,34 +441,33 @@ class SeqGen(BaseMixin):
 
         return all_hid, global_hidden, time_steps
 
-    def decode(self, padded_batch, global_hidden):
-        x, time_steps = self.processor(padded_batch, use_norm=False)
-        x = self.time_encoder(x, time_steps)
+    def decode(self, all_hidden, global_hidden):
+        # x, time_steps = self.processor(padded_batch, use_norm=False)
+        # x = self.time_encoder(x, time_steps)
 
-        x0 = self.hidden_to_x0(global_hidden)
-        x = torch.cat([x0.unsqueeze(1), x], dim=1)
+        # x0 = global_hidden
+        # x = torch.cat([x0.unsqueeze(1), all_hidden], dim=1)
+        x = all_hidden
         if self.model_conf.decoder == "GRU":
             dec_out = self.decoder(x, global_hidden)
 
         elif self.model_conf.decoder == "TR":
             x_proj = self.decoder_proj(self.act(x))
-            mask = torch.nn.Transformer.generate_square_subsequent_mask(
-                x.size(1), device=x.device
-            )
+            # mask = torch.nn.Transformer.generate_square_subsequent_mask(
+            #    x.size(1), device=x.device
+            # )
             x_proj = x_proj + self.dec_pos_encoding(
                 torch.arange(x_proj.size(1), device=self.model_conf.device)
             )
             # print(x_proj.size(), global_hidden.size())
             dec_out = self.decoder(
                 tgt=x_proj,
-                memory=x_proj[:, 0, :].unsqueeze(
-                    1
-                ),  # we can not pass global hidden due to dimension mismatch
-                tgt_mask=mask,
+                memory=x_proj,
+                #   tgt_mask=mask,
             )
 
         out = self.dec_out_proj(dec_out)
-        out = out[:, :-1, :]
+        # out = out[:, :-1, :]
 
         pred = self.embedding_predictor(out)
         pred.update(self.numeric_projector(out))
@@ -479,27 +477,10 @@ class SeqGen(BaseMixin):
         return pred
 
     def generate_sequence(self, global_hidden, lens):
-        x0 = self.hidden_to_x0(global_hidden)
-        if self.model_conf.decoder == "TR":
-            global_hidden = self.decoder_proj(self.act(x0))
-            x0 = global_hidden
-
-        gens = self.decoder.generate(
-            global_hidden=global_hidden,
-            length=lens,
-            pred_layers=self.dec_out_proj,
-            first_step=x0,
-        )
-        pred = self.embedding_predictor(gens)
-        pred.update(self.numeric_projector(gens))
-        if self.model_conf.use_deltas:
-            pred["delta"] = gens[:, :, -1].squeeze(-1)
-
-        return pred
+        raise NotImplementedError
 
     def generate(self, padded_batch, lens):
-        all_hid, global_hidden, time_steps = self.encode(padded_batch)
-        return {"pred": self.generate_sequence(global_hidden, lens)}
+        raise NotImplementedError
 
 
 class GRUCell(nn.Module):
@@ -511,7 +492,7 @@ class GRUCell(nn.Module):
 
         self.x2h = nn.Linear(input_size, 3 * hidden_size, bias=bias)
         self.h2h = nn.Linear(hidden_size, 3 * hidden_size, bias=bias)
-        self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
+        # self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
         self.act = nn.GELU()
         self.reset_parameters()
 
