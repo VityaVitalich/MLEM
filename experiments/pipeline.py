@@ -2,6 +2,7 @@ import copy
 import logging
 from concurrent.futures import ProcessPoolExecutor as Pool
 from multiprocessing import set_start_method
+
 try:
     set_start_method("spawn")
 except:
@@ -14,6 +15,7 @@ import subprocess
 import numpy as np
 import pandas as pd
 import torch
+
 from src.trainers.randomness import seed_everything
 from experiments.utils import log_to_file
 
@@ -25,10 +27,10 @@ class Pipeline:
         device,
         total_epochs,
         data_conf,
-        model_conf, 
-        TrainerClass, 
-        resume, 
-        log_dir, 
+        model_conf,
+        TrainerClass,
+        resume,
+        log_dir,
         console_lvl="warning",
         file_lvl="info",
     ):
@@ -51,7 +53,9 @@ class Pipeline:
         TrainerClass - class from src.trainers
         """
 
-    def run_experiment(self, run_name=None, conf=None, model_conf=None, seed=0) -> Dict[str, float]:
+    def run_experiment(
+        self, run_name=None, conf=None, model_conf=None, seed=0
+    ) -> Dict[str, float]:
         """
         metrics = {"metric_name": metric_value(float)}.
         """
@@ -79,7 +83,9 @@ class Pipeline:
         torch.cuda.init()
         torch.cuda.reset_peak_memory_stats(self.device)
         metrics = self.run_experiment(*args)
-        metrics["memory_after"] = torch.cuda.max_memory_reserved(self.device) / (2 ** 20)
+        metrics["memory_after"] = torch.cuda.max_memory_reserved(self.device) / (
+            2**20
+        )
         return metrics
 
     def do_n_runs(
@@ -93,7 +99,7 @@ class Pipeline:
         """
         Expects run_experiment() to return dict like {metric_name: metric_value}
         """
-        run_name = f"{run_name or self.run_name}" #/{datetime.now():%F_%T}"
+        run_name = f"{run_name or self.run_name}"  # /{datetime.now():%F_%T}"
         conf = conf or copy.deepcopy(self.data_conf)
         model_conf = model_conf or copy.deepcopy(self.model_conf)
 

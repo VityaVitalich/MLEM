@@ -14,21 +14,44 @@ from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger("event_seq")
 
+# params = {
+#     "n_estimators": 500,
+#     "boosting_type": "gbdt",
+#     # "objective": "binary",
+#     # "metric": "auc",
+#     "subsample": 0.5,
+#     "subsample_freq": 1,
+#     "learning_rate": 0.02,
+#     "feature_fraction": 0.75,
+#     "max_depth": 6,
+#     "lambda_l1": 1,
+#     "lambda_l2": 1,
+#     "min_data_in_leaf": 50,
+#     "random_state": 42,
+#     "n_jobs": 8,
+#     "reg_alpha": None,
+#     "reg_lambda": None,
+#     "colsample_bytree": None,
+#     "min_child_samples": None,
+# }
+
+# taken from coles age
 params = {
-    "n_estimators": 500,
+    "n_estimators": 1000,
     "boosting_type": "gbdt",
     # "objective": "binary",
     # "metric": "auc",
-    "subsample": 0.5,
+    "subsample": 0.75,
     "subsample_freq": 1,
     "learning_rate": 0.02,
     "feature_fraction": 0.75,
-    "max_depth": 6,
+    "max_depth": 12,
     "lambda_l1": 1,
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
     "random_state": 42,
     "n_jobs": 8,
+    "num_leaves": 50,
     "reg_alpha": None,
     "reg_lambda": None,
     "colsample_bytree": None,
@@ -160,12 +183,14 @@ class SimpleTrainerContrastive(BaseTrainer):
         for other_gt in other_gts:
             other_labels.append(
                 torch.cat([gt[1].cpu() for gt in other_gt]).numpy()
-                if other_gt is not None else None
+                if other_gt is not None
+                else None
             )
         for other_embedding in other_embeddings:
             other_embeddings_new.append(
                 torch.cat(other_embedding).cpu().numpy()
-                if other_embedding is not None else None
+                if other_embedding is not None
+                else None
             )
 
         # split_ids = (
@@ -174,10 +199,10 @@ class SimpleTrainerContrastive(BaseTrainer):
         #     else [(range(train_embeddings.shape[0]), None)]
         # )
         # train_metric = []
-        other_metrics = [] #[[] * len(other_embeddings_new)]
+        other_metrics = []  # [[] * len(other_embeddings_new)]
         # for i, (train_index, test_index) in enumerate(split_ids):
-        train_emb_subset = train_embeddings #[train_index]
-        train_labels_subset = train_labels #[train_index]
+        train_emb_subset = train_embeddings  # [train_index]
+        train_labels_subset = train_labels  # [train_index]
 
         model = self.get_model()
         preprocessor = MaxAbsScaler()
@@ -222,4 +247,5 @@ class AccuracyTrainerContrastive(SimpleTrainerContrastive):
     def get_model(self):
         args = params.copy()
         args["objective"] = "multiclass"
+        args["metric"] = "multi_error"
         return LGBMClassifier(verbosity=-1, **args)

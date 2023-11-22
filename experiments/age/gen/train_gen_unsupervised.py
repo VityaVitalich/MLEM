@@ -16,8 +16,9 @@ from src.trainers.trainer_gen import GenTrainer, GANGenTrainer
 from src.trainers.randomness import seed_everything
 import src.models.gen_models
 import src.models.base_models
+from copy import deepcopy
 
-from experiments.supervised_pipeline import run_experiment, get_trainer_class
+from experiments.pipeline_supervised import GenSupervisedPipeline, get_trainer_class
 from configs.model_configs.gen.age_genval import (
     model_configs as model_configs_genval,
 )
@@ -58,6 +59,17 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
+        "--recon-val",
+        help="Whether to perform generated validation",
+        default=False,
+    )
+    parser.add_argument(
+        "--recon-val-epoch",
+        help="How many epochs to perform on generated samples",
+        default=25,
+        type=int,
+    )
+    parser.add_argument(
         "--gen-val",
         help="Whether to perform generated validation",
         default=False,
@@ -65,7 +77,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--gen-val-epoch",
         help="How many epochs to perform on generated samples",
-        default=15,
+        default=25,
         type=int,
     )
     args = parser.parse_args()
@@ -111,9 +123,9 @@ if __name__ == "__main__":
     ### Create loaders and train ###
     train_loader, valid_loader = create_data_loaders(conf, supervised=False)
     test_loader = create_test_loader(conf)
-    conf.valid_size = 0
+    conf.valid_size = 0.1
     conf.train.split_strategy = {"split_strategy": "NoSplit"}
-    train_supervised_loader, _ = create_data_loaders(conf)
+    train_supervised_loader, valid_supervised_loader = create_data_loaders(conf)
 
     model = getattr(src.models.gen_models, model_conf.model_name)
     net = model(model_conf=model_conf, data_conf=conf)
@@ -123,7 +135,7 @@ if __name__ == "__main__":
     if model_conf.use_discriminator:
         model_conf_D = model_configs_D()
         D = getattr(src.models.base_models, model_conf_D.model_name)
-        D = D(model_conf=model_conf, data_conf=conf)
+        D = D(model_conf=model_conf_D, data_conf=conf)
         D_opt = torch.optim.Adam(
             D.parameters(), model_conf_D.lr, weight_decay=model_conf_D.weight_decay
         )
@@ -172,25 +184,63 @@ if __name__ == "__main__":
     # trainer.load_best_model()
     trainer.test(test_loader, train_supervised_loader)
 
+    if args.recon_val:
+        reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
+        conf.train_path = reconstructed_data_path
+        print(conf.train_path)
+        conf.valid_size = 0.0
+
+        run_name = run_name + "_recon"
+        total_epochs = args.recon_val_epoch
+        model_conf_genval = model_configs_genval()
+        log_dir = "./logs/reconstructions/"
+        recon_trainer_class = get_trainer_class("age")
+        recon_pipeline = GenSupervisedPipeline(
+            run_name=run_name,
+            device=args.device,
+            total_epochs=total_epochs,
+            conf=conf,
+            model_conf=model_conf_genval,
+            TrainerClass=recon_trainer_class,
+            resume=None,
+            log_dir=log_dir,
+        )
+
+        recon_test_metric = recon_pipeline.run_experiment(
+            run_name=run_name,
+            conf=conf,
+            model_conf=model_conf_genval,
+            seed=0,
+            valid_supervised_loader=valid_supervised_loader,
+        )
+        logger.info(f"Reconstructed test metric: {recon_test_metric};")
     if args.gen_val:
         generated_data_path = trainer.generate_data(train_supervised_loader)
-        conf.train_supervised_path = generated_data_path
-        conf.valid_size = 0.1
+        conf.train_path = generated_data_path
+        print(conf.train_path)
+        conf.valid_size = 0.0
 
-        run_name = run_name
+        run_name = run_name + "_gen"
         total_epochs = args.gen_val_epoch
         model_conf_genval = model_configs_genval()
         log_dir = "./logs/generations/"
-        trainer_class = get_trainer_class("age")
-        generated_test_metric, train_metrics, val_metrics = run_experiment(
-            run_name,
-            args.device,
-            total_epochs,
+        trainer_class = deepcopy(get_trainer_class("age"))
+        # fix where the best model saves
+        pipeline = GenSupervisedPipeline(
+            run_name=run_name,
+            device=args.device,
+            total_epochs=total_epochs,
             conf=conf,
             model_conf=model_conf_genval,
+            TrainerClass=trainer_class,
             resume=None,
             log_dir=log_dir,
-            TrainerClass=trainer_class,
-            seed=conf.client_list_shuffle_seed,
+        )
+        generated_test_metric = pipeline.run_experiment(
+            run_name=run_name,
+            conf=conf,
+            model_conf=model_conf_genval,
+            seed=0,
+            valid_supervised_loader=valid_supervised_loader,
         )
         logger.info(f"Generated test metric: {generated_test_metric};")

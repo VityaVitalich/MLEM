@@ -1,10 +1,168 @@
 import math
 
 import numpy as np
+import scipy
+from sklearn.linear_model import LinearRegression
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..data_load.dataloader import PaddedBatch
+
+
+class EmbeddingPredictor(nn.Module):
+    def __init__(self, model_conf, data_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.criterion = nn.CrossEntropyLoss(reduction="none", ignore_index=0)
+
+        self.emb_names = list(self.data_conf.features.embeddings.keys())
+        self.num_embeds = len(self.emb_names)
+        self.categorical_len = self.num_embeds * self.model_conf.features_emb_dim
+
+        self.init_embed_predictors()
+
+    def init_embed_predictors(self):
+        self.embed_predictors = nn.ModuleDict()
+
+        for name in self.emb_names:
+            vocab_size = self.data_conf.features.embeddings[name]["max_value"]
+            self.embed_predictors[name] = nn.Linear(
+                self.model_conf.features_emb_dim, vocab_size
+            )
+
+    def forward(self, x_recon):
+        batch_size, seq_len, out_dim = x_recon.size()
+
+        resized_x = x_recon[:, :, : self.categorical_len].view(
+            batch_size,
+            seq_len,
+            self.num_embeds,
+            self.model_conf.features_emb_dim,
+        )
+
+        embeddings_distribution = {}
+        for i, name in enumerate(self.emb_names):
+            embeddings_distribution[name] = self.embed_predictors[name](
+                resized_x[:, :, i, :]
+            )
+
+        return embeddings_distribution
+
+    def loss(self, embedding_distribution, padded_batch):
+        embed_losses = {}
+        for name, dist in embedding_distribution.items():
+            if name in self.emb_names:
+                shifted_labels = padded_batch.payload[name].long()  # [:, 1:]
+                embed_losses[name] = (
+                    self.criterion(dist.permute(0, 2, 1), shifted_labels)
+                    .sum(dim=1)
+                    .mean()
+                )
+
+        return embed_losses
+
+
+class NumericalFeatureProjector(nn.Module):
+    def __init__(self, model_conf, data_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        self.numerical_names = list(self.data_conf.features.numeric_values.keys())
+        self.num_embeds = len(self.numerical_names)
+        self.numerical_len = (
+            self.num_embeds * self.model_conf.numeric_emb_size
+            + self.model_conf.use_deltas
+        )
+
+        self.init_embed_predictors()
+
+    def init_embed_predictors(self):
+        self.embed_predictors = nn.ModuleDict()
+
+        for name in self.numerical_names:
+            self.embed_predictors[name] = nn.Linear(self.model_conf.numeric_emb_size, 1)
+
+    def forward(self, x_recon):
+        batch_size, seq_len, out_dim = x_recon.size()
+
+        if self.model_conf.use_deltas:
+            resized_x = x_recon[:, :, -self.numerical_len : -1]
+        else:
+            resized_x = x_recon[:, :, -self.numerical_len :]
+        # print(resized_x.size())
+        resized_x = resized_x.view(
+            batch_size,
+            seq_len,
+            self.num_embeds,
+            self.model_conf.numeric_emb_size,
+        )
+
+        pred_numeric = {}
+        for i, name in enumerate(self.numerical_names):
+            pred_numeric[name] = self.embed_predictors[name](resized_x[:, :, i, :])
+
+        return pred_numeric
+
+
+def calc_intrinsic_dimension(train_embeddings, other_embeddings):
+    all_embeddings = []
+    train_embeddings = torch.cat(train_embeddings).cpu()
+    for other_embedding in other_embeddings:
+        if other_embedding is not None:
+            all_embeddings.append(torch.cat(other_embedding).cpu())
+
+    X = torch.cat(all_embeddings, dim=0).numpy()
+
+    N = X.shape[0]
+
+    dist = scipy.spatial.distance.squareform(
+        scipy.spatial.distance.pdist(X, metric="euclidean")
+    )
+
+    # FOR EACH POINT, COMPUTE mu_i = r_2 / r_1,
+    # where r_1 and r_2 are first and second shortest distances
+    mu = np.zeros(N)
+
+    for i in range(N):
+        sort_idx = np.argsort(dist[i, :])
+        mu[i] = dist[i, sort_idx[2]] / (dist[i, sort_idx[1]] + 1e-15)
+
+    # COMPUTE EMPIRICAL CUMULATE
+    sort_idx = np.argsort(mu)
+    Femp = np.arange(N) / N
+
+    # FIT (log(mu_i), -log(1-F(mu_i))) WITH A STRAIGHT LINE THROUGH ORIGIN
+    lr = LinearRegression(fit_intercept=False)
+    features = np.log(mu[sort_idx]).reshape(-1, 1)
+    features = np.clip(features, 1e-15, 1e15)
+    lr.fit(features, -np.log(1 - Femp).reshape(-1, 1))
+
+    d = lr.coef_[0][0]  # extract slope
+
+    return d
+
+
+def calc_anisotropy(train_embeddings, other_embeddings):
+    all_embeddings = []
+    train_embeddings = torch.cat(train_embeddings).cpu()
+    for other_embedding in other_embeddings:
+        if other_embedding is not None:
+            all_embeddings.append(torch.cat(other_embedding).cpu())
+
+    all_embeddings = torch.cat(all_embeddings, dim=0)
+
+    U, S, Vt = torch.linalg.svd(all_embeddings, full_matrices=False)
+
+    return S[0] / S.sum()
+
+
+def set_grad(layers, flag):
+    for layer in layers:
+        for parameter in layer.parameters():
+            parameter.requires_grad_(flag)
 
 
 class L2Normalization(nn.Module):

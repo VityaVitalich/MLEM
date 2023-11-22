@@ -4,6 +4,7 @@ logs/
 ckpt/
 checkpoints/
 test/
+figs/
 .vscode/
 .vim
 experiments/example.db

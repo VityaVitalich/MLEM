@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "Seq2Seq"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -13,22 +13,22 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 16
+    config.features_emb_dim = 12
     config.use_numeric_emb = True
-    config.numeric_emb_size = 16
-    config.encoder_feature_mixer = True
-    config.decoder_feature_mixer = True
+    config.numeric_emb_size = 12
+    config.encoder_feature_mixer = False
+    config.decoder_feature_mixer = False
 
     ### ENCODER ###
-    config.encoder = "GRU"
-    config.encoder_hidden = 128
+    config.encoder = "GRU"  # GRU LSTM TR
+    config.encoder_hidden = 32
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
     config.encoder_num_heads = 1
 
     ### DECODER ###
-    config.decoder = "GRU"
+    config.decoder = "GRU"  # GRU TR
     config.decoder_hidden = 32
     config.decoder_num_layers = 1
 
@@ -42,7 +42,7 @@ def model_configs():
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
-    config.generative_embeddings_loss = True
+    config.generative_embeddings_loss = False
     config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
@@ -53,15 +53,17 @@ def model_configs():
 
     ### TIME ###
     config.use_deltas = True
-    config.delta_weight = 5
+    config.time_embedding = 2
+    config.use_log_delta = False
+    config.delta_weight = 1
 
     ### DISCRIMINATOR ###
     config.use_discriminator = False
 
     ### LOSS ###
     config.mse_weight = 1
-    config.CE_weight = 1
-    config.l1_weight = 0.001
+    config.CE_weight = 1  # B x L x D
+    config.l1_weight = 0.001  # l1 loss H
     config.gen_emb_weight = 1
     config.D_weight = 20
 
@@ -76,9 +78,22 @@ def model_configs():
     config.comments = ""
     config.genval = genval_config()
     config.D = d_config()
+
+    ### Time GAN ###
+    timegan = config.timegan = ml_collections.ConfigDict()
+    timegan.rnn_hidden = 128
+    timegan.num_layers = 1
+    timegan.gamma = 1
+
+    ### Time VAE ###
+    timevae = config.timevae = ml_collections.ConfigDict()
+    timevae.hiddens = [128, 128]
+    timevae.latent_dim = 64
+    timevae.recon_weight = 3
     return config
 
-def genval_config():    
+
+def genval_config():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
@@ -92,23 +107,24 @@ def genval_config():
     config.features_emb_dim = 8
     config.use_numeric_emb = True
     config.numeric_emb_size = 8
-    config.encoder_feature_mixer = True
+    config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.time_embedding = 2
 
     ### TRANSFORMER ###
-    config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder
+    config.encoder = "Identity"  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
     config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "LayerNorm"
+    config.encoder_norm = "Identity"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.0
@@ -147,10 +163,12 @@ def genval_config():
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
-    config.cv_splits = 5
+    config.cv_splits = 5  # not needed
 
+    config.gen_len = 100  #
     config.comments = ""
     return config
+
 
 def d_config():
     config = ml_collections.ConfigDict()
@@ -166,7 +184,7 @@ def d_config():
     config.features_emb_dim = 8
     config.use_numeric_emb = True
     config.numeric_emb_size = 8
-    config.encoder_feature_mixer = True
+    config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 32
@@ -174,6 +192,7 @@ def d_config():
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.time_embedding = 2
 
     ### TRANSFORMER ###
     config.encoder = "Identity"  # IDnetity or TransformerEncoder

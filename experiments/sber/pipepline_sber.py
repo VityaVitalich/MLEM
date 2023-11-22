@@ -5,7 +5,8 @@ import torch
 import logging
 import pickle
 
-import sys 
+import sys
+
 sys.path.append("../..")
 
 import src.models.base_models
@@ -53,7 +54,7 @@ class SberPipeline(Pipeline):
             ckpt_dir=Path(self.log_dir).parent / "ckpt",
             ckpt_replace=True,
             ckpt_resume=self.resume,
-            ckpt_track_metric="total_loss", # "epoch" TODO why?
+            ckpt_track_metric="total_loss",  # "epoch" TODO why?
             metrics_on_train=False,
             total_epochs=self.total_epochs,
             device=self.device,
@@ -81,6 +82,7 @@ class SberPipeline(Pipeline):
             # "another_test_metric": another_test_metric,
         }
 
+
 if __name__ == "__main__":
     args = get_parser().parse_args()
     ### TRAINING SETUP ###
@@ -99,8 +101,7 @@ if __name__ == "__main__":
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
     )
-    request = {
-    }
+    request = {}
     metrics = pipeline.run_experiment()
     # metrics = pipeline.do_n_runs()
     # metrics = pipeline.optuna_setup(

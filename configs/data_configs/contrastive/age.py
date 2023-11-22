@@ -27,10 +27,10 @@ def data_configs():
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation #for_merge
+        42  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
-    config.test_size = 0.1
+    config.valid_size = 0.05  # validation size
+    config.test_size = 0.0
     config.col_id = "client_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -38,7 +38,7 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "small_group": {"in": 202, "out": 203, "max_value": 203},
+        "small_group": {"in": 250, "out": 250, "max_value": 252},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
@@ -72,35 +72,36 @@ def data_configs():
 
     # splitters
     train.split_strategy = {
-        "split_strategy": "SampleUniform",  # SampleSlices
-        "split_count": 4,
-        "seq_len": 50,
-        # "cnt_min": 15,
-        # "cnt_max": 150,
+        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_count": 5,
+        # "seq_len": 25,
+        "cnt_min": 25,
+        "cnt_max": 200,
     }
     val.split_strategy = {
-        "split_strategy": "SampleUniform",  # SampleSlices
-        "split_count": 4,
-        "seq_len": 50,
-        # "cnt_min": 15,
-        # "cnt_max": 150,
+        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_count": 5,
+        #  "seq_len": 50,
+        "cnt_min": 25,
+        "cnt_max": 100,
     }
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.01
 
     # seq len
-    train.max_seq_len = 1000
-    val.max_seq_len = 1000
-    test.max_seq_len = 1000
+    config.min_seq_len = 25
+    train.max_seq_len = 1200
+    val.max_seq_len = 1200
+    test.max_seq_len = 1200
 
     train.num_workers = 1
     val.num_workers = 1
     test.num_workers = 1
 
     train.batch_size = 64
-    val.batch_size = 128
+    val.batch_size = 64
     test.batch_size = 8
 
     return config

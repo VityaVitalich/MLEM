@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "GRUClassifier"
+    config.model_name = "GRUD"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -12,9 +12,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 8
-    config.use_numeric_emb = True
-    config.numeric_emb_size = 8
+    config.features_emb_dim = 4
+    config.use_numeric_emb = False
+    config.numeric_emb_size = 1
     config.encoder_feature_mixer = True
     ### RNN + LINEAR ###
     config.classifier_gru_hidden_dim = 64
@@ -103,4 +103,10 @@ def model_configs():
     config.cv_splits = 5
 
     config.comments = ""
+
+    ### GRU D ###
+    GRUD = config.GRUD = ml_collections.ConfigDict()
+    GRUD.hidden_dim = 64
+    GRUD.num_layers = 1
+    GRUD.dropout = 0.2
     return config

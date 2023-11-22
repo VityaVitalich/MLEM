@@ -1,11 +1,50 @@
 from argparse import ArgumentParser
 
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 from pathlib import Path
 from ml_collections import ConfigDict
 import logging
 from contextlib import contextmanager
 from typing import Union
+
+
+def draw_generated(generated_path, true_path, reconstructed_path, data_conf, out_path):
+    train = pd.read_parquet(true_path)
+    gen = pd.read_parquet(generated_path)
+    recon = pd.read_parquet(reconstructed_path)
+
+    cols = (
+        data_conf.features.embeddings.keys() + data_conf.features.numeric_values.keys()
+    )
+    cols.append("event_time")
+
+    dataframes = [train, gen, recon]
+    names = ["True", "Generated", "Reconstructed"]
+    num_plots = len(cols)
+    fig, axs = plt.subplots(num_plots + 1, len(dataframes), figsize=(15, 15))
+
+    # Iterate through dataframes and columns
+    for i, df in enumerate(dataframes):
+        for j, col in enumerate(cols):
+            ax = axs[j, i]
+            data = np.hstack(df[col].values)
+            ax.hist(data, bins=100)
+            ax.set_title(f"{names[i]} - {col}")
+            ax.set_xlabel(col)
+
+    # create bounded event time graph
+    for i, df in enumerate(dataframes):
+        ax = axs[j + 1, i]
+        data = np.hstack(df["event_time"].values)
+
+    # Adjust spacing between subplots
+    plt.tight_layout()
+
+    plt.savefig(out_path)
+    # Show the plots
+    # plt.show()
 
 
 @contextmanager

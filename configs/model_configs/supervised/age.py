@@ -17,10 +17,12 @@ def model_configs():
     config.numeric_emb_size = 8
     config.encoder_feature_mixer = False
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 128
+    config.classifier_gru_hidden_dim = 256
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.use_time_embedding = False
+
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
     config.num_enc_layers = 1
@@ -56,7 +58,7 @@ def model_configs():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "MSE"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
 
     ### MTAND ###
@@ -95,4 +97,16 @@ def model_configs():
     config.cv_splits = 5
 
     config.comments = ""
+
+    ### CKCONV ###
+    ckconv = config.ckconv = ml_collections.ConfigDict()
+    ckconv.hidden_channels = 32
+    ckconv.num_blocks = 3
+    ckconv.kernel_hidden_channels = 32
+    ckconv.kernel_activation = "Sine"
+    ckconv.kernel_norm = ""
+    ckconv.omega = 30
+    ckconv.dropout = 0.0
+    ckconv.weight_dropout = 0.0
+    ckconv.use_real_time = True
     return config

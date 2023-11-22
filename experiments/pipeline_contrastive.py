@@ -4,7 +4,8 @@ import pandas as pd
 import torch
 import logging
 
-import sys 
+import sys
+
 sys.path.append("../")
 
 import src.models.base_models
@@ -91,7 +92,7 @@ class ContrastivePipeline(Pipeline):
         if model_conf["use_numeric_emb"]:
             model_conf["numeric_emb_size"] = model_conf["features_emb_dim"]
             model_conf["num_heads_enc"] = trial.suggest_categorical(
-                "num_heads_enc", [1] # TODO complicated not to fail
+                "num_heads_enc", [1]  # TODO complicated not to fail
             )
         else:
             model_conf["num_heads_enc"] = 1
@@ -195,12 +196,12 @@ if __name__ == "__main__":
         "loss.loss_fn": "ContrastiveLoss",
         "encoder_norm": "LayerNorm",
     }
-    # metrics = pipeline.run_experiment()
+    metrics = pipeline.run_experiment()
     # metrics = pipeline.do_n_runs()
-    metrics = pipeline.optuna_setup(
-        "val_metric",
-        request_list=[request],
-        n_startup_trials=2,
-        n_trials=3,
-    )
+    # metrics = pipeline.optuna_setup(
+    #     "val_metric",
+    #     request_list=[request],
+    #     n_startup_trials=2,
+    #     n_trials=3,
+    # )
     print(metrics)
