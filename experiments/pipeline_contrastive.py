@@ -31,8 +31,8 @@ class ContrastivePipeline(Pipeline):
         )
         another_test_loader = create_test_loader(data_conf)
 
-        # data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
-        # data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
+        data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
+        data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
         (
             train_supervised_loader,
             valid_supervised_loader,

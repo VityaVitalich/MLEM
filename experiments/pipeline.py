@@ -15,10 +15,7 @@ import subprocess
 import numpy as np
 import pandas as pd
 import torch
-from optuna.samplers import TPESampler
-import sys
 
-sys.path.append("../")
 from src.trainers.randomness import seed_everything
 from experiments.utils import log_to_file
 
