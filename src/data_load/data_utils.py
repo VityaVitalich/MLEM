@@ -90,7 +90,7 @@ def prepare_data(conf, supervised, pinch_test=False):
 
 
 def split_dataset(data, conf, supervised, pinch_test=False):
-    min_seq_len = 5
+    min_seq_len = conf.get("min_seq_len", 5)
 
     labeled_ix = []
     unlabeled_ix = []
@@ -115,13 +115,9 @@ def split_dataset(data, conf, supervised, pinch_test=False):
     val_unlabeled_ix = unlabeled_ix[:val_unlabeled_size]
     train_unlabeled_ix = unlabeled_ix[val_unlabeled_size:]
 
-    assert (
-        len(train_unlabeled_ix) + 
-        len(train_labeled_ix) + 
-        len(val_unlabeled_ix) + 
-        len(val_labeled_ix) + 
-        len(test_ix) == len(data)
-    )
+    assert len(train_unlabeled_ix) + len(train_labeled_ix) + len(
+        val_unlabeled_ix
+    ) + len(val_labeled_ix) + len(test_ix) == len(data)
     if supervised:
         train_unlabeled_ix = []
         val_unlabeled_ix = []

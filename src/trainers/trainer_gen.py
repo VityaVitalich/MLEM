@@ -19,7 +19,11 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
 from datetime import datetime
 from tqdm import tqdm
-from ..models.model_utils import out_to_padded_batch
+from ..models.model_utils import (
+    out_to_padded_batch,
+    calc_anisotropy,
+    calc_intrinsic_dimension,
+)
 
 
 params = {
@@ -139,21 +143,33 @@ class GenTrainer(BaseTrainer):
 
         train_embeddings = [out["latent"] for out in train_out]
         other_embeddings = [
-            [out["latent"] for out in other_out]
-            if other_out is not None else None for other_out in other_outs
+            [out["latent"] for out in other_out] if other_out is not None else None
+            for other_out in other_outs
         ]
+
+        anisotropy = calc_anisotropy(train_embeddings, other_embeddings).item()
+        logger.info("Anisotropy: %s", str(anisotropy))
+
+        intrinsic_dimension = calc_intrinsic_dimension(
+            train_embeddings, other_embeddings
+        )
+        logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
 
         train_metric, other_metrics = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
         logger.info("Other metrics: %s", str(other_metrics))
-        logger.info("Test finished")
 
+        logger.info("Test finished")
         return train_metric, other_metrics
 
     def compute_test_metric(
-        self, train_embeddings, train_gts, other_embeddings, other_gts,
+        self,
+        train_embeddings,
+        train_gts,
+        other_embeddings,
+        other_gts,
     ):
         train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
         train_embeddings = torch.cat(train_embeddings).cpu().numpy()
@@ -162,12 +178,14 @@ class GenTrainer(BaseTrainer):
         for other_gt in other_gts:
             other_labels.append(
                 torch.cat([gt[1].cpu() for gt in other_gt]).numpy()
-                if other_gt is not None else None
+                if other_gt is not None
+                else None
             )
         for other_embedding in other_embeddings:
             other_embeddings_new.append(
                 torch.cat(other_embedding).cpu().numpy()
-                if other_embedding is not None else None
+                if other_embedding is not None
+                else None
             )
 
         if hasattr(self._data_conf, "main_metric"):
@@ -192,6 +210,7 @@ class GenTrainer(BaseTrainer):
                 return accuracy_score(target, model.predict(x))
             else:
                 raise NotImplementedError(f"Unknown objective {metric}")
+
         model = LGBMClassifier(
             **params,
         )
@@ -216,20 +235,12 @@ class GenTrainer(BaseTrainer):
     def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
         self._model.eval()
         preds, gts = [], []
-        self.order = {}
         with torch.no_grad():
             for inp, gt in tqdm(loader):
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 out = self._model(inp)
                 out = self.dict_to_cpu(out)
-
-                if not self.order:
-                    k = 0
-                    for key in out["gt"]["input_batch"].payload.keys():
-                        if key in self._data_conf.features.numeric_values.keys():
-                            self.order[k] = key
-                            k += 1
 
                 out["gt"].pop("input_batch")
                 out.pop("all_latents", None)
@@ -275,12 +286,13 @@ class GenTrainer(BaseTrainer):
         train_out, train_gts = self.predict(train_supervised_loader)
         logger.info("Reconstructions convertation started")
 
-        generated_data = self.output_to_df(train_out, train_gts)
+        reconstructed_data = self.output_to_df(train_out, train_gts)
         logger.info("Reconstructions converted")
-        save_path = Path(self._ckpt_dir) / f"{self._run_name}" / "reconstructed_data.parquet"
-        save_path.parent.mkdir(parents=True, exist_ok=True)
+        save_path = (
+            Path(self._ckpt_dir) / f"{self._run_name}" / "reconstructed_data.parquet"
+        )
 
-        generated_data.to_parquet(save_path)
+        reconstructed_data.to_parquet(save_path)
         logger.info("Reconstructions saved")
         return save_path
 
@@ -306,7 +318,9 @@ class GenTrainer(BaseTrainer):
             train_out, train_gts, use_generated_time=True
         )
         logger.info("Predictions converted")
-        save_path = Path(self._ckpt_dir) / f"{self._run_name}" / "generated_data.parquet"
+        save_path = (
+            Path(self._ckpt_dir) / f"{self._run_name}" / "generated_data.parquet"
+        )
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
         generated_data.to_parquet(save_path)
@@ -314,7 +328,11 @@ class GenTrainer(BaseTrainer):
         return save_path
 
     def output_to_df(self, outs, gts, use_generated_time=False):
-        df_dic = {"event_time": [], "trx_count": [], "target_target_flag": []}
+        df_dic = {
+            "event_time": [],
+            "trx_count": [],
+            self._data_conf.features.target_col: [],
+        }
         for feature in self._data_conf.features.embeddings.keys():
             df_dic[feature] = []
 
@@ -328,14 +346,19 @@ class GenTrainer(BaseTrainer):
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
-            if use_generated_time:
+            if self._model_conf.use_log_delta and (
+                not use_generated_time
+            ):  # use generated time equals to gen. not use to recon
+                pred_delta = torch.exp(out["pred"]["delta"]).cumsum(1)
+            else:
                 pred_delta = out["pred"]["delta"].cumsum(1)
-                df_dic["event_time"].extend(pred_delta.tolist())
+
+            df_dic["event_time"].extend(pred_delta.tolist())
+            if use_generated_time:
                 df_dic["trx_count"].extend((pred_delta != -1).sum(dim=1).tolist())
             else:
-                df_dic["event_time"].extend(out["gt"]["time_steps"][:, 1:].tolist())
                 df_dic["trx_count"].extend(
-                    (out["gt"]["time_steps"][:, 1:] != -1).sum(dim=1).tolist()
+                    (out["gt"]["time_steps"] != -1).sum(dim=1).tolist()
                 )
             # num_numeric = len(self._data_conf.features.numeric_values.keys())
             # numeric_pred = pred[:, :, -num_numeric:]
@@ -344,7 +367,7 @@ class GenTrainer(BaseTrainer):
             #     cur_val = numeric_pred[:, :, i].cpu().tolist()
             #     df_dic[cur_key].extend(cur_val)
 
-            df_dic["target_target_flag"].extend(gt[1].cpu().tolist())
+            df_dic[self._data_conf.features.target_col].extend(gt[1].cpu().tolist())
 
         generated_df = pd.DataFrame.from_dict(df_dic)
         generated_df["event_time"] = generated_df["event_time"].apply(
@@ -476,6 +499,9 @@ class GANGenTrainer(GenTrainer):
 
             ### Generator Step ###
             pred = self._model(inp)
+            d_pred = self.D(
+                out_to_padded_batch(pred, self._data_conf).to(self.device)
+            ).detach()
             d_pred = self.D(
                 out_to_padded_batch(pred, self._data_conf).to(self.device)
             ).detach()

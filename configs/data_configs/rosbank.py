@@ -15,6 +15,8 @@ def data_configs():
         / "data"
         / "train_trx.parquet"
     )
+    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/generated_data/delta100_2023-10-31_16:32:20'
+    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/reconstructed_data/delta100_2023-10-31_16:32:20'
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
@@ -29,7 +31,7 @@ def data_configs():
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.1  # validation size
-    config.test_size = 0.0 # pinch_test size
+    config.test_size = 0.0  # pinch_test size
     config.col_id = "cl_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -80,6 +82,7 @@ def data_configs():
 
     # dropout
     train.dropout = 0.05
+    config.use_constant_pad = False
     train.max_seq_len = 200
     test.max_seq_len = 200
     val.max_seq_len = 200
@@ -88,8 +91,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 128
-    val.batch_size = 128
+    train.batch_size = 512
+    val.batch_size = 512
     test.batch_size = 16
 
     return config

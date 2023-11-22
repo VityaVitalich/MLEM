@@ -12,17 +12,18 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 12
+    config.features_emb_dim = 8
     config.use_numeric_emb = True
-    config.numeric_emb_size = 12
+    config.numeric_emb_size = 8
     config.encoder_feature_mixer = True
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 512
+    config.classifier_gru_hidden_dim = 64
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TIME DELTA ###
     config.use_deltas = True
+    config.time_embedding = 4
 
     ### TRANSFORMER ###
     config.encoder = "TransformerEncoder"  # Identity or TransformerEncoder
@@ -37,7 +38,7 @@ def model_configs():
     )
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.3
+    config.after_enc_dropout = 0.0
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
@@ -91,11 +92,23 @@ def model_configs():
     config.classification_weight = 1
 
     ### DEVICE + OPTIMIZER ###
-    config.device = "cuda:0"
+    config.device = "cuda"
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
     config.comments = ""
+
+    ### CKCONV ###
+    ckconv = config.ckconv = ml_collections.ConfigDict()
+    ckconv.hidden_channels = 64
+    ckconv.num_blocks = 3
+    ckconv.kernel_hidden_channels = 64
+    ckconv.kernel_activation = "Sine"
+    ckconv.kernel_norm = ""
+    ckconv.omega = 30
+    ckconv.dropout = 0.1
+    ckconv.weight_dropout = 0.0
+    ckconv.use_real_time = True
     return config
