@@ -27,7 +27,7 @@ def data_configs():
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation
+        0  # 0xAB0BA  # seed for splitting data to train and validation #for_merge
     )
     config.valid_size = 0.1  # validation size
     config.test_size = 0.1
