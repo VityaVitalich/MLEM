@@ -15,14 +15,6 @@ def data_configs():
         / "data"
         / "train_trx.parquet"
     )
-    config.train_supervised_path = (
-        Path(__file__).parent.parent.parent
-        / "experiments"
-        / "physionet"
-        / "data"
-        / "train_trx_supervised.parquet"
-    )
-
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
@@ -136,6 +128,7 @@ def data_configs():
     train.dropout = 0.05
 
     # seq len
+    config.use_constant_pad = False
     train.max_seq_len = 200
     val.max_seq_len = 200
     test.max_seq_len = 200

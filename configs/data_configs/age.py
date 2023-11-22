@@ -30,7 +30,7 @@ def data_configs():
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.1  # validation size
-    config.test_size = 0.0 # pinch_test size
+    config.test_size = 0.0  # pinch_test size
     config.col_id = "client_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -78,6 +78,7 @@ def data_configs():
     train.dropout = 0.05
 
     # seq len
+    config.use_constant_pad = False
     train.max_seq_len = 1000
     val.max_seq_len = 1000
     test.max_seq_len = 1000

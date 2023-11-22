@@ -1,15 +1,16 @@
 #!/bin/bash
 
-EPOCHS=0
-DEVICE="cuda:1"
-NAME='debug_gen'
+EPOCHS=70
+DEVICE="cuda"
+NAME='seq2seq_32-32-pred-cur_step'
 DATA_C="../configs/data_configs/rosbank.py"
 MODEL_C="../configs/model_configs/gen/rosbank.py"
 LOG_D="./rosbank/logs/"
-GENVAL=True
-GENVAL_EPOCH=1
-RECON_VAL=True
-RECON_VAL_EPOCH=1
+GENVAL=0
+GENVAL_EPOCH=20
+RECON_VAL=1
+RECON_VAL_EPOCH=20
+DRAW=0
 
 python pipeline_gen.py \
     --run-name=$NAME \
@@ -21,4 +22,5 @@ python pipeline_gen.py \
     --gen-val=$GENVAL \
     --gen-val-epoch=$GENVAL_EPOCH \
     --recon-val=$RECON_VAL \
-    --recon-val-epoch=$RECON_VAL_EPOCH 
+    --recon-val-epoch=$RECON_VAL_EPOCH  \
+    --draw=$DRAW

@@ -469,6 +469,9 @@ def get_loss(model_conf):
     if model_conf.loss.loss_fn == "CrossEntropy":
         loss_fn = torch.nn.CrossEntropyLoss()
 
+    elif model_conf.loss.loss_fn == "MSE":
+        loss_fn = torch.nn.MSELoss()
+
     elif model_conf.loss.loss_fn == "ContrastiveLoss":
         kwargs = {
             "margin": model_conf.loss.margin,

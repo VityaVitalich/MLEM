@@ -211,3 +211,46 @@ class MultiTimeSummator(nn.Module):
             new_xs.append(new_x)
 
         return torch.cat(new_xs, dim=0)
+
+
+class TimeEncoder(nn.Module):
+    def __init__(self, model_conf, data_conf):
+        super().__init__()
+        self.model_conf = model_conf
+        self.data_conf = data_conf
+
+        if self.model_conf.time_embedding:
+            self.alpha = nn.Parameter(torch.rand(self.model_conf.time_embedding))
+
+    def forward(self, x, time_steps):
+        if not self.model_conf.use_deltas:
+            return x
+
+        gt_delta = time_steps.diff(1)
+        delta_feature = torch.cat(
+            [torch.zeros(x.size(0), 1, device=gt_delta.device), gt_delta], dim=1
+        )
+        time_emb = self.create_emb(delta_feature)
+
+        x = torch.cat([x, time_emb], dim=-1)
+
+        return x
+
+    def create_emb(self, delta_feature):
+        if self.model_conf.time_embedding:
+            bs, l = delta_feature.size()
+            return torch.cat(
+                [
+                    torch.sin(delta_feature)
+                    .view(bs, l, 1)
+                    .repeat(1, 1, self.model_conf.time_embedding)
+                    * self.alpha,
+                    torch.cos(delta_feature)
+                    .view(bs, l, 1)
+                    .repeat(1, 1, self.model_conf.time_embedding)
+                    * self.alpha,
+                ],
+                dim=-1,
+            )
+        else:
+            return delta_feature.unsqueeze(-1)

@@ -6,7 +6,7 @@ import torch
 
 from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
-from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.metrics import roc_auc_score, accuracy_score, mean_squared_error
 
 logger = logging.getLogger(__name__)
 
@@ -98,5 +98,27 @@ class AccuracyTrainerSupervised(SimpleTrainerSupervised):
         score = accuracy_score(gold, preds)
 
         losses_dict["accuracy"] = score
+
+        return losses_dict
+
+
+class MSETrainerSupervised(SimpleTrainerSupervised):
+    def compute_metrics(
+        self,
+        model_outputs: List[Any],
+        ground_truths: List[Any],  # pyright: ignore unused
+    ) -> Dict[str, Any]:
+        loss_dicts = [
+            self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
+        ]
+        losses_dict = {
+            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
+        }
+
+        preds = torch.cat([it.cpu() for it in model_outputs])
+        gold = torch.cat([gt[1].cpu() for gt in ground_truths])
+        score = mean_squared_error(gold, preds)
+
+        losses_dict["mse"] = score
 
         return losses_dict
