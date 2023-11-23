@@ -64,7 +64,9 @@ class ContrastivePipeline(Pipeline):
         ### RUN TRAINING ###
         trainer.run()
 
-        train_metric, (val_metric, test_metric, another_test_metric) = trainer.test(
+        train_metric, (val_metric, test_metric, another_test_metric),\
+        train_logist, (val_logist, test_logist, another_test_logist),\
+        anisotropy, intrinsic_dimension = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, another_test_loader),
         )
@@ -73,6 +75,12 @@ class ContrastivePipeline(Pipeline):
             "val_metric": val_metric,
             "test_metric": test_metric,
             "another_test_metric": another_test_metric,
+            "train_logist": train_logist,
+            "val_logist": val_logist,
+            "test_logist": test_logist,
+            "another_test_logist": another_test_logist,
+            "anisotropy": anisotropy,
+            "intrinsic_dimension": intrinsic_dimension,
         }
 
     def _param_grid(self, trial, model_conf, data_conf):
