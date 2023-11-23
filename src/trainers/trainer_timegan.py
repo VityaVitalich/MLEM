@@ -20,7 +20,11 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
 from datetime import datetime
 from tqdm import tqdm
-from ..models.model_utils import out_to_padded_batch
+from ..models.model_utils import (
+    out_to_padded_batch,
+    calc_anisotropy,
+    calc_intrinsic_dimension,
+)
 
 
 params = {
@@ -357,6 +361,14 @@ class TGTrainer(BaseTrainer):
             for other_out in other_outs
         ]
 
+        anisotropy = calc_anisotropy(train_embeddings, other_embeddings).item()
+        logger.info("Anisotropy: %s", str(anisotropy))
+
+        intrinsic_dimension = calc_intrinsic_dimension(
+            train_embeddings, other_embeddings
+        )
+        logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
+
         train_metric, other_metrics = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
@@ -595,9 +607,15 @@ class TGTrainer(BaseTrainer):
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
-            df_dic["event_time"].extend(out["time_steps"].tolist())
-
-            df_dic["trx_count"].extend((out["time_steps"] != -1).sum(dim=1).tolist())
+            if "delta" in out["pred"].keys():
+                pred_delta = out["pred"]["delta"].cumsum(1)
+                df_dic["event_time"].extend(pred_delta.tolist())
+                df_dic["trx_count"].extend((pred_delta != -1).sum(dim=1).tolist())
+            else:
+                df_dic["event_time"].extend(out["time_steps"].tolist())
+                df_dic["trx_count"].extend(
+                    (out["time_steps"] != -1).sum(dim=1).tolist()
+                )
 
             df_dic[self._data_conf.features.target_col].extend(gt[1].cpu().tolist())
 

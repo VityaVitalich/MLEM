@@ -13,7 +13,9 @@ class EmbeddingPredictor(nn.Module):
         self.model_conf = model_conf
         self.data_conf = data_conf
 
-        self.criterion = nn.CrossEntropyLoss(reduction="none", ignore_index=0)
+        self.criterion = nn.CrossEntropyLoss(
+            reduction="none", ignore_index=0, label_smoothing=0.15
+        )
 
         self.emb_names = list(self.data_conf.features.embeddings.keys())
         self.num_embeds = len(self.emb_names)
@@ -267,6 +269,9 @@ class TG(nn.Module):
         self.processor = prp.FeatureProcessor(
             model_conf=model_conf, data_conf=data_conf
         )
+        self.time_encoder = prp.TimeEncoder(
+            model_conf=self.model_conf, data_conf=self.data_conf
+        )
 
         ### INPUT SIZE ###
         all_emb_size = self.model_conf.features_emb_dim * len(
@@ -278,7 +283,10 @@ class TG(nn.Module):
             * self.model_conf.numeric_emb_size
         )
 
-        self.input_dim = all_emb_size + self.all_numeric_size
+        self.input_dim = (
+            all_emb_size + self.all_numeric_size + self.model_conf.use_deltas
+        )
+        assert self.model_conf.time_embedding == 0
 
         self.encoder = Encoder(
             input_size=self.input_dim,
@@ -324,7 +332,6 @@ class TG(nn.Module):
         for key, values in input_batch.payload.items():
             if key in self.processor.numeric_names:
                 gt_val = values.float()
-                gt_val = values.float()
                 pred_val = pred[key].squeeze(-1)
 
                 mse_loss = self.mse_fn(
@@ -339,6 +346,22 @@ class TG(nn.Module):
 
         return total_mse_loss
 
+    def delta_mse_loss(self, time_steps, pred_delta):
+        # DELTA MSE
+        if self.model_conf.use_deltas:
+            gt_delta = time_steps.diff(1)
+            if self.model_conf.use_log_delta:
+                gt_delta = torch.log(gt_delta + 1e-10)
+            delta_mse = self.mse_fn(gt_delta, pred_delta[:, :-1])
+            mask = time_steps != -1
+
+            delta_masked = delta_mse * mask[:, :-1]
+            delta_mse = delta_masked.sum() / (mask != 0).sum()
+        else:
+            delta_mse = torch.tensor(0)
+
+        return delta_mse
+
     def e_loss(self, decoded, padded_batch):
         emb_dist = self.embedding_predictor(decoded)
         cross_entropy_losses = self.embedding_predictor.loss(emb_dist, padded_batch)
@@ -347,11 +370,15 @@ class TG(nn.Module):
         )
 
         mse_loss = self.numerical_loss(self.numeric_projector(decoded), padded_batch)
-
-        return total_ce_loss + mse_loss
+        delta_loss = self.delta_mse_loss(
+            padded_batch.payload["event_time"].float(), decoded[:, :, -1]
+        )
+        return total_ce_loss + mse_loss + self.model_conf.delta_weight * delta_loss
 
     def train_embedder(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
+        x = self.time_encoder(x, time_steps)
+
         latens = self.encoder(x)
         decoded = self.decoder(latens)
 
@@ -364,22 +391,33 @@ class TG(nn.Module):
 
     def train_generator(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
+        x = self.time_encoder(x, time_steps)
+
         bs, l, d = x.size()
         Z = random_generator(bs, d, [l] * bs, l)
         gen_E = self.generator(Z.to(self.model_conf.device))
 
         gen_latens = self.supervisor(gen_E)
-        latens = self.encoder(x)
+        H = self.encoder(x)
+        H_hat_supervised = self.supervisor(H)
 
-        mse = F.mse_loss(latens, gen_latens, reduction="none").sum(dim=[1, 2]).mean()
+        mse = (
+            F.mse_loss(H_hat_supervised, gen_latens, reduction="none")
+            .sum(dim=[1, 2])
+            .mean()
+        )
+        # mse = F.mse_loss(H[:,1:,:], H_hat_supervised[:,:-1, :], reduction="none").sum(dim=[1, 2]).mean()
         return mse
 
     def train_joint(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
+        x = self.time_encoder(x, time_steps)
+
         bs, l, d = x.size()
         Z = random_generator(bs, d, [l] * bs, l)
         gen_latens = self.supervisor(self.generator(Z.to(self.model_conf.device)))
         latens = self.encoder(x)
+        H_hat_supervised = self.supervisor(latens)
         decoded = self.decoder(latens)
         gen_decoded = self.decoder(gen_latens)
 
@@ -394,17 +432,21 @@ class TG(nn.Module):
             .mean()
         )
         g_loss_s = (
-            F.mse_loss(latens, gen_latens, reduction="none").sum(dim=[1, 2]).mean()
+            # F.mse_loss(latens[:,1:,:], H_hat_supervised[:,:-1, :], reduction="none").sum(dim=[1, 2]).mean()
+            F.mse_loss(H_hat_supervised, gen_latens, reduction="none")
+            .sum(dim=[1, 2])
+            .mean()
         )
 
-        var_loss = torch.abs(
-            torch.sqrt(torch.var(gen_decoded, dim=0) + 1e-6)
-            - torch.sqrt(torch.var(x.detach(), dim=0) + 1e-6)
-        ).mean()
-        mean_loss = torch.abs(
-            torch.mean(gen_decoded, dim=0) - torch.mean(x.detach(), dim=0)
-        ).mean()
-        g_loss_v = var_loss + mean_loss
+        G_loss_V1 = torch.mean(
+            torch.abs(
+                (torch.std(gen_decoded, dim=0)) + 1e-6 - (torch.std(x, dim=0) + 1e-6)
+            )
+        )
+        G_loss_V2 = torch.mean(
+            torch.abs((torch.mean(gen_decoded, dim=0) - (torch.mean(x, dim=0))))
+        )
+        g_loss_v = G_loss_V1 + G_loss_V2  # var_loss + mean_loss
 
         e_loss = self.e_loss(decoded, padded_batch)
         e_loss = 10 * torch.sqrt(e_loss)
@@ -414,6 +456,8 @@ class TG(nn.Module):
 
     def train_discriminator(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
+        x = self.time_encoder(x, time_steps)
+
         bs, l, d = x.size()
         Z = random_generator(bs, d, [l] * bs, l)
         e_gen = self.generator(Z.to(self.model_conf.device))
@@ -459,17 +503,24 @@ class TG(nn.Module):
 
     def reconstruct(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
+        x = self.time_encoder(x, time_steps)
+
         latens = self.encoder(x)
         decoded = self.decoder(latens)
 
         pred = self.embedding_predictor(decoded)
         pred.update(self.numeric_projector(decoded))
 
+        if self.model_conf.use_deltas:
+            pred["delta"] = decoded[:, :, -1].squeeze(-1)
+
         out = {"pred": pred, "time_steps": time_steps}
         return out
 
     def generate(self, padded_batch):
         x, time_steps = self.processor(padded_batch)
+        x = self.time_encoder(x, time_steps)
+
         bs, l, d = x.size()
         Z = random_generator(bs, d, [l] * bs, l)
         gen_latens = self.supervisor(self.generator(Z.to(self.model_conf.device)))
@@ -477,6 +528,8 @@ class TG(nn.Module):
 
         pred = self.embedding_predictor(gen_decoded)
         pred.update(self.numeric_projector(gen_decoded))
+        if self.model_conf.use_deltas:
+            pred["delta"] = gen_decoded[:, :, -1].squeeze(-1)
 
         out = {"pred": pred, "time_steps": time_steps}
         return out

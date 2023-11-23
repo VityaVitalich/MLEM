@@ -1,16 +1,16 @@
 #!/bin/bash
 
-EPOCHS=70
+EPOCHS=1
 DEVICE="cuda"
-NAME='seq2seq_32-32-pred-cur_step'
+NAME='TPPVAE_Test'
 DATA_C="../configs/data_configs/rosbank.py"
 MODEL_C="../configs/model_configs/gen/rosbank.py"
 LOG_D="./rosbank/logs/"
-GENVAL=0
-GENVAL_EPOCH=20
+GENVAL=1
+GENVAL_EPOCH=1
 RECON_VAL=1
-RECON_VAL_EPOCH=20
-DRAW=0
+RECON_VAL_EPOCH=1
+DRAW=1
 
 python pipeline_gen.py \
     --run-name=$NAME \

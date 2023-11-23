@@ -17,6 +17,7 @@ from functools import partial
 from einops import repeat
 from .timevae import TimeVAE
 from .seq2seq import Seq2Seq
+from .tpp_vae import TPPVAE
 
 
 class BaseMixin(nn.Module):
@@ -262,7 +263,6 @@ class BaseMixin(nn.Module):
         total_mse_loss = 0
         for key, values in output["gt"]["input_batch"].payload.items():
             if key in self.processor.numeric_names:
-                gt_val = values.float()
                 gt_val = values.float()
                 pred_val = output["pred"][key].squeeze(-1)
 
@@ -511,7 +511,7 @@ class GRUCell(nn.Module):
 
         self.x2h = nn.Linear(input_size, 3 * hidden_size, bias=bias)
         self.h2h = nn.Linear(hidden_size, 3 * hidden_size, bias=bias)
-        self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
+        # self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
         self.act = nn.GELU()
         self.reset_parameters()
 

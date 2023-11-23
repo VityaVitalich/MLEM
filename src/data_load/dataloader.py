@@ -141,7 +141,7 @@ def padded_collate(batch):
             # seqs = pad_sequence(seqs)
 
             new_x[k] = torch.nn.utils.rnn.pad_sequence(
-                v, batch_first=True, padding_value=2.0
+                v, batch_first=True, padding_value=-1.0
             )
         else:
             #    v[0] = torch.nn.ConstantPad1d((0, max_len - v[0].shape[0]), 0.0)(v[0])

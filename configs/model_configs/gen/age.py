@@ -16,7 +16,7 @@ def model_configs():
     config.features_emb_dim = 12
     config.use_numeric_emb = True
     config.numeric_emb_size = 12
-    config.encoder_feature_mixer = True
+    config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
     ### ENCODER ###
@@ -53,7 +53,7 @@ def model_configs():
 
     ### TIME ###
     config.use_deltas = True
-    config.time_embedding = 6
+    config.time_embedding = 0
     config.use_log_delta = False
     config.delta_weight = 10
 
