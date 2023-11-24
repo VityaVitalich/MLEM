@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "TPPVAE"
+    config.model_name = "SeqGen"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -21,24 +21,26 @@ def model_configs():
 
     ### ENCODER ###
     config.encoder = "GRU"  # GRU LSTM TR
-    config.encoder_hidden = 64
-    config.encoder_num_layers = 1
+    config.encoder_hidden = 128
+    config.encoder_num_layers = 2
 
     ### TRANSFORMER ENCODER ###
     config.encoder_num_heads = 1
+    config.encoder_dim_ff = 256
 
     ### DECODER ###
-    config.decoder = "GRU"  # GRU TR
-    config.decoder_hidden = 64
-    config.decoder_num_layers = 1
+    config.decoder = "TR"  # GRU TR
+    config.decoder_hidden = 256
+    config.decoder_num_layers = 3
 
     ### TRANSFORMER DECODER ###
-    config.decoder_heads = 1
+    config.decoder_heads = 2
+    config.decoder_dim_ff = 512
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
-    config.post_encoder_norm = "Identity"
-    config.decoder_norm = "Identity"
+    config.post_encoder_norm = "LayerNorm"
+    config.decoder_norm = "LayerNorm"
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
@@ -93,9 +95,9 @@ def model_configs():
 
     ### TPP VAE ###
     tppvae = config.tppvae = ml_collections.ConfigDict()
-    tppvae.hidden_rnn = 32
+    tppvae.hidden_rnn = 64
     tppvae.joint_layer_num = 2
-    tppvae.num_layers_enc = 2
+    tppvae.num_layers_enc = 1
     return config
 
 

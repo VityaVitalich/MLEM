@@ -148,6 +148,7 @@ class BaseMixin(nn.Module):
                 # d_model=self.input_dim,
                 nhead=self.model_conf.encoder_num_heads,
                 batch_first=True,
+                dim_feedforward=self.model_conf.encoder_dim_ff,
             )
 
             self.encoder = nn.TransformerEncoder(
@@ -179,6 +180,7 @@ class BaseMixin(nn.Module):
                 num_layers=self.model_conf.decoder_num_layers,
                 norm=self.decoder_norm,
                 pos_encoding=self.dec_pos_encoding,
+                dim_feedforward=self.model_conf.decoder_dim_ff,
             )
             self.decoder_proj = nn.Linear(
                 self.input_dim, self.model_conf.decoder_hidden
@@ -652,12 +654,13 @@ class DecoderGRU(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, d_model, nhead, num_layers, norm, pos_encoding):
+    def __init__(self, d_model, nhead, num_layers, norm, pos_encoding, dim_feedforward):
         super().__init__()
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=d_model,
             nhead=nhead,
             batch_first=True,
+            dim_feedforward=dim_feedforward,
         )
         self.decoder = nn.TransformerDecoder(
             decoder_layer,

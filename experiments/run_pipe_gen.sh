@@ -1,15 +1,15 @@
 #!/bin/bash
 
-EPOCHS=1
+EPOCHS=70
 DEVICE="cuda"
-NAME='TPPVAE_Test'
+NAME='our_run_128-256TR-3l-2h-16emb'
 DATA_C="../configs/data_configs/rosbank.py"
 MODEL_C="../configs/model_configs/gen/rosbank.py"
 LOG_D="./rosbank/logs/"
 GENVAL=1
-GENVAL_EPOCH=1
+GENVAL_EPOCH=20
 RECON_VAL=1
-RECON_VAL_EPOCH=1
+RECON_VAL_EPOCH=20
 DRAW=1
 
 python pipeline_gen.py \
