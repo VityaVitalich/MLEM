@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "TimeVAE"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -28,17 +28,18 @@ def model_configs():
     config.encoder_num_heads = 1
 
     ### DECODER ###
-    config.decoder = "GRU"
-    config.decoder_hidden = 32
-    config.decoder_num_layers = 1
+    config.decoder = "TR"
+    config.decoder_hidden = 256
+    config.decoder_num_layers = 3
 
     ### TRANSFORMER DECODER ###
-    config.decoder_heads = 1
+    config.decoder_heads = 2
+    config.decoder_dim_ff = 512
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
-    config.post_encoder_norm = "Identity"
-    config.decoder_norm = "Identity"
+    config.post_encoder_norm = "LayerNorm"
+    config.decoder_norm = "LayerNorm"
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
@@ -53,7 +54,7 @@ def model_configs():
 
     ### TIME ###
     config.use_deltas = True
-    config.time_embedding = 0
+    config.time_embedding = 2
     config.use_log_delta = False
     config.delta_weight = 10
 
@@ -76,6 +77,18 @@ def model_configs():
     config.gen_len = 500
     config.genval = genval_config()
     config.D = d_config()
+
+    ### Time GAN ###
+    timegan = config.timegan = ml_collections.ConfigDict()
+    timegan.rnn_hidden = 128
+    timegan.num_layers = 1
+    timegan.gamma = 1
+
+    ### Time VAE ###
+    timevae = config.timevae = ml_collections.ConfigDict()
+    timevae.hiddens = [128, 128]
+    timevae.latent_dim = 64
+    timevae.recon_weight = 3
     return config
 
 

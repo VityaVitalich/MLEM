@@ -1,8 +1,8 @@
 #!/bin/bash
 
-EPOCHS=70
+EPOCHS=150
 DEVICE="cuda"
-NAME='our_run_128-256TR-3l-2h-16emb'
+NAME='TV-150epoch'
 DATA_C="../configs/data_configs/rosbank.py"
 MODEL_C="../configs/model_configs/gen/rosbank.py"
 LOG_D="./rosbank/logs/"

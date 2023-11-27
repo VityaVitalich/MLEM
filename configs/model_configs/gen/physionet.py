@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "TimeVAE"
+    config.model_name = "SeqGen"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -13,16 +13,16 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 16
+    config.features_emb_dim = 8
     config.use_numeric_emb = True
-    config.numeric_emb_size = 16
+    config.numeric_emb_size = 8
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
     ### ENCODER ###
     config.encoder = "GRU"  # GRU LSTM TR
     config.encoder_hidden = 128
-    config.encoder_num_layers = 2
+    config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
     config.encoder_num_heads = 1
@@ -55,7 +55,7 @@ def model_configs():
 
     ### TIME ###
     config.use_deltas = True
-    config.time_embedding = 0
+    config.time_embedding = 2
     config.use_log_delta = False
     config.delta_weight = 1
 
@@ -76,7 +76,7 @@ def model_configs():
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
-    config.gen_len = 100
+    config.gen_len = 200
     config.comments = ""
     config.genval = genval_config()
     config.D = d_config()
@@ -89,7 +89,7 @@ def model_configs():
 
     ### Time VAE ###
     timevae = config.timevae = ml_collections.ConfigDict()
-    timevae.hiddens = [128, 128]
+    timevae.hiddens = [32, 32]
     timevae.latent_dim = 64
     timevae.recon_weight = 3
 
@@ -98,13 +98,6 @@ def model_configs():
     tppvae.hidden_rnn = 64
     tppvae.joint_layer_num = 2
     tppvae.num_layers_enc = 1
-
-    ### TPP VAE ###
-    tppddpm = config.tppddpm = ml_collections.ConfigDict()
-    tppddpm.hidden_rnn = 64
-    tppddpm.denoise_layer_num = 2
-    tppddpm.num_layers_enc = 1
-    tppddpm.diff_steps = 50
     return config
 
 

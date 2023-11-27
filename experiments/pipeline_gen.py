@@ -14,6 +14,7 @@ from src.trainers.trainer_gen import (
     GenTrainer,
     GANGenTrainer,
 )
+from src.trainers.trainer_ddpm import TrainerDDPM
 import src.models.gen_models
 from experiments.utils import get_parser, read_config, draw_generated
 from experiments.pipeline import Pipeline
@@ -115,7 +116,10 @@ class GenerativePipeline(Pipeline):
                 model_conf_d=model_conf_D,
             )
         else:
-            trainer = GenTrainer(
+            gen_trainer_class = (
+                TrainerDDPM if "DDPM" in self.model_conf.model_name else GenTrainer
+            )
+            trainer = gen_trainer_class(
                 model=net,
                 optimizer=opt,
                 train_loader=train_loader,
