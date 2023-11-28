@@ -137,8 +137,9 @@ def get_parser():
 
 def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
     import optuna
-
-    study = optuna.load_study(study_name=name, storage=f"sqlite:///{name}/study.db")
+    from optuna.storages import JournalFileStorage, JournalStorage
+    storage = JournalStorage(JournalFileStorage(f"{name}/study.log"))
+    study = optuna.load_study(study_name=name, storage=storage)
     df = study.trials_dataframe()
     df = df.drop(
         columns=[
@@ -146,7 +147,7 @@ def optuna_df(name="age/logs/optuna_ContrastiveLoss"):
         ]
     )
 
-    return df
+    return df, study
 
 
 if __name__ == "__main__":

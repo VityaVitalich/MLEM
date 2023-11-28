@@ -296,8 +296,8 @@ class BaseTrainer:
 
             pred = self._model(inp)
             if self._metrics_on_train:
-                preds.append(pred)
-                gts.append(gt)
+                preds.append(pred.to("cpu"))
+                gts.append(gt.to("cpu"))
 
             loss = self.compute_loss(pred, gt)
             loss.backward()
@@ -357,10 +357,10 @@ class BaseTrainer:
         preds, gts = [], []
         with torch.no_grad():
             for inp, gt in tqdm(loader):
-                gts.append(gt.to(self._device))
+                gts.append(gt.to("cpu"))
                 inp = inp.to(self._device)
                 pred = self._model(inp)
-                preds.append(pred)
+                preds.append(pred.to("cpu"))
 
         return preds, gts
 

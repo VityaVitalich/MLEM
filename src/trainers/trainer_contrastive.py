@@ -84,7 +84,8 @@ class SimpleTrainerContrastive(BaseTrainer):
         # assert isinstance(self.model, MegaNetCE)
         with torch.no_grad():
             loss_dicts = [
-                self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
+                self.model.loss(it.to(self._device), gt.to(self._device))
+                for it, gt in zip(model_outputs, ground_truths)
             ]
         losses_dict = {
             k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
@@ -210,8 +211,9 @@ class SimpleTrainerContrastive(BaseTrainer):
 
         train_emb_subset = preprocessor.fit_transform(train_emb_subset)
         model.fit(train_emb_subset, train_labels_subset)
+        logger.info("Finished lgbm")
         log_model.fit(train_emb_subset, train_labels_subset)
-
+        logger.info("Finished logistic")
         train_metric = self.get_metric(model, train_emb_subset, train_labels_subset)
         train_logist = self.get_metric(log_model, train_emb_subset, train_labels_subset)
 
@@ -246,7 +248,7 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
         args = params.copy()
         args["objective"] = "binary"
         args["metric"] = "auc"
-        return LGBMClassifier(verbosity=-1, **args), LogisticRegression()
+        return LGBMClassifier(verbosity=-1, **args), LogisticRegression(solver="saga")
 
 
 class AccuracyTrainerContrastive(SimpleTrainerContrastive):
@@ -259,4 +261,4 @@ class AccuracyTrainerContrastive(SimpleTrainerContrastive):
         args = params.copy()
         args["objective"] = "multiclass"
         args["metric"] = "multi_error"
-        return LGBMClassifier(verbosity=-1, **args), LogisticRegression()
+        return LGBMClassifier(verbosity=-1, **args), LogisticRegression(solver="saga")

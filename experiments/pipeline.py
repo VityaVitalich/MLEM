@@ -7,17 +7,18 @@ try:
     set_start_method("spawn")
 except:
     pass
+import os
+import subprocess
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
-import subprocess
 
 import numpy as np
 import pandas as pd
 import torch
-
-from src.trainers.randomness import seed_everything
 from experiments.utils import log_to_file
+from src.trainers.randomness import seed_everything
 
 
 class Pipeline:
@@ -31,6 +32,7 @@ class Pipeline:
         TrainerClass,
         resume,
         log_dir,
+        grid_name="",
         console_lvl="warning",
         file_lvl="info",
     ):
@@ -47,6 +49,7 @@ class Pipeline:
         self.TrainerClass = TrainerClass
         self.resume = resume
         self.log_dir = Path(log_dir)
+        self.grid_name = grid_name
         self.console_lvl = console_lvl
         self.file_lvl = file_lvl
         """
@@ -146,6 +149,7 @@ class Pipeline:
 
         import optuna
         from optuna.samplers import TPESampler
+        from optuna.storages import JournalFileStorage, JournalStorage
 
         sampler = TPESampler(
             # seed=0, important to NOT specify, otherwise parallel scripts repeat themself
@@ -154,8 +158,10 @@ class Pipeline:
             n_startup_trials=n_startup_trials,
         )
         (self.log_dir / self.run_name).mkdir(exist_ok=True, parents=True)
+
+        storage = JournalStorage(JournalFileStorage(f"{self.log_dir / self.run_name}/study.log"))
         study = optuna.create_study(
-            storage=f"sqlite:///{self.log_dir / self.run_name}/study.db",
+            storage=storage,
             sampler=sampler,
             study_name=f"{self.log_dir / self.run_name}",
             direction="maximize",
@@ -185,12 +191,19 @@ class Pipeline:
         name = f"{self.run_name}/{trial.number}"
         print("RUN NAME:", name)
 
-        summary_df = self.do_n_runs(
-            run_name=name,
-            conf=conf,
-            model_conf=model_conf,
-            n_runs=n_runs,
-        )
+        try:
+            summary_df = self.do_n_runs(
+                run_name=name,
+                conf=conf,
+                model_conf=model_conf,
+                n_runs=n_runs,
+            )
+        except Exception as e:
+            (Path(self.log_dir) / name).mkdir(exist_ok=True, parents=True)
+            (Path(self.log_dir) / name / "ERROR.txt").write_text(traceback.format_exc())
+            print(traceback.format_exc())
+            raise e
+        (Path(self.log_dir) / name / "params.txt").write_text(str(trial.params).replace(", ", ",\n"))
 
         for k in summary_df:
             trial.set_user_attr(f"{k}_mean", summary_df.loc["mean", k])

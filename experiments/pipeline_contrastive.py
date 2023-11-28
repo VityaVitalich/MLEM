@@ -15,6 +15,7 @@ from src.trainers.trainer_contrastive import (
     AucTrainerContrastive,
     SimpleTrainerContrastive,
 )
+import param_grids
 from experiments.utils import get_parser, read_config
 from experiments.pipeline import Pipeline
 
@@ -51,7 +52,7 @@ class ContrastivePipeline(Pipeline):
             train_loader=train_loader,
             val_loader=valid_loader,
             run_name=run_name,
-            ckpt_dir=Path(self.log_dir).parent / "ckpt",
+            ckpt_dir=Path(self.log_dir) / "ckpt",
             ckpt_replace=True,
             ckpt_resume=self.resume,
             ckpt_track_metric="epoch",
@@ -64,9 +65,14 @@ class ContrastivePipeline(Pipeline):
         ### RUN TRAINING ###
         trainer.run()
 
-        train_metric, (val_metric, test_metric, another_test_metric),\
-        train_logist, (val_logist, test_logist, another_test_logist),\
-        anisotropy, intrinsic_dimension = trainer.test(
+        (
+            train_metric,
+            (val_metric, test_metric, another_test_metric),
+            train_logist,
+            (val_logist, test_logist, another_test_logist),
+            anisotropy,
+            intrinsic_dimension,
+        ) = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, another_test_loader),
         )
@@ -84,65 +90,7 @@ class ContrastivePipeline(Pipeline):
         }
 
     def _param_grid(self, trial, model_conf, data_conf):
-        for param in (
-            ("batch_first_encoder", [True, False]),
-            ("features_emb_dim", [4, 8, 16, 32]),
-            ("classifier_gru_hidden_dim", [16, 32, 64, 128]),
-            ("encoder", ["Identity", "TransformerEncoder"]),
-            ("num_enc_layers", [1, 2]),
-            ("after_enc_dropout", [0.0, 0.1, 0.2]),
-            ("activation", ["ReLU", "LeakyReLU", "Mish", "Tanh"]),
-            ("lr", [3e-4, 1e-3, 3e-3]),
-            ("weight_decay", [1e-5, 1e-4, 1e-3]),
-            ("use_numeric_emb", [True, False]),
-        ):
-            model_conf[param[0]] = trial.suggest_categorical(param[0], param[1])
-        if model_conf["use_numeric_emb"]:
-            model_conf["numeric_emb_size"] = model_conf["features_emb_dim"]
-            model_conf["num_heads_enc"] = trial.suggest_categorical(
-                "num_heads_enc", [1]  # TODO complicated not to fail
-            )
-        else:
-            model_conf["num_heads_enc"] = 1
-
-        if model_conf["encoder"] == "TransformerEncoder":
-            model_conf["encoder_norm"] = trial.suggest_categorical(
-                "encoder_norm", ["Identity", "LayerNorm"]
-            )  # important to know corr to encoder
-        elif model_conf["encoder"] == "Identity":
-            model_conf["encoder_norm"] = "Identity"
-
-        for param in (
-            (
-                "loss.loss_fn",
-                ["ContrastiveLoss"],
-            ),  # , "InfoNCELoss", "DecoupledInfoNCELoss", "RINCELoss", "DecoupledPairwiseInfoNCELoss"]),
-            ("loss.projector", ["Identity", "Linear", "MLP"]),
-            ("loss.project_dim", [32, 64, 128, 256]),
-        ):
-            model_conf.loss[param[0].split(".")[1]] = trial.suggest_categorical(
-                param[0], param[1]
-            )
-        if model_conf.loss.loss_fn == "ContrastiveLoss":
-            model_conf.loss.margin = trial.suggest_categorical(
-                "loss.margin", [0.0, 0.1, 0.3, 0.5, 1.0]
-            )
-        else:
-            model_conf.loss.temperature = trial.suggest_categorical(
-                "loss.temperature", [0.01, 0.03, 0.1, 0.3, 1.0]
-            )
-        if model_conf.loss.loss_fn == "InfoNCELoss":
-            model_conf.loss.angular_margin = trial.suggest_categorical(
-                "loss.angular_margin", [0.0, 0.3, 0.5, 0.7]
-            )
-        elif model_conf.loss.loss_fn == "RINCELoss":
-            model_conf.loss.q = trial.suggest_categorical(
-                "loss.q", [0.01, 0.03, 0.1, 0.3]
-            )
-            model_conf.loss.lam = trial.suggest_categorical(
-                "loss.lam", [0.003, 0.01, 0.03, 0.1, 0.3]
-            )
-        return trial, model_conf, data_conf
+        return getattr(param_grids, self.grid_name)(trial, model_conf, data_conf)
 
 
 def get_trainer_class(data_conf) -> type:
@@ -175,7 +123,14 @@ def get_trainer_class(data_conf) -> type:
 
 
 if __name__ == "__main__":
-    args = get_parser().parse_args()
+    parser = get_parser()
+    parser.add_argument(
+        "--grid-name",
+        help="Name of grid function from param_grids.py",
+        default="",
+        type=str,
+    )
+    args = parser.parse_args()
     ### TRAINING SETUP ###
     data_conf = read_config(args.data_conf, "data_configs")
     model_conf = read_config(args.model_conf, "model_configs")
@@ -189,27 +144,40 @@ if __name__ == "__main__":
         TrainerClass=TrainerClass,
         resume=args.resume,
         log_dir=args.log_dir,
+        grid_name=args.grid_name,
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
     )
-    request = {
-        "features_emb_dim": 32,
-        "classifier_gru_hidden_dim": 128,
-        "encoder": "TransformerEncoder",
-        "num_enc_layers": 2,
-        "use_numeric_emb": True,
-        "loss.projector": "Linear",
-        "loss.project_dim": 256,
-        "num_heads_enc": 1,
-        "loss.loss_fn": "ContrastiveLoss",
-        "encoder_norm": "LayerNorm",
-    }
-    metrics = pipeline.run_experiment()
+    request = [
+        {
+            "batch_first_encoder": True,
+            "features_emb_dim": 16,
+            "use_numeric_emb": False,
+            "numeric_emb_size": 8,
+            "encoder_feature_mixer": False,
+            "classifier_gru_hidden_dim": 800,
+            "use_deltas": False,
+            "encoder": "Identity",
+            "num_enc_layers": 1,
+            "num_heads_enc": 1,
+            "encoder_norm": "Identity",
+            "after_enc_dropout": 0.0,
+            "activation": "LeakyReLU",
+            # "loss_fn": "ContrastiveLoss",
+            "margin": 0.5,
+            "projector": "Identity",
+            "project_dim": 32,
+            "lr": 0.001,
+            "weight_decay": 0.0,
+        },
+    ]
+    # metrics = pipeline.run_experiment()
     # metrics = pipeline.do_n_runs()
-    # metrics = pipeline.optuna_setup(
-    #     "val_metric",
-    #     request_list=[request],
-    #     n_startup_trials=2,
-    #     n_trials=3,
-    # )
+    metrics = pipeline.optuna_setup(
+        "val_metric",
+        request_list=request,
+        n_startup_trials=3,
+        n_trials=50,
+        n_runs=3,
+    )
     print(metrics)

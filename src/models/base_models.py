@@ -33,11 +33,12 @@ class BaseMixin(nn.Module):
             self.model_conf.numeric_emb_size if self.model_conf.use_numeric_emb else 1
         )
         self.input_dim = all_emb_size + all_numeric_size + self.model_conf.use_deltas
-        if self.model_conf.time_embedding:
+        if self.model_conf.time_embedding and self.model_conf.use_deltas:
             self.input_dim += self.model_conf.time_embedding * 2 - 1
 
         ### MIXER ###
         if self.model_conf.encoder_feature_mixer:
+            assert self.model_conf.use_numeric_emb
             assert self.model_conf.features_emb_dim == self.model_conf.numeric_emb_size
             if self.model_conf.time_embedding:
                 assert (

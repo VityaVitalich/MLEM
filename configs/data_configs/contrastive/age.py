@@ -92,6 +92,7 @@ def data_configs():
 
     # seq len
     config.min_seq_len = 25
+    config.use_constant_pad = False
     train.max_seq_len = 1200
     val.max_seq_len = 1200
     test.max_seq_len = 1200
