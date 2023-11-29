@@ -52,7 +52,7 @@ class ContrastivePipeline(Pipeline):
             train_loader=train_loader,
             val_loader=valid_loader,
             run_name=run_name,
-            ckpt_dir=Path(self.log_dir) / "ckpt",
+            ckpt_dir=Path(self.log_dir) / run_name / "ckpt",
             ckpt_replace=True,
             ckpt_resume=self.resume,
             ckpt_track_metric="epoch",

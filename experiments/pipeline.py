@@ -8,6 +8,7 @@ try:
 except:
     pass
 import os
+import sys
 import subprocess
 import traceback
 from datetime import datetime
@@ -150,7 +151,8 @@ class Pipeline:
         import optuna
         from optuna.samplers import TPESampler
         from optuna.storages import JournalFileStorage, JournalStorage
-
+        optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
+        optuna.logging.enable_propagation()
         sampler = TPESampler(
             # seed=0, important to NOT specify, otherwise parallel scripts repeat themself
             multivariate=True,
