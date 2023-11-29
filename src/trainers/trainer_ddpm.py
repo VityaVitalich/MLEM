@@ -26,8 +26,8 @@ from ..models.model_utils import (
 )
 from .trainer_gen import GenTrainer
 
-class TrainerDDPM(GenTrainer):
 
+class TrainerDDPM(GenTrainer):
     def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
         self._model.eval()
         preds, gts = [], []

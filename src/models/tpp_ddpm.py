@@ -52,9 +52,14 @@ class TPPDDPM(nn.Module):
         self.h0 = nn.Parameter(torch.rand(self.model_conf.tppddpm.hidden_rnn))
 
         ### Decoder ###
-        self.denoise_net = DenoiseNet(self.model_conf.tppddpm.hidden_rnn, layer_num=self.model_conf.tppddpm.denoise_layer_num,
-        diff_steps=self.model_conf.tppddpm.diff_steps)
-        self.diffusion = GaussianDiffusion(self.denoise_net, diff_steps=self.model_conf.tppddpm.diff_steps)
+        self.denoise_net = DenoiseNet(
+            self.model_conf.tppddpm.hidden_rnn,
+            layer_num=self.model_conf.tppddpm.denoise_layer_num,
+            diff_steps=self.model_conf.tppddpm.diff_steps,
+        )
+        self.diffusion = GaussianDiffusion(
+            self.denoise_net, diff_steps=self.model_conf.tppddpm.diff_steps
+        )
         # predict embedding from history
         self.embedding_head = nn.Sequential(
             nn.Linear(
@@ -95,11 +100,10 @@ class TPPDDPM(nn.Module):
 
     def delta_diff_loss(self, output):
         # DELTA MSE
-        
-        gt_delta = output["gt"]["time_steps"].diff(1)
-        h = output['all_latents'][:,:-1,:]
-        log_prob = self.diffusion.log_prob(gt_delta, cond=h)
 
+        gt_delta = output["gt"]["time_steps"].diff(1)
+        h = output["all_latents"][:, :-1, :]
+        log_prob = self.diffusion.log_prob(gt_delta, cond=h)
 
         return log_prob
 
@@ -161,7 +165,9 @@ class TPPDDPM(nn.Module):
         history_emb, _ = self.history_encoder(x)
         history_emb = torch.cat(
             [repeat(self.h0, "D -> B L D", B=bs, L=1), history_emb], dim=1
-        )[:, :-1, :] # shift history emb
+        )[
+            :, :-1, :
+        ]  # shift history emb
 
         return history_emb
 
@@ -170,7 +176,7 @@ class TPPDDPM(nn.Module):
 
         pred = self.embedding_predictor(out)
         pred.update(self.numeric_projector(out))
-        
+
         # need in reconstruction measure
         if need_delta:
             bs, l, d = h.size()
@@ -183,9 +189,7 @@ class TPPDDPM(nn.Module):
         bs, l = padded_batch.payload["event_time"].size()
 
         initial_state = repeat(self.h0, "D -> BS D", BS=bs)
-        out = self.embedding_head(
-            initial_state
-        )
+        out = self.embedding_head(initial_state)
         pred_delta = self.diffusion.sample((bs, 1), cond=initial_state).squeeze(-1)
         out[:, -1] = pred_delta
 
@@ -194,9 +198,7 @@ class TPPDDPM(nn.Module):
         for i in range(1, lens):
             history_emb, _ = self.history_encoder(gen_x)
             history_emb = history_emb[:, i - 1, :]
-            out = self.embedding_head(
-                history_emb
-            )
+            out = self.embedding_head(history_emb)
             pred_delta = self.diffusion.sample((bs, 1), cond=history_emb).squeeze(-1)
             out[:, -1] = pred_delta
 
@@ -206,8 +208,6 @@ class TPPDDPM(nn.Module):
         pred.update(self.numeric_projector(gen_x))
         pred["delta"] = gen_x[:, :, -1]
         return {"pred": pred}
-
-
 
 
 def default(val, d):
@@ -229,6 +229,7 @@ def noise_like(shape, device, repeat=False):
     noise = lambda: torch.randn(shape, device=device)
     return repeat_noise() if repeat else noise()
 
+
 def cosine_beta_schedule(timesteps, s=0.008):
     """
     cosine schedule
@@ -241,6 +242,7 @@ def cosine_beta_schedule(timesteps, s=0.008):
     betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
     return np.clip(betas, a_min=0, a_max=0.999)
 
+
 class GaussianDiffusion(nn.Module):
     def __init__(
         self,
@@ -250,7 +252,8 @@ class GaussianDiffusion(nn.Module):
         loss_type="l2",
         betas=None,
         beta_schedule="linear",
-        *args, **kwargs
+        *args,
+        **kwargs
     ):
         super().__init__()
         self.denoise_fn = denoise_fn
@@ -267,7 +270,7 @@ class GaussianDiffusion(nn.Module):
             if beta_schedule == "linear":
                 betas = np.linspace(1e-4, beta_end, diff_steps)
             elif beta_schedule == "quad":
-                betas = np.linspace(1e-4 ** 0.5, beta_end ** 0.5, diff_steps) ** 2
+                betas = np.linspace(1e-4**0.5, beta_end**0.5, diff_steps) ** 2
             elif beta_schedule == "const":
                 betas = beta_end * np.ones(diff_steps)
             elif beta_schedule == "jsd":  # 1/T, 1/(T-1), 1/(T-2), ..., 1
@@ -389,11 +392,14 @@ class GaussianDiffusion(nn.Module):
     def get_param(self, x, cond, t, clip_denoised=False):
         b, *_, device = *x.shape, x.device
         model_mean, _, model_log_variance = self.p_mean_variance(
-            x=x, cond=cond, t=torch.full((b,), t, device=device, dtype=torch.long), clip_denoised=clip_denoised
+            x=x,
+            cond=cond,
+            t=torch.full((b,), t, device=device, dtype=torch.long),
+            clip_denoised=clip_denoised,
         )
-        
+
         return model_mean, (0.5 * model_log_variance).exp()
-    
+
     def conditional_nll_param(self, shape, cond):
         device = self.betas.device
 
@@ -406,7 +412,7 @@ class GaussianDiffusion(nn.Module):
             )
         gaussian_mu, gaussian_std = self.get_param(img, cond, t=1)
         return gaussian_mu, gaussian_std
-    
+
     @torch.no_grad()
     def p_sample_loop(self, shape, cond):
         device = self.betas.device
@@ -418,8 +424,8 @@ class GaussianDiffusion(nn.Module):
             img = self.p_sample(
                 img, cond, torch.full((b,), i, device=device, dtype=torch.long)
             )
-            
-            #emb.append(img)
+
+            # emb.append(img)
         # np.save('diffusion_dynamics', torch.stack(emb, dim=0).cpu().numpy())
         return img
 
@@ -429,7 +435,7 @@ class GaussianDiffusion(nn.Module):
         #     shape = cond.shape[:-1] + (self.input_size,)
         # else:
         shape = sample_shape
-        x_hat = self.p_sample_loop(shape, cond) 
+        x_hat = self.p_sample_loop(shape, cond)
 
         if self.scale is not None:
             x_hat *= self.scale
@@ -470,7 +476,7 @@ class GaussianDiffusion(nn.Module):
         if mask is not None:
             x_noisy = x_noisy * mask
             x_recon = x_recon * mask
-        
+
         if self.loss_type == "l1":
             loss = torch.abs(x_recon - noise).sum()
         elif self.loss_type == "l2":
@@ -491,8 +497,9 @@ class GaussianDiffusion(nn.Module):
 
         time = torch.randint(0, self.num_timesteps, (B * T,), device=x.device).long()
         loss = self.p_losses(
-            x.reshape(B * T, -1), cond.reshape(B * T, -1), time)#, mask.reshape(B * T, -1, 1), *args, **kwargs
-      #  )
+            x.reshape(B * T, -1), cond.reshape(B * T, -1), time
+        )  # , mask.reshape(B * T, -1, 1), *args, **kwargs
+        #  )
 
         return loss
 
@@ -520,12 +527,13 @@ class DiffusionEmbedding(nn.Module):
         table = steps * 10.0 ** (dims * 4.0 / dim)  # [T,dim]
         table = torch.cat([torch.sin(table), torch.cos(table)], dim=1)
         return table
-    
+
+
 class TrigonoTimeEmbedding(nn.Module):
     def __init__(self, embed_size, **kwargs):
         super().__init__()
-        assert embed_size%2 == 0 
-        
+        assert embed_size % 2 == 0
+
         self.Wt = nn.Linear(1, embed_size // 2, bias=False)
 
     def forward(self, interval):
@@ -535,28 +543,33 @@ class TrigonoTimeEmbedding(nn.Module):
         pe = torch.cat([pe_sin, pe_cos], dim=-1)
         return pe
 
+
 class DenoiseNet(nn.Module):
     def __init__(self, embed_size, layer_num, diff_steps, *args, **kwargs):
         super().__init__()
-        self.embed_size=embed_size
-        
+        self.embed_size = embed_size
+
         self.time_emb = TrigonoTimeEmbedding(embed_size=embed_size)
         self.h_emb = nn.Linear(embed_size, embed_size)
-        self.feed_forward = nn.ModuleList([nn.Linear(embed_size, embed_size) for i in range(layer_num)])
+        self.feed_forward = nn.ModuleList(
+            [nn.Linear(embed_size, embed_size) for i in range(layer_num)]
+        )
         self.to_time = nn.Linear(embed_size, 1)
         self.activation = nn.GELU()
-        self.diffusion_time_emb = DiffusionEmbedding(embed_size=embed_size, max_steps=diff_steps + 1)
-        
+        self.diffusion_time_emb = DiffusionEmbedding(
+            embed_size=embed_size, max_steps=diff_steps + 1
+        )
+
     # def forward(self, x, t, cond):
     #     time_embedding = self.time_emb(x)/np.sqrt(self.embed_size) # removed x.squeeze(dim=-1
     #     cond = self.h_emb(cond)
     #     print(time_embedding.size())
     #     b, l, d = time_embedding.shape # l = 1 due to reshape
-       
+
     #     diff_time_embedding = self.diffusion_time_emb(t)\
     #                           .reshape(b, 1, self.embed_size)\
     #                           .expand_as(time_embedding)
-        
+
     #     y = time_embedding + diff_time_embedding + cond
     #     for layer in self.feed_forward:
     #         y = layer(y)
@@ -564,14 +577,16 @@ class DenoiseNet(nn.Module):
     #     return self.to_time(y)
 
     def forward(self, x, t, cond):
-        time_embedding = self.time_emb(x.squeeze(dim=-1))/np.sqrt(self.embed_size)
+        time_embedding = self.time_emb(x.squeeze(dim=-1)) / np.sqrt(self.embed_size)
         cond = self.h_emb(cond)
         b, *_ = time_embedding.shape
-        
-        diff_time_embedding = self.diffusion_time_emb(t)\
-                              .reshape(b, *(1,) * (len(time_embedding.shape) - 2), self.embed_size)\
-                              .expand_as(time_embedding)
-        
+
+        diff_time_embedding = (
+            self.diffusion_time_emb(t)
+            .reshape(b, *(1,) * (len(time_embedding.shape) - 2), self.embed_size)
+            .expand_as(time_embedding)
+        )
+
         y = time_embedding + diff_time_embedding + cond
         for layer in self.feed_forward:
             y = layer(y)

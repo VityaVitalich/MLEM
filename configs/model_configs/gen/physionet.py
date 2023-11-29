@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "TPPDDPM"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -55,7 +55,7 @@ def model_configs():
 
     ### TIME ###
     config.use_deltas = True
-    config.time_embedding = 2
+    config.time_embedding = 0
     config.use_log_delta = False
     config.delta_weight = 1
 
@@ -98,6 +98,13 @@ def model_configs():
     tppvae.hidden_rnn = 64
     tppvae.joint_layer_num = 2
     tppvae.num_layers_enc = 1
+
+    ### TPP DDPM ###
+    tppddpm = config.tppddpm = ml_collections.ConfigDict()
+    tppddpm.hidden_rnn = 128
+    tppddpm.denoise_layer_num = 2
+    tppddpm.num_layers_enc = 1
+    tppddpm.diff_steps = 100
     return config
 
 

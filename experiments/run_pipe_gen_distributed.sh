@@ -2,7 +2,7 @@
 
 EPOCHS=1
 DEVICE="cuda"
-NAME='Dist-test'
+NAME='Dist-test2'
 DATA_C="../configs/data_configs/rosbank.py"
 MODEL_C="../configs/model_configs/gen/rosbank.py"
 LOG_D="./rosbank/logs/"
@@ -12,7 +12,7 @@ RECON_VAL=1
 RECON_VAL_EPOCH=1
 DRAW=1
 
-python pipeline_gen.py \
+python pipeline_gen_distributed.py \
     --run-name=$NAME \
     --data-conf=$DATA_C \
     --model-conf=$MODEL_C \

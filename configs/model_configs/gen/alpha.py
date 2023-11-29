@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "TPPVAE"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -13,25 +13,24 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 8
+    config.features_emb_dim = 2
     config.use_numeric_emb = True
-    config.numeric_emb_size = 8
+    config.numeric_emb_size = 2
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
     ### ENCODER ###
-    config.encoder = "GRU"  # GRU LSTM TR
+    config.encoder = "GRU"
     config.encoder_hidden = 128
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
     config.encoder_num_heads = 1
-    config.encoder_dim_ff = 256
 
     ### DECODER ###
-    config.decoder = "TR"  # GRU TR
+    config.decoder = "TR"
     config.decoder_hidden = 256
-    config.decoder_num_layers = 1
+    config.decoder_num_layers = 3
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 2
@@ -57,16 +56,13 @@ def model_configs():
     config.use_deltas = True
     config.time_embedding = 0
     config.use_log_delta = False
-    config.delta_weight = 1
-
-    ### DISCRIMINATOR ###
-    config.use_discriminator = False
+    config.delta_weight = 10
 
     ### LOSS ###
     config.mse_weight = 1
-    config.CE_weight = 1  # B x L x D
-    config.l1_weight = 0.001  # l1 loss H
-    config.gen_emb_weight = 1
+    config.CE_weight = 1
+    config.l1_weight = 0.0001
+    config.gen_emb_weight = 10
     config.D_weight = 20
 
     ### DEVICE + OPTIMIZER ###
@@ -76,8 +72,9 @@ def model_configs():
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
-    config.gen_len = 100
+    config.use_discriminator = False
     config.comments = ""
+    config.gen_len = 500
     config.genval = genval_config()
     config.D = d_config()
 
@@ -98,13 +95,6 @@ def model_configs():
     tppvae.hidden_rnn = 128
     tppvae.joint_layer_num = 2
     tppvae.num_layers_enc = 1
-
-    ### TPP DDPM ###
-    tppddpm = config.tppddpm = ml_collections.ConfigDict()
-    tppddpm.hidden_rnn = 128
-    tppddpm.denoise_layer_num = 2
-    tppddpm.num_layers_enc = 1
-    tppddpm.diff_steps = 100
     return config
 
 
@@ -124,12 +114,12 @@ def genval_config():
     config.numeric_emb_size = 8
     config.encoder_feature_mixer = False
 
-    ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
-
     ### TIME DELTA ###
     config.use_deltas = True
     config.time_embedding = 2
+
+    ### RNN + LINEAR ###
+    config.classifier_gru_hidden_dim = 64
 
     ### TRANSFORMER ###
     config.encoder = "Identity"  # IDnetity or TransformerEncoder
@@ -178,9 +168,8 @@ def genval_config():
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
-    config.cv_splits = 5  # not needed
+    config.cv_splits = 5
 
-    config.gen_len = 100  #
     config.comments = ""
     return config
 
@@ -201,26 +190,26 @@ def d_config():
     config.numeric_emb_size = 8
     config.encoder_feature_mixer = False
 
-    ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 32
-    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
-
     ### TIME DELTA ###
     config.use_deltas = True
     config.time_embedding = 2
 
+    ### RNN + LINEAR ###
+    config.classifier_gru_hidden_dim = 64
+    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
+
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # IDnetity or TransformerEncoder
+    config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
-    config.post_gru_norm = "Identity"
-    config.encoder_norm = "Identity"
+    config.post_gru_norm = "LayerNorm"
+    config.encoder_norm = "LayerNorm"
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.0
+    config.after_enc_dropout = 0.3
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
@@ -244,9 +233,6 @@ def d_config():
     loss.neg_count = 5
     loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
-
-    ### STEP EVERY ###
-    config.discriminator_step_every = 10
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"

@@ -1,18 +1,18 @@
 #!/bin/bash
 
 EPOCHS=1
-EPOCHS_RECON=50
-EPOCHS_GEN=50
-EPOCHS_JOINT=50
+EPOCHS_RECON=1
+EPOCHS_GEN=1
+EPOCHS_JOINT=1
 DEVICE="cuda"
-NAME='TG_delta-normal-loss'
-DATA_C="../configs/data_configs/physionet.py"
-MODEL_C="../configs/model_configs/gen/physionet.py"
-LOG_D="./physionet/logs/"
+NAME='TG_test'
+DATA_C="../configs/data_configs/alpha.py"
+MODEL_C="../configs/model_configs/gen/alpha.py"
+LOG_D="./alpha/logs/"
 GENVAL=1
-GENVAL_EPOCH=20
+GENVAL_EPOCH=1
 RECON_VAL=1
-RECON_VAL_EPOCH=20
+RECON_VAL_EPOCH=1
 DRAW=1
 
 

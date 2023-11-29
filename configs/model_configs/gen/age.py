@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "TimeVAE"
+    config.model_name = "TPPVAE"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -54,7 +54,7 @@ def model_configs():
 
     ### TIME ###
     config.use_deltas = True
-    config.time_embedding = 2
+    config.time_embedding = 0
     config.use_log_delta = False
     config.delta_weight = 10
 
@@ -89,6 +89,12 @@ def model_configs():
     timevae.hiddens = [128, 128]
     timevae.latent_dim = 64
     timevae.recon_weight = 3
+
+    ### TPP VAE ###
+    tppvae = config.tppvae = ml_collections.ConfigDict()
+    tppvae.hidden_rnn = 128
+    tppvae.joint_layer_num = 2
+    tppvae.num_layers_enc = 1
     return config
 
 
