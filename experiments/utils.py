@@ -8,6 +8,7 @@ from ml_collections import ConfigDict
 import logging
 from contextlib import contextmanager
 from typing import Union
+import sys
 
 
 def draw_generated(generated_path, true_path, reconstructed_path, data_conf, out_path):
@@ -54,7 +55,7 @@ def log_to_file(filename: Path, file_lvl="info", cons_lvl="warning"):
     if isinstance(cons_lvl, str):
         cons_lvl = getattr(logging, cons_lvl.upper())
 
-    ch = logging.StreamHandler()
+    ch = logging.StreamHandler(stream=sys.stdout)
     ch.setLevel(cons_lvl)
     cfmt = logging.Formatter("{levelname:8} - {asctime} - {message}", style="{")
     ch.setFormatter(cfmt)
