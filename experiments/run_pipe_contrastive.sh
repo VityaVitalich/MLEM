@@ -17,4 +17,5 @@ python pipeline_contrastive.py \
     --device=$DEVICE \
     --log-dir=$LOG_D \
     --total-epochs=$EPOCHS \
-    --grid-name=$GRID_NAME 
+    --grid-name=$GRID_NAME \
+    --console-lvl="info" 
