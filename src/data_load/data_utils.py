@@ -2,7 +2,6 @@ import random
 
 import numpy as np
 import pyarrow.parquet as pq
-from tqdm import tqdm
 
 
 def read_pyarrow_file(path, use_threads=True):

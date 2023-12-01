@@ -194,7 +194,11 @@ class TGTrainer(BaseTrainer):
         loss_ema = 0.0
         losses: List[float] = []
         preds, gts = [], []
-        pbar = tqdm(zip(range(iters), self._cyc_train_loader), total=iters)
+        pbar = tqdm(
+            zip(range(iters), self._cyc_train_loader),
+            total=iters,
+            mininterval=100
+        )
         for i, (inp, gt) in pbar:
             inp, gt = inp.to(self._device), gt.to(self._device)
 
@@ -229,7 +233,11 @@ class TGTrainer(BaseTrainer):
         loss_ema = 0.0
         losses: List[float] = []
         preds, gts = [], []
-        pbar = tqdm(zip(range(iters), self._cyc_train_loader), total=iters)
+        pbar = tqdm(
+            zip(range(iters), self._cyc_train_loader),
+            total=iters,
+            mininterval=100
+        )
         for i, (inp, gt) in pbar:
             inp, gt = inp.to(self._device), gt.to(self._device)
 
@@ -263,7 +271,11 @@ class TGTrainer(BaseTrainer):
         losses_e: List[float] = []
         losses_g: List[float] = []
         losses_d: List[float] = []
-        pbar = tqdm(zip(range(iters), self._cyc_train_loader), total=iters)
+        pbar = tqdm(
+            zip(range(iters), self._cyc_train_loader),
+            total=iters,
+            mininterval=100
+        )
         for i, (inp, gt) in pbar:
             inp, gt = inp.to(self._device), gt.to(self._device)
 
@@ -438,7 +450,7 @@ class TGTrainer(BaseTrainer):
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
-            for inp, gt in tqdm(loader):
+            for inp, gt in tqdm(loader, mininterval=100):
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 out = self._model.train_embedder(inp)
@@ -453,7 +465,7 @@ class TGTrainer(BaseTrainer):
         self._model.eval()
         losses = []
         with torch.no_grad():
-            for inp, gt in tqdm(self._val_loader):
+            for inp, gt in tqdm(self._val_loader, mininterval=100):
                 inp = inp.to(self._device)
                 global_hidden, loss = self._model.train_embedder(inp)
                 losses.append(loss.item())
@@ -473,7 +485,7 @@ class TGTrainer(BaseTrainer):
         self._model.eval()
         losses = []
         with torch.no_grad():
-            for inp, gt in tqdm(self._val_loader):
+            for inp, gt in tqdm(self._val_loader, mininterval=100):
                 inp = inp.to(self._device)
                 loss = self._model.train_generator(inp)
                 losses.append(loss.item())
@@ -494,7 +506,7 @@ class TGTrainer(BaseTrainer):
         losses_e = []
         losses_g = []
         with torch.no_grad():
-            for inp, gt in tqdm(self._val_loader):
+            for inp, gt in tqdm(self._val_loader, mininterval=100):
                 inp = inp.to(self._device)
                 g_loss_u, g_loss_s, g_loss_v, e_loss = self._model.train_joint(inp)
                 losses_g.append(g_loss_u.item() + g_loss_s.item() + g_loss_v.item())
@@ -523,7 +535,7 @@ class TGTrainer(BaseTrainer):
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
-            for inp, gt in tqdm(loader):
+            for inp, gt in tqdm(loader, mininterval=100):
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 out = self._model.reconstruct(inp)
@@ -551,7 +563,7 @@ class TGTrainer(BaseTrainer):
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
-            for inp, gt in tqdm(loader):
+            for inp, gt in tqdm(loader, mininterval=100):
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 out = self._model.generate(inp)

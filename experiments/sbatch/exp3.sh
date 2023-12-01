@@ -9,7 +9,6 @@
 #SBATCH --mail-user=d.osin@skoltech.ru
 
 #SBATCH --output=outputs/output_3.txt
-#SBATCH --error=/dev/null
 
 #SBATCH --time=6-00
 

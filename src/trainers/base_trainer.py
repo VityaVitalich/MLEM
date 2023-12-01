@@ -289,7 +289,11 @@ class BaseTrainer:
         loss_ema = 0.0
         losses: List[float] = []
         preds, gts = [], []
-        pbar = tqdm(zip(range(iters), self._cyc_train_loader), total=iters)
+        pbar = tqdm(
+            zip(range(iters), self._cyc_train_loader),
+            total=iters,
+            mininterval=100
+        )
         pbar.set_description_str(f"Epoch {self._last_epoch + 1: 3}")
         for i, (inp, gt) in pbar:
             inp, gt = inp.to(self._device), gt.to(self._device)
@@ -356,7 +360,7 @@ class BaseTrainer:
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
-            for inp, gt in tqdm(loader):
+            for inp, gt in tqdm(loader, mininterval=100):
                 gts.append(gt.to("cpu"))
                 inp = inp.to(self._device)
                 pred = self._model(inp)
