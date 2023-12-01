@@ -19,6 +19,10 @@ import param_grids
 from experiments.utils import get_parser, read_config
 from experiments.pipeline import Pipeline
 
+from tqdm import tqdm
+from functools import partialmethod
+
+tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
 class ContrastivePipeline(Pipeline):
     def _train_eval(self, run_name, data_conf, model_conf):

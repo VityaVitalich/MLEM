@@ -250,7 +250,7 @@ class GenTrainer(BaseTrainer):
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
-            for inp, gt in tqdm(loader, mininterval=100):
+            for inp, gt in tqdm(loader):
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 out = self._model(inp)
@@ -269,7 +269,7 @@ class GenTrainer(BaseTrainer):
         self._model.eval()
         loss_dicts = []
         with torch.no_grad():
-            for inp, gt in tqdm(self._val_loader, mininterval=100):
+            for inp, gt in tqdm(self._val_loader):
                 inp = inp.to(self._device)
                 model_output = self._model(inp)
                 loss_dicts.append(self._model.loss(model_output, gt))
@@ -314,7 +314,7 @@ class GenTrainer(BaseTrainer):
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
-            for inp, gt in tqdm(loader, mininterval=100):
+            for inp, gt in tqdm(loader):
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 out = self._model.generate(inp, self._model_conf.gen_len)
@@ -507,11 +507,7 @@ class GANGenTrainer(GenTrainer):
         losses: List[float] = []
         d_losses: List[float] = []
         preds, gts = [], []
-        pbar = tqdm(
-            zip(range(iters), self._cyc_train_loader),
-            total=iters,
-            mininterval=100
-        )
+        pbar = tqdm(zip(range(iters), self._cyc_train_loader), total=iters)
         for i, (inp, gt) in pbar:
             inp, gt = inp.to(self._device), gt.to(self._device)
 
@@ -613,7 +609,7 @@ class GANGenTrainer(GenTrainer):
         self._model.eval()
         loss_dicts = []
         with torch.no_grad():
-            for inp, gt in tqdm(self._val_loader, mininterval=100):
+            for inp, gt in tqdm(self._val_loader):
                 inp = inp.to(self._device)
                 model_output = self._model(inp)
                 d_pred = self.D(

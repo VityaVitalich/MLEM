@@ -18,3 +18,4 @@ python pipeline_contrastive.py \
     --log-dir=$LOG_D \
     --total-epochs=$EPOCHS \
     --grid-name=$GRID_NAME \
+    --console-lvl="info" 
