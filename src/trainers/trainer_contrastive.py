@@ -210,6 +210,7 @@ class SimpleTrainerContrastive(BaseTrainer):
         preprocessor = MaxAbsScaler()
 
         train_emb_subset = preprocessor.fit_transform(train_emb_subset)
+        logger.info("Started lgbm")
         model.fit(train_emb_subset, train_labels_subset)
         logger.info("Finished lgbm")
         log_model.fit(train_emb_subset, train_labels_subset)
