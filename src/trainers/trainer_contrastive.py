@@ -52,7 +52,7 @@ params = {
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
     "random_state": 42,
-    "n_jobs": 4,
+    "n_jobs": 16,
     "num_leaves": 50,
     "reg_alpha": None,
     "reg_lambda": None,
