@@ -23,7 +23,7 @@ def draw_generated(generated_path, true_path, reconstructed_path, data_conf, out
     dataframes = [train, gen, recon]
     names = ["True", "Generated", "Reconstructed"]
     num_plots = len(cols)
-    fig, axs = plt.subplots(num_plots + 1, len(dataframes), figsize=(15, 15))
+    fig, axs = plt.subplots(num_plots + 1, len(dataframes), figsize=(25, 25))
 
     # Iterate through dataframes and columns
     for i, df in enumerate(dataframes):

@@ -275,7 +275,7 @@ class TGTrainer(BaseTrainer):
             g_loss_u.backward(retain_graph=True)
             g_loss_s.backward(retain_graph=True)
             g_loss_v.backward(retain_graph=True)
-            e_loss.backward()
+            e_loss.backward(retain_graph=True)
 
             loss_np = g_loss_u.item() + g_loss_v.item() + g_loss_s.item()
             losses_g.append(loss_np)

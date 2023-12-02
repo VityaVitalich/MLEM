@@ -166,9 +166,13 @@ class GenSupervisedPipeline(Pipeline):
         ### RUN TRAINING ###
         trainer.run()
 
+        print('load best')
         trainer.load_best_model()
+        print('before train test')
         train_metric = trainer.test(train_loader)
+        print('before val test')
         val_metric = trainer.test(self.valid_supervised_loader)
+        print('before test test')
         test_metric = trainer.test(another_test_loader)
 
         return {

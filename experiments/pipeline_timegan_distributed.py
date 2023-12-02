@@ -10,8 +10,8 @@ sys.path.append("../")
 
 import src.models.base_models
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_alpha import TrainerAlpha
-import src.models.gen_models
+from src.trainers.trainer_alpha import AlphaTGTrainer
+from src.models.TimeGan import TG
 from experiments.utils import get_parser, read_config, draw_generated
 from experiments.pipeline import Pipeline
 from experiments.pipeline_supervised import (
@@ -26,7 +26,9 @@ class GenerativePipeline(Pipeline):
         self,
         run_name,
         device,
-        total_epochs,
+        total_epochs_recon,
+        total_epochs_gen,
+        total_epochs_joint,
         data_conf,
         model_conf,
         TrainerClass,
@@ -38,12 +40,12 @@ class GenerativePipeline(Pipeline):
         recon_val_epoch,
         console_lvl="warning",
         file_lvl="info",
-        draw_generated=False,
+        draw=False,
     ):
         super().__init__(
             run_name,
             device,
-            total_epochs,
+            total_epochs_joint,
             data_conf,
             model_conf,
             TrainerClass,
@@ -52,11 +54,14 @@ class GenerativePipeline(Pipeline):
             console_lvl,
             file_lvl,
         )
+        self.total_epochs_recon = total_epochs_recon
+        self.total_epochs_gen = total_epochs_gen
+        self.total_epochs_joint = total_epochs_joint
         self.gen_val = gen_val
         self.gen_val_epoch = gen_val_epoch
         self.recon_val = recon_val
         self.recon_val_epoch = recon_val_epoch
-        self.draw_generated = draw_generated
+        self.draw = draw
 
     def _train_eval(self, run_name, data_conf, model_conf):
         """
@@ -79,31 +84,51 @@ class GenerativePipeline(Pipeline):
         )
         test_supervised_loader = []
 
-        net = getattr(src.models.gen_models, model_conf.model_name)(
-            model_conf=model_conf, data_conf=data_conf
+        net = TG(model_conf=model_conf, data_conf=data_conf)
+        opt_e_params = (
+            list(net.encoder.parameters())
+            + list(net.decoder.parameters())
+            + list(net.processor.parameters())
+            + list(net.embedding_predictor.parameters())
+            + list(net.numeric_projector.parameters())
         )
-        opt = torch.optim.Adam(
-            net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
+        opt_e = torch.optim.Adam(
+            opt_e_params, model_conf.lr, weight_decay=model_conf.weight_decay
         )
-        if model_conf.use_discriminator:
-            raise NotImplementedError
-        else:
-            trainer = TrainerAlpha(
-                model=net,
-                optimizer=opt,
-                train_loader=train_loader,
-                val_loader=valid_loader,
-                run_name=run_name,
-                ckpt_dir=Path(self.log_dir).parent / "ckpt",
-                ckpt_replace=True,
-                ckpt_resume=self.resume,
-                ckpt_track_metric="total_loss",
-                metrics_on_train=False,
-                total_epochs=self.total_epochs,
-                device=self.device,
-                model_conf=model_conf,
-                data_conf=data_conf,
-            )
+
+        opt_g_params = list(net.generator.parameters()) + list(
+            net.supervisor.parameters()
+        )
+        opt_g = torch.optim.Adam(
+            opt_g_params, model_conf.lr, weight_decay=model_conf.weight_decay
+        )
+
+        opt_d = torch.optim.Adam(
+            net.discriminator.parameters(),
+            model_conf.lr,
+            weight_decay=model_conf.weight_decay,
+        )
+
+        trainer = AlphaTGTrainer(
+            model=net,
+            optimizer_e=opt_e,
+            optimizer_d=opt_d,
+            optimizer_g=opt_g,
+            train_loader=train_loader,
+            val_loader=valid_loader,
+            run_name=run_name,
+            ckpt_dir=Path(self.log_dir).parent / "ckpt",
+            ckpt_replace=True,
+            ckpt_resume=self.resume,
+            ckpt_track_metric="total_loss",
+            metrics_on_train=False,
+            total_epochs_recon=self.total_epochs_recon,
+            total_epochs_gen=self.total_epochs_gen,
+            total_epochs_joint=self.total_epochs_joint,
+            device=self.device,
+            model_conf=model_conf,
+            data_conf=data_conf,
+        )
 
         ### RUN TRAINING ###
         trainer.run()
@@ -119,7 +144,6 @@ class GenerativePipeline(Pipeline):
             "test_metric": test_metric,
             "another_test_metric": another_test_metric,
         }
-
         true_train_path = data_conf.train_path
         if self.recon_val:
             reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
@@ -178,7 +202,7 @@ class GenerativePipeline(Pipeline):
             for k in super_df:
                 metrics[f"generation_mean_{k}"] = super_df.loc["mean", k]
 
-        if self.draw_generated:
+        if self.draw:
             save_path = self.log_dir / run_name / "distributions.png"
             draw_generated(
                 generated_path=generated_data_path,
@@ -198,6 +222,18 @@ class GenerativePipeline(Pipeline):
 
 if __name__ == "__main__":
     parser = get_parser()
+    parser.add_argument(
+        "--total-epochs-recon",
+        help="Number of reconstruction training",
+        default=1,
+        type=int,
+    )
+    parser.add_argument(
+        "--total-epochs-gen", help="Number of generative training", default=1, type=int
+    )
+    parser.add_argument(
+        "--total-epochs-joint", help="Number of joint training", default=1, type=int
+    )
     parser.add_argument(
         "--gen-val", help="Whether to perform generated validation", default=0, type=int
     )
@@ -227,7 +263,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    print(args.recon_val)
     ## TRAINING SETUP ###
     data_conf = read_config(args.data_conf, "data_configs")
     model_conf = read_config(args.model_conf, "model_configs")
@@ -235,7 +270,9 @@ if __name__ == "__main__":
     pipeline = GenerativePipeline(
         run_name=args.run_name,
         device=args.device,
-        total_epochs=args.total_epochs,
+        total_epochs_recon=args.total_epochs_recon,
+        total_epochs_gen=args.total_epochs_gen,
+        total_epochs_joint=args.total_epochs_joint,
         data_conf=data_conf,
         model_conf=model_conf,
         TrainerClass=TrainerClass,
@@ -247,7 +284,7 @@ if __name__ == "__main__":
         recon_val_epoch=args.recon_val_epoch,
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
-        draw_generated=args.draw,
+        draw=args.draw,
     )
     request = {"classifier_gru_hidden_dim": 16}
     metrics = pipeline.run_experiment()

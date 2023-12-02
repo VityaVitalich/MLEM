@@ -22,11 +22,11 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "data"
-        / "test_trx.parquet"
+        / "test.parquet"
     )
     config.load_distributed = True
-    config.recon_limit = 10
-    config.gen_limit = 10
+    config.recon_limit = 100
+    config.gen_limit = 100
 
     config.track_metric = "roc_auc"
 

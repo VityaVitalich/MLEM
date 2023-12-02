@@ -100,10 +100,12 @@ def _create_data_loaders_basic(conf, supervised=True, pinch_test=False):
 
 
 def create_test_loader(conf):
+    print(conf['load_distributed'])
+    #return create_test_loader_basic(conf)
     if conf["load_distributed"]:
-        return create_test_loader_basic(conf)
-    else:
         return create_test_loader_distributed(conf)
+    else:
+        return create_test_loader_basic(conf)
 
 
 def create_test_loader_basic(conf):
