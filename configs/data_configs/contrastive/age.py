@@ -72,16 +72,14 @@ def data_configs():
 
     # splitters
     train.split_strategy = {
-        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_strategy": "SampleSlices",
         "split_count": 5,
-        # "seq_len": 25,
         "cnt_min": 25,
         "cnt_max": 200,
     }
     val.split_strategy = {
-        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_strategy": "SampleSlices",
         "split_count": 5,
-        #  "seq_len": 50,
         "cnt_min": 25,
         "cnt_max": 100,
     }

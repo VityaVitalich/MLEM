@@ -114,7 +114,7 @@ def calc_intrinsic_dimension(train_embeddings, other_embeddings):
         if other_embedding is not None:
             all_embeddings.append(torch.cat(other_embedding).cpu())
 
-    X = torch.cat(all_embeddings, dim=0).numpy()
+    X = torch.cat(all_embeddings, dim=0)[-50000:].numpy()
 
     N = X.shape[0]
 
@@ -152,7 +152,7 @@ def calc_anisotropy(train_embeddings, other_embeddings):
         if other_embedding is not None:
             all_embeddings.append(torch.cat(other_embedding).cpu())
 
-    all_embeddings = torch.cat(all_embeddings, dim=0)
+    all_embeddings = torch.cat(all_embeddings, dim=0)[-50000:]
 
     U, S, Vt = torch.linalg.svd(all_embeddings, full_matrices=False)
 

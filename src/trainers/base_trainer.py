@@ -352,15 +352,19 @@ class BaseTrainer:
         )
         logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
 
-    def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+    def predict(self, loader: DataLoader, limit=None) -> Tuple[List[Any], List[Any]]:
         self._model.eval()
         preds, gts = [], []
+        i = 0
         with torch.no_grad():
             for inp, gt in tqdm(loader):
                 gts.append(gt.to("cpu"))
                 inp = inp.to(self._device)
                 pred = self._model(inp)
                 preds.append(pred.to("cpu"))
+                i += loader.batch_size
+                if limit and i > limit:
+                    break
 
         return preds, gts
 

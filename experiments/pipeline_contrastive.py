@@ -64,6 +64,7 @@ class ContrastivePipeline(Pipeline):
             total_epochs=self.total_epochs,
             device=self.device,
             model_conf=model_conf,
+            data_conf=data_conf,
         )
 
         ### RUN TRAINING ###

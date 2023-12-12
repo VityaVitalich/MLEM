@@ -3,10 +3,10 @@ import logging
 from concurrent.futures import ProcessPoolExecutor as Pool
 from multiprocessing import set_start_method
 
-try:
-    set_start_method("spawn")
-except:
-    pass
+# try:
+#     set_start_method("spawn")
+# except:
+#     pass
 import os
 import sys
 import subprocess

@@ -149,11 +149,12 @@ class SimpleTrainerContrastive(BaseTrainer):
         """
 
         logger.info("Test started")
-        train_embeddings, train_gts = self.predict(train_supervised_loader)
+        predict_limit = self._data_conf.get("predict_limit", None)
+        train_embeddings, train_gts = self.predict(train_supervised_loader, predict_limit)
         other_embeddings, other_gts = [], []
         for loader in other_loaders:
             other_embedding, other_gt = (
-                self.predict(loader) if len(loader) > 0 else (None, None)
+                self.predict(loader, predict_limit) if len(loader) > 0 else (None, None)
             )
             other_embeddings.append(other_embedding), other_gts.append(other_gt)
 

@@ -44,9 +44,19 @@ def prepare_embeddings(seq, conf):
         # TODO: datetime processing. Take date-time features
 
         # shift embeddings to 1, 0 is padding value
-        feature_arrays = {
-            k: v + (1 if k in embeddings else 0) for k, v in feature_arrays.items()
-        }
+        shift_values = conf.get("shift_embedding", True)
+        new_feature_arrays = {}
+        for k, v in feature_arrays.items():
+            value = v
+            if (k in embeddings) and shift_values:
+                value += 1
+
+            new_feature_arrays[k] = value
+
+        feature_arrays = new_feature_arrays
+        # feature_arrays = {
+        #     k: v + (1 if k in embeddings else 0) for k, v in feature_arrays.items()
+        # }
 
         # clip embeddings dictionary by max value
         for e_name, e_params in conf.features.embeddings.items():
