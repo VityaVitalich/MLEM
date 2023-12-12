@@ -1,15 +1,15 @@
 #!/bin/bash
 
-EPOCHS=1
+EPOCHS=30
 DEVICE="cuda"
-NAME='Dist-test18'
-DATA_C="../configs/data_configs/rosbank.py"
+NAME='TPPDDPM'
+DATA_C="../configs/data_configs/alpha.py"
 MODEL_C="../configs/model_configs/gen/alpha.py"
-LOG_D="./rosbank/logs/"
+LOG_D="./alpha/logs/"
 GENVAL=1
-GENVAL_EPOCH=1
+GENVAL_EPOCH=10
 RECON_VAL=1
-RECON_VAL_EPOCH=1
+RECON_VAL_EPOCH=10
 DRAW=1
 
 python pipeline_gen_distributed.py \

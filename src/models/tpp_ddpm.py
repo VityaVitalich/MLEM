@@ -181,7 +181,7 @@ class TPPDDPM(nn.Module):
         if need_delta:
             bs, l, d = h.size()
             pred_delta = self.diffusion.sample((bs, l, 1), cond=h)
-            pred["delta"] = pred_delta.squeeze(-1)
+            pred["delta"] = torch.abs(pred_delta.squeeze(-1))
 
         return pred
 
@@ -200,7 +200,7 @@ class TPPDDPM(nn.Module):
             history_emb = history_emb[:, i - 1, :]
             out = self.embedding_head(history_emb)
             pred_delta = self.diffusion.sample((bs, 1), cond=history_emb).squeeze(-1)
-            out[:, -1] = pred_delta
+            out[:, -1] = torch.abs(pred_delta)
 
             gen_x[:, i, :] = out
 

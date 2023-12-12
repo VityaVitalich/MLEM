@@ -477,7 +477,7 @@ class SeqGen(BaseMixin):
         pred = self.embedding_predictor(out)
         pred.update(self.numeric_projector(out))
         if self.model_conf.use_deltas:
-            pred["delta"] = out[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(out[:, :, -1].squeeze(-1))
 
         return pred
 
@@ -496,7 +496,7 @@ class SeqGen(BaseMixin):
         pred = self.embedding_predictor(gens)
         pred.update(self.numeric_projector(gens))
         if self.model_conf.use_deltas:
-            pred["delta"] = gens[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(gens[:, :, -1].squeeze(-1))
 
         return pred
 

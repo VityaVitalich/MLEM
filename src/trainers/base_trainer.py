@@ -176,7 +176,7 @@ class BaseTrainer:
                 kv = it.split("__")
                 assert len(kv) == 2, f"Failed to parse filename: {p.name}"
                 k = kv[0]
-                v = -float(kv[1]) if "loss" in k else float(kv[1])
+                v = -float(kv[1]) if ("loss" in k) or ('mse' in k) else float(kv[1])
                 metrics[k] = v
             return metrics[key]
 
@@ -495,11 +495,10 @@ class BaseTrainer:
 
         logger.info("run '%s' finished successfully", self._run_name)
 
-    def load_best_model(self) -> None:
+    def best_checkpoint(self) -> str:
         """
-        Loads the best model to self._model according to the track metric.
+        Return the path to the best checkpoint
         """
-
         assert self._ckpt_dir is not None
         ckpt_path = Path(self._ckpt_dir) / self._run_name
 
@@ -507,7 +506,15 @@ class BaseTrainer:
 
         all_ckpt = list(ckpt_path.glob("*.ckpt"))
         best_ckpt = max(all_ckpt, key=self._make_key_extractor(self._ckpt_track_metric))
-        print(best_ckpt)
+
+        return best_ckpt
+    
+    def load_best_model(self) -> None:
+        """
+        Loads the best model to self._model according to the track metric.
+        """
+
+        best_ckpt = self.best_checkpoint()
         self.load_ckpt(best_ckpt)
 
     def test(self, test_loader: DataLoader) -> None:

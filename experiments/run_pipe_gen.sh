@@ -1,16 +1,16 @@
 #!/bin/bash
 
-EPOCHS=1
+EPOCHS=0
 DEVICE="cuda"
-NAME='Dist-test'
+NAME='test-FT'
 DATA_C="../configs/data_configs/rosbank.py"
 MODEL_C="../configs/model_configs/gen/rosbank.py"
 LOG_D="./rosbank/logs/"
 GENVAL=1
 GENVAL_EPOCH=1
-RECON_VAL=1
+RECON_VAL=0
 RECON_VAL_EPOCH=1
-DRAW=1
+DRAW=0
 
 python pipeline_gen.py \
     --run-name=$NAME \

@@ -245,7 +245,7 @@ class TPPVAE(nn.Module):
 
         pred = self.embedding_predictor(out)
         pred.update(self.numeric_projector(out))
-        pred["delta"] = pred_delta.squeeze(-1)
+        pred["delta"] = torch.abs(pred_delta.squeeze(-1))
 
         return pred
 
@@ -277,7 +277,7 @@ class TPPVAE(nn.Module):
             )
             pred_delta = self.delta_head(out).squeeze(-1)
             out = self.embedding_head(history_emb)
-            out[:, -1] = pred_delta
+            out[:, -1] = torch.abs(pred_delta)
 
             gen_x[:, i, :] = out
 

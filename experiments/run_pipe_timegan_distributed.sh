@@ -1,18 +1,18 @@
 #!/bin/bash
 
 EPOCHS=1
-EPOCHS_RECON=1
+EPOCHS_RECON=5
 EPOCHS_GEN=1
-EPOCHS_JOINT=1
+EPOCHS_JOINT=5
 DEVICE="cuda"
-NAME='TG_test_dist'
+NAME='TG_128-run4'
 DATA_C="../configs/data_configs/alpha.py"
 MODEL_C="../configs/model_configs/gen/alpha.py"
 LOG_D="./alpha/logs/"
 GENVAL=1
-GENVAL_EPOCH=1
+GENVAL_EPOCH=5
 RECON_VAL=1
-RECON_VAL_EPOCH=1
+RECON_VAL_EPOCH=5
 DRAW=1
 
 

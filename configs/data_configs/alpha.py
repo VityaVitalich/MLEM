@@ -23,15 +23,16 @@ def data_configs():
         / "test_new.parquet"
     )
     config.load_distributed = True
-    config.recon_limit = 1000
-    config.gen_limit = 1000
+    config.recon_limit = 10000
+    config.gen_limit = 10000
+    config.predict_limit = 100000
 
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
     config.col_id = "seq_id"  # column defining ids. used for sorting data
 
@@ -109,8 +110,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 1024
-    val.batch_size = 1024
-    test.batch_size = 128
+    train.batch_size = 256
+    val.batch_size = 256
+    test.batch_size = 16
 
     return config

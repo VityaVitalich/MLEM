@@ -71,7 +71,7 @@ class GenerativePipeline(Pipeline):
         train_loader, valid_loader, _ = create_data_loaders(
             data_conf, supervised=False, pinch_test=True
         )
-        another_test_loader = create_test_loader(data_conf)
+        fixed_test_loader = create_test_loader(data_conf)
 
         data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
         data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
@@ -140,18 +140,20 @@ class GenerativePipeline(Pipeline):
         trainer.run()
 
         # trainer.load_best_model()
-        train_metric, (val_metric, test_metric, another_test_metric) = trainer.test(
+        train_metric, (supervised_val_metric, supervised_test_metric, fixed_test_metric), lin_prob_test = trainer.test(
             train_supervised_loader,
-            (valid_supervised_loader, test_supervised_loader, another_test_loader),
+            (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         )
         metrics = {
             "train_metric": train_metric,
-            "val_metric": val_metric,
-            "test_metric": test_metric,
-            "another_test_metric": another_test_metric,
+            "val_metric": supervised_val_metric,
+            "test_metric": supervised_test_metric,
+            "other_metric": fixed_test_metric,
+            "lin_prob_test": lin_prob_test,
         }
 
         true_train_path = data_conf.train_path
+        data_conf.FT_train_path = true_train_path
         if self.recon_val:
             reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
             data_conf.train_path = reconstructed_data_path
@@ -180,6 +182,8 @@ class GenerativePipeline(Pipeline):
             for k in super_df:
                 metrics[f"reconstruction_mean_{k}"] = super_df.loc["mean", k]
         if self.gen_val:
+            data_conf.post_gen_FT = True
+            
             generated_data_path = trainer.generate_data(train_supervised_loader)
             data_conf.train_path = generated_data_path
             data_conf.valid_size = 0.1

@@ -11,9 +11,9 @@ import pandas as pd
 from ..models.mTAND.model import MegaNetCE
 from ..data_load.dataloader import PaddedBatch
 from .base_trainer import BaseTrainer, _CyclicalLoader
-from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.metrics import roc_auc_score, accuracy_score, mean_squared_error
 
-from lightgbm import LGBMClassifier
+from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.preprocessing import MaxAbsScaler
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
@@ -24,6 +24,7 @@ from ..models.model_utils import (
     calc_anisotropy,
     calc_intrinsic_dimension,
 )
+from sklearn.linear_model import LinearRegression, LogisticRegression
 
 
 params = {
@@ -155,14 +156,15 @@ class GenTrainer(BaseTrainer):
         )
         logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
 
-        train_metric, other_metrics = self.compute_test_metric(
+        train_metric, other_metrics, lin_prob_metrics = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
-        logger.info("Other metrics: %s", str(other_metrics))
+        logger.info("Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics))
+        logger.info("LinProb Validation, supervised Test, Fixed Test Metrics: %s", str(lin_prob_metrics))
 
         logger.info("Test finished")
-        return train_metric, other_metrics
+        return train_metric, other_metrics, lin_prob_metrics
 
     def compute_test_metric(
         self,
@@ -198,8 +200,20 @@ class GenTrainer(BaseTrainer):
         if metric == "roc_auc":
             params["objective"] = "binary"
             params["metric"] = "auc"
+            model = LGBMClassifier(
+                **params,
+            )
+            lin_prob = LogisticRegression(max_iter=5000)
         elif metric == "accuracy":
             params["objective"] = "multiclass"
+            model = LGBMClassifier(
+                **params,
+            )
+            lin_prob = LogisticRegression(max_iter=5000)
+        elif metric == 'mse':
+            params["objective"] = "regression"
+            model = LGBMRegressor()
+            lin_prob = LinearRegression()
         else:
             raise NotImplementedError(f"Unknown objective {metric}")
 
@@ -208,18 +222,20 @@ class GenTrainer(BaseTrainer):
                 return roc_auc_score(target, model.predict_proba(x)[:, 1])
             elif metric == "accuracy":
                 return accuracy_score(target, model.predict(x))
+            elif metric == 'mse':
+                return mean_squared_error(target, model.predict(x))
             else:
                 raise NotImplementedError(f"Unknown objective {metric}")
 
-        model = LGBMClassifier(
-            **params,
-        )
+
         preprocessor = MaxAbsScaler()
         train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
         model.fit(train_embeddings_tr, train_labels)
+        lin_prob.fit(train_embeddings_tr, train_labels)
 
         train_metric = get_metric(model, train_embeddings_tr, train_labels)
         other_metrics = []
+        lin_prob_metrics = []
         for i, (other_embedding, other_label) in enumerate(
             zip(other_embeddings_new, other_labels)
         ):
@@ -228,9 +244,12 @@ class GenTrainer(BaseTrainer):
                 other_metrics.append(
                     get_metric(model, other_embedding_proccesed, other_label)
                 )
+                lin_prob_metrics.append(get_metric(lin_prob, other_embedding_proccesed, other_label))
             else:
                 other_metrics.append(0)
-        return train_metric, other_metrics
+                lin_prob_metrics.append(0)
+        
+        return train_metric, other_metrics, lin_prob_metrics
 
     def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
         self._model.eval()

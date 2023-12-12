@@ -11,6 +11,7 @@ sys.path.append("../")
 import src.models.base_models
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_alpha import TrainerAlpha
+from src.trainers.trainer_ddpm import TrainerAlphaDDPM
 import src.models.gen_models
 from experiments.utils import get_parser, read_config, draw_generated
 from experiments.pipeline import Pipeline
@@ -65,7 +66,7 @@ class GenerativePipeline(Pipeline):
         """
         ### Create loaders and train ###
         train_loader, valid_loader = create_data_loaders(data_conf)
-        another_test_loader = create_test_loader(data_conf)
+        fixed_test_loader = create_test_loader(data_conf)
 
         data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
         data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
@@ -88,7 +89,10 @@ class GenerativePipeline(Pipeline):
         if model_conf.use_discriminator:
             raise NotImplementedError
         else:
-            trainer = TrainerAlpha(
+            gen_trainer_class = (
+                TrainerAlphaDDPM if "DDPM" in self.model_conf.model_name else TrainerAlpha
+            )
+            trainer = gen_trainer_class(
                 model=net,
                 optimizer=opt,
                 train_loader=train_loader,
@@ -108,16 +112,17 @@ class GenerativePipeline(Pipeline):
         ### RUN TRAINING ###
         trainer.run()
 
-        # trainer.load_best_model()
-        train_metric, (val_metric, test_metric, another_test_metric) = trainer.test(
+       # trainer.load_best_model()
+        train_metric, (supervised_val_metric, supervised_test_metric, fixed_test_metric), lin_prob_test = trainer.test(
             train_supervised_loader,
-            (valid_supervised_loader, test_supervised_loader, another_test_loader),
+            (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         )
         metrics = {
             "train_metric": train_metric,
-            "val_metric": val_metric,
-            "test_metric": test_metric,
-            "another_test_metric": another_test_metric,
+            "supervised_val_metric": supervised_val_metric,
+            "supervised_test_metric": supervised_test_metric,
+            "fixed_test_metric": fixed_test_metric,
+            "lin_prob_test": lin_prob_test,
         }
 
         true_train_path = data_conf.train_path

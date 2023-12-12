@@ -23,9 +23,9 @@ from .parquet_ds import TxnParquetDataset
 
 def create_data_loaders(conf, **kwargs):
     if conf["load_distributed"]:
-        return _create_data_loaders_distributed(conf, kwargs)
+        return _create_data_loaders_distributed(conf, **kwargs)
     else:
-        return _create_data_loaders_basic(conf, kwargs)
+        return _create_data_loaders_basic(conf, **kwargs)
 
 
 def _create_data_loaders_basic(conf, supervised=True, pinch_test=False):
@@ -37,6 +37,7 @@ def _create_data_loaders_basic(conf, supervised=True, pinch_test=False):
         train_data,
         split_strategy.create(**conf.train.split_strategy),
         conf.features.target_col,
+        conf.track_metric,
     )
     train_dataset = TargetEnumeratorDataset(train_dataset)
     train_dataset = ConvertingTrxDataset(train_dataset)

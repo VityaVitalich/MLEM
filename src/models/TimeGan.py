@@ -512,7 +512,7 @@ class TG(nn.Module):
         pred.update(self.numeric_projector(decoded))
 
         if self.model_conf.use_deltas:
-            pred["delta"] = decoded[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(decoded[:, :, -1].squeeze(-1))
 
         out = {"pred": pred, "time_steps": time_steps}
         return out
@@ -529,7 +529,7 @@ class TG(nn.Module):
         pred = self.embedding_predictor(gen_decoded)
         pred.update(self.numeric_projector(gen_decoded))
         if self.model_conf.use_deltas:
-            pred["delta"] = gen_decoded[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(gen_decoded[:, :, -1].squeeze(-1))
 
         out = {"pred": pred, "time_steps": time_steps}
         return out
