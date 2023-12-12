@@ -10,7 +10,7 @@
 
 #SBATCH --output=outputs/output_3.txt
 
-#SBATCH --time=6-00
+#SBATCH --time=12-00
 
 #SBATCH --mem=100G
 

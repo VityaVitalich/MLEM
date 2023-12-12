@@ -11,7 +11,7 @@ case $DATASET in
         EPOCHS=100
         ;;
     "alpha")
-        EPOCHS=10
+        EPOCHS=5
         ;;
     *)
         EPOCHS=10
