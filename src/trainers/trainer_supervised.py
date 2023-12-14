@@ -73,7 +73,10 @@ class AucTrainerSupervised(SimpleTrainerSupervised):
 
         preds = torch.cat([it.cpu()[:, 1] for it in model_outputs])
         gold = torch.cat([gt[1].cpu() for gt in ground_truths])
-        score = roc_auc_score(gold, preds)
+        try:
+            score = roc_auc_score(gold, preds)
+        except ValueError:
+            score = 0.5
 
         losses_dict["roc_auc"] = score
 

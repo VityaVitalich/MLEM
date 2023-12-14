@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 8
+    config.features_emb_dim = 16
     config.use_numeric_emb = True
-    config.numeric_emb_size = 8
+    config.numeric_emb_size = 16
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
@@ -30,12 +30,12 @@ def model_configs():
 
     ### DECODER ###
     config.decoder = "TR"  # GRU TR
-    config.decoder_hidden = 256
-    config.decoder_num_layers = 1
+    config.decoder_hidden = 128
+    config.decoder_num_layers = 3
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 2
-    config.decoder_dim_ff = 512
+    config.decoder_dim_ff = 256
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
@@ -49,6 +49,7 @@ def model_configs():
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.05
+    
 
     ### ACTIVATION ###
     config.activation = "ReLU"
@@ -105,6 +106,14 @@ def model_configs():
     tppddpm.denoise_layer_num = 2
     tppddpm.num_layers_enc = 1
     tppddpm.diff_steps = 100
+
+    ### FINE TUNE SPECIFIC ###
+    ### LOSS ###
+    loss = config.loss = ml_collections.ConfigDict()
+    loss.sampling_strategy = "HardNegativePair"
+    loss.neg_count = 5
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.margin = 0.5
     return config
 
 
@@ -125,21 +134,21 @@ def genval_config():
     config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
+    config.encoder_hidden = 64
+    config.encoder_num_layers = 1
 
     ### TIME DELTA ###
     config.use_deltas = True
     config.time_embedding = 2
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # IDnetity or TransformerEncoder
+    config.preENC_TR = False  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
-    config.pre_gru_norm = "Identity"
-    config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "Identity"
+    config.pre_encoder_norm = "Identity"
+    config.post_encoder_norm = "LayerNorm"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.0

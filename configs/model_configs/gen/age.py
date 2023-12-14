@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "TPPVAE"
+    config.model_name = "SeqGen"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -21,7 +21,7 @@ def model_configs():
 
     ### ENCODER ###
     config.encoder = "GRU"
-    config.encoder_hidden = 128
+    config.encoder_hidden = 512
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
@@ -29,12 +29,12 @@ def model_configs():
 
     ### DECODER ###
     config.decoder = "TR"
-    config.decoder_hidden = 256
+    config.decoder_hidden = 128
     config.decoder_num_layers = 3
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 2
-    config.decoder_dim_ff = 512
+    config.decoder_dim_ff = 256
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
@@ -119,17 +119,21 @@ def genval_config():
     config.time_embedding = 2
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
+    config.encoder_hidden = 64
+    config.encoder_num_layers = 1
+
+    ### TIME DELTA ###
+    config.use_deltas = True
+    config.time_embedding = 2
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # IDnetity or TransformerEncoder
+    config.preENC_TR = False  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
-    config.pre_gru_norm = "Identity"
-    config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "Identity"
+    config.pre_encoder_norm = "Identity"
+    config.post_encoder_norm = "LayerNorm"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.0

@@ -22,6 +22,9 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
+    config.load_distributed = False
+    config.FT_number_objects = [1, 5, 10, 25, 50, 100, 250, 500]
+    config.post_gen_FT_epochs = 15
 
     config.track_metric = "roc_auc"
 

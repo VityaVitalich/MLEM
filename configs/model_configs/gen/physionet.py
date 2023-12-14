@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "TPPDDPM"
+    config.model_name = "SeqGen"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -30,12 +30,12 @@ def model_configs():
 
     ### DECODER ###
     config.decoder = "TR"  # GRU TR
-    config.decoder_hidden = 256
+    config.decoder_hidden = 128
     config.decoder_num_layers = 3
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 2
-    config.decoder_dim_ff = 512
+    config.decoder_dim_ff = 256
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
@@ -129,7 +129,7 @@ def genval_config():
 
     ### TIME DELTA ###
     config.use_deltas = True
-    config.time_embedding = 2
+    config.time_embedding = 0
 
     ### TRANSFORMER ###
     config.encoder = "Identity"  # IDnetity or TransformerEncoder

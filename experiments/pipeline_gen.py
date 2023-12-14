@@ -43,6 +43,7 @@ class GenerativePipeline(Pipeline):
         console_lvl="warning",
         file_lvl="info",
         draw_generated=False,
+        FT_on_labeled=False,
     ):
         super().__init__(
             run_name,
@@ -61,6 +62,7 @@ class GenerativePipeline(Pipeline):
         self.recon_val = recon_val
         self.recon_val_epoch = recon_val_epoch
         self.draw_generated = draw_generated
+        self.FT_on_labeled = FT_on_labeled
 
     def _train_eval(self, run_name, data_conf, model_conf):
         """
@@ -138,7 +140,7 @@ class GenerativePipeline(Pipeline):
 
         ### RUN TRAINING ###
         trainer.run()
-
+        trainer.load_best_model()
         # trainer.load_best_model()
         train_metric, (supervised_val_metric, supervised_test_metric, fixed_test_metric), lin_prob_test = trainer.test(
             train_supervised_loader,
@@ -153,7 +155,7 @@ class GenerativePipeline(Pipeline):
         }
 
         true_train_path = data_conf.train_path
-        data_conf.FT_train_path = true_train_path
+        self.data_conf.FT_train_path = true_train_path
         if self.recon_val:
             reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
             data_conf.train_path = reconstructed_data_path
@@ -220,7 +222,78 @@ class GenerativePipeline(Pipeline):
                 data_conf=self.data_conf,
                 out_path=save_path,
             )
+
+        if self.FT_on_labeled:
+            resume_path = trainer.best_checkpoint()
+            self.model_conf.model_name = "GRUClassifier"
+            self.model_conf.predict_head = "Linear"
+
+            res_ft = self.run_finetuning(run_name, resume_path, trainer._ckpt_dir)
+            metrics.update(res_ft)
+
         return metrics
+
+    def run_finetuning(self, run_name, resume_path, ckpt_dir):
+        train = pd.read_parquet(self.data_conf.FT_train_path)
+        train = train[~train[self.data_conf.features.target_col].isna()]
+
+        ### Create Valid Loader to use in every run ###
+        num_valid_rows = int(len(train) * 0.1)
+        valid = train.tail(num_valid_rows)
+        valid_path = ckpt_dir / f"{run_name}" / "valid_subset.parquet"
+        valid.to_parquet(valid_path)
+        data_conf.valid_size = 0.0
+        data_conf.train_path = valid_path
+        valid_loader, _ = create_data_loaders(
+            data_conf, supervised=True, pinch_test=False
+        )
+        ### Create Train path with only labeled samples and not including valid ###
+        train_supervised = train.head(len(train) - num_valid_rows)
+        train_supervised_path = ckpt_dir / f"{run_name}" / "train_sup_subset.parquet"
+        train_supervised.to_parquet(train_supervised_path)
+        self.data_conf.FT_train_path = train_supervised_path
+
+        res_ft = {}
+        for observed_real_data_num in self.data_conf['FT_number_objects']:
+            subset_path = self.create_subset(ckpt_dir, run_name, observed_real_data_num)
+            self.data_conf.train_path = subset_path
+            self.data_conf.valid_size = 0.0
+
+            log_dir = self.log_dir
+            trainer_class = self.TrainerClass
+            super_pipe = GenSupervisedPipeline(
+                run_name=f"{run_name}_FT_{observed_real_data_num}",
+                device=self.device,
+                total_epochs=self.data_conf.post_gen_FT_epochs,
+                data_conf=self.data_conf,
+                model_conf=self.model_conf,
+                TrainerClass=trainer_class,
+                resume=resume_path,
+                log_dir=log_dir,
+                console_lvl=self.console_lvl,
+                file_lvl=self.file_lvl,
+                valid_supervised_loader=valid_loader,
+            )
+
+            results = super_pipe.run_experiment(run_name=f"{run_name}_FT_{observed_real_data_num}",
+                                                conf=self.data_conf,
+                                                model_conf=self.model_conf,
+                                                seed=0)
+
+            for k, v in results.items():
+                res_ft[f"{k}_FT_{observed_real_data_num}"] = v
+
+        return res_ft
+
+    def create_subset(self, ckpt_dir, run_name, observed_real_data_num):
+        train = pd.read_parquet(self.data_conf.FT_train_path)
+        if observed_real_data_num == 'all':
+            observed_real_data_num = len(train)
+        subset = train.head(observed_real_data_num)
+        subset_path = ckpt_dir / f"{run_name}" / "subset.parquet"
+        subset.to_parquet(subset_path)
+        return subset_path
+
 
     def _param_grid(self, trial, model_conf, data_conf):
         model_conf.classifier_gru_hidden_dim = trial.suggest_int(
@@ -258,6 +331,12 @@ if __name__ == "__main__":
         default=0,
         type=int,
     )
+    parser.add_argument(
+        "--FT",
+        help="if to Fine-tune after Pre-Train",
+        default=0,
+        type=int,
+    )
     args = parser.parse_args()
 
     print(args.recon_val)
@@ -281,6 +360,7 @@ if __name__ == "__main__":
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
         draw_generated=args.draw,
+        FT_on_labeled=args.FT
     )
     request = {"classifier_gru_hidden_dim": 16}
     metrics = pipeline.run_experiment()

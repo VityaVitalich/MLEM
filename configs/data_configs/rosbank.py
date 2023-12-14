@@ -13,7 +13,7 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "data"
-        / "train.parquet" #"train_trx.parquet"
+        / "train_trx.parquet"
     )
     # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/generated_data/delta100_2023-10-31_16:32:20'
     # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/reconstructed_data/delta100_2023-10-31_16:32:20'
@@ -28,7 +28,8 @@ def data_configs():
     config.recon_limit = 100
     config.gen_limit = 100
     config.predict_limit = 1000
-    config.FT_number_objects = [10, 50, 100]
+    config.FT_number_objects = [100, 500, 'all']
+    config.post_gen_FT_epochs = 15
 
     config.track_metric = "roc_auc"
 
@@ -86,7 +87,7 @@ def data_configs():
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.0
+    train.dropout = 0.05
     config.use_constant_pad = False
     train.max_seq_len = 200
     test.max_seq_len = 200

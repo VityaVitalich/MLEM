@@ -23,6 +23,9 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
+    config.load_distributed = False
+    config.FT_number_objects = []
+    config.post_gen_FT_epochs = 10
 
     config.track_metric = "accuracy"
 
