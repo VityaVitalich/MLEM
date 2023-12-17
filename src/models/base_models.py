@@ -20,9 +20,12 @@ class BaseMixin(nn.Module):
         self.processor = prp.FeatureProcessor(
             model_conf=model_conf, data_conf=data_conf
         )
-        self.time_processor = getattr(prp, self.model_conf.time_preproc)(
-            self.model_conf.num_time_blocks, model_conf.device
-        )
+        # TIME PROCESSOR DISABLED !!! ###
+        assert self.model_conf.get('time_preproc', None) is None, "TIME PROCESSOR DISABLED"
+        # self.time_processor = getattr(prp, self.model_conf.time_preproc)(
+        #     self.model_conf.num_time_blocks, model_conf.device
+        # )
+        self.time_processor = prp.Identity()
         self.time_encoder = prp.TimeEncoder(data_conf=data_conf, model_conf=model_conf)
 
         ### INPUT SIZE ###
@@ -64,31 +67,35 @@ class BaseMixin(nn.Module):
             self.encoder_feature_mixer = nn.Identity()
 
         ### NORMS ###
-        self.pre_gru_norm = getattr(nn, self.model_conf.pre_gru_norm)(self.input_dim)
-        self.post_gru_norm = getattr(nn, self.model_conf.post_gru_norm)(
-            self.model_conf.classifier_gru_hidden_dim
+        self.pre_encoder_norm = getattr(nn, self.model_conf.pre_encoder_norm)(self.input_dim)
+        self.post_encoder_norm = getattr(nn, self.model_conf.post_encoder_norm)(
+            self.model_conf.encoder_hidden
         )
         self.encoder_norm = getattr(nn, self.model_conf.encoder_norm)(self.input_dim)
+        
+        ### INTERBATCH TRANSFORMER ###
+        if self.model_conf.preENC_TR:
+            encoder_layer = nn.TransformerEncoderLayer(
+                d_model=self.input_dim,
+                nhead=1,
+                batch_first=self.model_conf.batch_first_encoder,
+            )
 
-        ### TRANSFORMER ###
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=self.input_dim,
-            nhead=self.model_conf.num_heads_enc,
-            batch_first=self.model_conf.batch_first_encoder,
-        )
-
-        self.encoder = getattr(nn, self.model_conf.encoder)(
-            encoder_layer,
-            self.model_conf.num_enc_layers,
-            norm=self.encoder_norm,
-        )
+            self.preENC_TR = nn.TransformerEncoder(
+                encoder_layer,
+                1,
+                enable_nested_tensor=True,
+                mask_check=True,
+            )
+        else:
+            self.preENC_TR = nn.Identity()
 
         ### DROPOUT ###
         self.after_enc_dropout = nn.Dropout1d(self.model_conf.after_enc_dropout)
 
         ### OUT PROJECTION ###
         self.out_linear = getattr(nn, self.model_conf.predict_head)(
-            self.model_conf.classifier_gru_hidden_dim, self.data_conf.num_classes
+            self.model_conf.encoder_hidden, self.data_conf.num_classes
         )
 
         ### LOSS ###
@@ -104,15 +111,14 @@ class BaseMixin(nn.Module):
             else:
                 loss = self.loss_fn(out, gt[1])
 
-        if self.model_conf.time_preproc == "MultiTimeSummator":
-            # logp = torch.log(self.time_processor.softmaxed_weights)
-            # entropy_term = torch.sum(-self.time_processor.softmaxed_weights * logp)
-            entropy_term = torch.tensor(0)
-        else:
-            entropy_term = torch.tensor(0)
+        # if self.model_conf.time_preproc == "MultiTimeSummator":
+        #     # logp = torch.log(self.time_processor.softmaxed_weights)
+        #     # entropy_term = torch.sum(-self.time_processor.softmaxed_weights * logp)
+        #     entropy_term = torch.tensor(0)
+        # else:
+        #     entropy_term = torch.tensor(0)
         return {
-            "total_loss": loss + self.model_conf.entropy_weight * entropy_term,
-            "entropy_loss": entropy_term,
+            "total_loss": loss
         }
 
 
@@ -120,10 +126,11 @@ class GRUClassifier(BaseMixin):
     def __init__(self, model_conf, data_conf):
         super().__init__(model_conf, data_conf)
 
-        self.gru = nn.GRU(
+        self.encoder = nn.GRU(
             self.input_dim,
-            self.model_conf.classifier_gru_hidden_dim,
+            self.model_conf.encoder_hidden,
             batch_first=True,
+            num_layers=self.model_conf.encoder_num_layers,
         )
 
     def forward(self, padded_batch):
@@ -137,14 +144,14 @@ class GRUClassifier(BaseMixin):
             x = self.encoder_feature_mixer(x)
             x = self.time_encoder(x, time_steps)
 
-        encoded = self.encoder(x)
+        encoded = self.preENC_TR(x)
 
-        all_hiddens, hn = self.gru(self.pre_gru_norm(self.after_enc_dropout(encoded)))
-        if self.model_conf.time_preproc == "Identity":
+        all_hiddens, hn = self.encoder(self.pre_encoder_norm(encoded))
+        if not self.model_conf.get('time_preproc', None):
             lens = padded_batch.seq_lens - 1
-            last_hidden = self.post_gru_norm(all_hiddens[:, lens, :].diagonal().T)
+            last_hidden = self.post_encoder_norm(all_hiddens[:, lens, :].diagonal().T)
         else:
-            last_hidden = self.post_gru_norm(hn.squeeze(0))
+            last_hidden = self.post_encoder_norm(hn.squeeze(0))
 
         y = self.out_linear(last_hidden)
 
@@ -236,10 +243,10 @@ class ConvGRUClassifier(BaseMixin):
         self.conv_net = nn.Sequential(*self.conv_stacks)
 
         self.gru = nn.GRU(
-            self.input_dim, self.model_conf.classifier_gru_hidden_dim, batch_first=True
+            self.input_dim, self.model_conf.encoder_hidden, batch_first=True
         )
         self.out_linear = nn.Linear(
-            self.model_conf.classifier_gru_hidden_dim, self.data_conf.num_classes
+            self.model_conf.encoder_hidden, self.data_conf.num_classes
         )
 
         self.act = getattr(nn, self.model_conf.activation)()

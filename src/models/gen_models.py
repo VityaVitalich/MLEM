@@ -263,7 +263,7 @@ class BaseMixin(nn.Module):
 
     def numerical_loss(self, output):
         # MSE
-        total_mse_loss = 0
+        total_mse_loss = torch.tensor(0., device=self.model_conf.device)
         for key, values in output["gt"]["input_batch"].payload.items():
             if key in self.processor.numeric_names:
                 gt_val = values.float()

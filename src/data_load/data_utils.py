@@ -32,7 +32,7 @@ def prepare_embeddings(seq, conf):
 
     feature_keys = embeddings + list(conf.features.numeric_values.keys())
 
-    for rec in seq:
+    for rec in tqdm(seq):
         if "feature_arrays" in rec:
             feature_arrays = rec["feature_arrays"]
             feature_arrays = {

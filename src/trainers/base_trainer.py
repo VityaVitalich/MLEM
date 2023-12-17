@@ -259,7 +259,8 @@ class BaseTrainer:
         ckpt = torch.load(ckpt_fname)
 
         if "model" in ckpt:
-            self._model.load_state_dict(ckpt["model"])
+            msg = self._model.load_state_dict(ckpt["model"], strict=False)
+            print(msg)
         if "opt" in ckpt:
             if self._opt is None:
                 logger.warning(
@@ -267,7 +268,10 @@ class BaseTrainer:
                     "in the checkpoint"
                 )
             else:
-                self._opt.load_state_dict(ckpt["opt"])
+                logger.warning(
+                    "optimizer is not loaded now due to problems in FineTUning stage"
+                )
+                #self._opt.load_state_dict(ckpt["opt"])
         if "sched" in ckpt:
             if self._sched is None:
                 logger.warning(
@@ -275,9 +279,12 @@ class BaseTrainer:
                     "in the checkpoint"
                 )
             else:
-                self._sched.load_state_dict(ckpt["sched"])
-        self._last_iter = ckpt["last_iter"]
-        self._last_epoch = ckpt["last_epoch"]
+                logger.warning(
+                    "scheduller is not loaded now due to problems in FineTUning stage"
+                )
+                #self._sched.load_state_dict(ckpt["sched"])
+        #self._last_iter = ckpt["last_iter"]
+        #self._last_epoch = ckpt["last_epoch"]
 
     def train(self, iters: int) -> None:
         assert self._opt is not None, "Set an optimizer first"

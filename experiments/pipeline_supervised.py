@@ -153,7 +153,7 @@ class GenSupervisedPipeline(Pipeline):
             train_loader=train_loader,
             val_loader=self.valid_supervised_loader,
             run_name=run_name,
-            ckpt_dir=Path(self.log_dir).parent / "ckpt",
+            ckpt_dir=Path(self.log_dir).parent / "ckpt_test",
             ckpt_replace=True,
             ckpt_resume=self.resume,
             ckpt_track_metric=data_conf.track_metric,
@@ -170,7 +170,7 @@ class GenSupervisedPipeline(Pipeline):
         train_metric = trainer.test(train_loader)
         val_metric = trainer.test(self.valid_supervised_loader)
         test_metric = trainer.test(another_test_loader)
-
+        
         results = {
             "train_metric": train_metric[data_conf.track_metric],
             "val_metric": val_metric[data_conf.track_metric],
@@ -202,9 +202,9 @@ class GenSupervisedPipeline(Pipeline):
             log_dir = self.log_dir
             trainer_class = self.TrainerClass
             super_pipe = GenSupervisedPipeline(
-                run_name=f"{run_name}/generation/{observed_real_data_num}",
+                run_name=f"{run_name}_FT_{observed_real_data_num}",
                 device=self.device,
-                total_epochs=self.total_epochs,
+                total_epochs=self.data_conf.post_gen_FT_epochs,
                 data_conf=self.data_conf,
                 model_conf=self.model_conf,
                 TrainerClass=trainer_class,
@@ -215,14 +215,36 @@ class GenSupervisedPipeline(Pipeline):
                 valid_supervised_loader=valid_supervised_loader,
             )
 
-            results = super_pipe.run_experiment(run_name=f"{run_name}/generation/{observed_real_data_num}",
+            results = super_pipe.run_experiment(run_name=f"{run_name}_FT_{observed_real_data_num}",
                                                 conf=self.data_conf,
-                                                model_conf=model_conf,
+                                                model_conf=self.model_conf,
                                                 seed=0)
-            
+
             for k, v in results.items():
                 res_ft[f"{k}_FT_{observed_real_data_num}"] = v
+
+            super_pipe = GenSupervisedPipeline(
+                run_name=f"{run_name}_noFT_{observed_real_data_num}",
+                device=self.device,
+                total_epochs=self.data_conf.post_gen_FT_epochs,
+                data_conf=self.data_conf,
+                model_conf=self.model_conf,
+                TrainerClass=trainer_class,
+                resume=None,
+                log_dir=log_dir,
+                console_lvl=self.console_lvl,
+                file_lvl=self.file_lvl,
+                valid_supervised_loader=valid_supervised_loader,
+            )
+
+            results = super_pipe.run_experiment(run_name=f"{run_name}_noFT_{observed_real_data_num}",
+                                                conf=self.data_conf,
+                                                model_conf=self.model_conf,
+                                                seed=0)
             
+
+            for k, v in results.items():
+                res_ft[f"{k}_no-FT_{observed_real_data_num}"] = v
 
         self.data_conf.post_gen_FT = True
 

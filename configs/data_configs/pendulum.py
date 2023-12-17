@@ -11,56 +11,53 @@ def data_configs():
     config.train_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "rosbank"
+        / "pendulum"
         / "data"
-        / "train.parquet" #"train_trx.parquet"
+        / "train_hawkes_16.parquet"  # "train_trx.parquet"
     )
-    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/generated_data/delta100_2023-10-31_16:32:20'
-    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/reconstructed_data/delta100_2023-10-31_16:32:20'
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "rosbank"
+        / "pendulum"
         / "data"
-        / "test.parquet"
+        / "test_hawkes_16.parquet"
     )
     config.load_distributed = False
     config.recon_limit = 100
     config.gen_limit = 100
-    config.predict_limit = 1000
-    config.FT_number_objects = [100, 500, 'all']
-    config.post_gen_FT_epochs = 15
+    config.num_plots = 15
 
-    config.track_metric = "roc_auc"
+    config.FT_number_objects = []
+    config.post_gen_FT_epochs = 10
+
+    config.track_metric = "mse"
 
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.1  # validation size
     config.test_size = 0.0  # pinch_test size
-    config.col_id = "cl_id"  # column defining ids. used for sorting data
+    config.col_id = "pendulum_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "mcc": {"in": 100, "out": 24, "max_value": 100},
-        "channel_type": {"in": 4, "out": 4, "max_value": 5},
-        "currency": {"in": 4, "out": 4, "max_value": 5},
-        "trx_category": {"in": 10, "out": 4, "max_value": 12},
+        str(i):  {"in": 2, "out": 1, "max_value": 2} for i in range(0, 256)
+        #"pad_category": {"in": 2, "out": 1, "max_value": 2},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
-    features.numeric_values = {"amount": "identity"}
+    features.numeric_values = {}#{str(i): "identity" for i in range(0, 256)}
 
     # name of target col
-    features.target_col = "target_target_flag"
-    config.num_classes = 2
+    features.target_col = "flag"
+    config.num_classes = 1
 
     ### TIME ###
-    config.max_time = 17623.972627314815
-    config.min_time = 17081.0
+    config.max_time = 5.0
+    config.min_time = 0.0
 
     # train specific parameters
     train = config.train = ml_collections.ConfigDict()
@@ -87,11 +84,11 @@ def data_configs():
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.0
     config.use_constant_pad = False
-    train.max_seq_len = 200
-    test.max_seq_len = 200
-    val.max_seq_len = 200
+    train.max_seq_len = 100
+    test.max_seq_len = 100
+    val.max_seq_len = 100
 
     train.num_workers = 1
     val.num_workers = 1

@@ -5,19 +5,24 @@ def model_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
-    config.predict_head = "Linear"  # Linear or Identity
+    config.predict_head = "Identity"  # Linear or Identity
 
     # Vitya NIPS
     config.batch_first_encoder = False
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 8
-    config.use_numeric_emb = False
-    config.numeric_emb_size = 8
+    config.features_emb_dim = 12
+    config.use_numeric_emb = True
+    config.numeric_emb_size = 12
+    config.encoder_feature_mixer = False
+
+    ### TIME DELTA ###
+    config.use_deltas = False
+    config.time_embedding = 0
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
+    config.classifier_gru_hidden_dim = 128
     config.classifier_linear_hidden_dim = 300  # Used only in MTAN
 
     ### TRANSFORMER ###
@@ -55,8 +60,14 @@ def model_configs():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "DecoupledInfoNCELoss"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
+    loss.projector = "Identity"  # all losses
+    loss.project_dim = 32  # all losses
+    loss.temperature = 0.03  # all except ContrastiveLoss
+    loss.angular_margin = 0.3  # InfoNCELoss only
+    loss.q = 0.03  # RINCELoss only
+    loss.lam = 0.01  # RINCELoss only
 
     ### MTAND ###
     # # number of reference points on encoder
