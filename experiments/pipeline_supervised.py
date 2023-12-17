@@ -171,17 +171,69 @@ class GenSupervisedPipeline(Pipeline):
         val_metric = trainer.test(self.valid_supervised_loader)
         test_metric = trainer.test(another_test_loader)
 
-        return {
+        results = {
             "train_metric": train_metric[data_conf.track_metric],
             "val_metric": val_metric[data_conf.track_metric],
             "test_metric": test_metric[data_conf.track_metric],
         }
+        
+        if data_conf.get('post_gen_FT', False):
+            print('in')
+            resume_path = trainer.best_checkpoint()
+            res_ft = self.run_finetuning(run_name, resume_path, self.valid_supervised_loader, trainer._ckpt_dir)
+            results.update(res_ft)
+
+        return results
 
     def _param_grid(self, trial, model_conf, data_conf):
         model_conf.classifier_gru_hidden_dim = trial.suggest_int(
             "classifier_gru_hidden_dim", 64, 800
         )
         return trial, model_conf, data_conf
+    
+    def run_finetuning(self, run_name, resume_path, valid_supervised_loader, ckpt_dir):
+        res_ft = {}
+        self.data_conf.post_gen_FT = False
+        for observed_real_data_num in self.data_conf['FT_number_objects']:
+            subset_path = self.create_subset(ckpt_dir, run_name, observed_real_data_num)
+            self.data_conf.train_path = subset_path
+            self.data_conf.valid_size = 0.0
+
+            log_dir = self.log_dir
+            trainer_class = self.TrainerClass
+            super_pipe = GenSupervisedPipeline(
+                run_name=f"{run_name}/generation/{observed_real_data_num}",
+                device=self.device,
+                total_epochs=self.total_epochs,
+                data_conf=self.data_conf,
+                model_conf=self.model_conf,
+                TrainerClass=trainer_class,
+                resume=resume_path,
+                log_dir=log_dir,
+                console_lvl=self.console_lvl,
+                file_lvl=self.file_lvl,
+                valid_supervised_loader=valid_supervised_loader,
+            )
+
+            results = super_pipe.run_experiment(run_name=f"{run_name}/generation/{observed_real_data_num}",
+                                                conf=self.data_conf,
+                                                model_conf=model_conf,
+                                                seed=0)
+            
+            for k, v in results.items():
+                res_ft[f"{k}_FT_{observed_real_data_num}"] = v
+            
+
+        self.data_conf.post_gen_FT = True
+
+        return res_ft
+
+    def create_subset(self, ckpt_dir, run_name, observed_real_data_num):
+        train = pd.read_parquet(self.data_conf.FT_train_path)
+        subset = train.head(observed_real_data_num)
+        subset_path = ckpt_dir / f"{run_name}" / "subset.parquet"
+        subset.to_parquet(subset_path)
+        return subset_path
 
 
 if __name__ == "__main__":

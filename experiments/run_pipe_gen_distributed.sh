@@ -1,18 +1,18 @@
 #!/bin/bash
 
-EPOCHS=70
+EPOCHS=30
 DEVICE="cuda"
-NAME='seq2seq_32-32-pred-cur_step'
-DATA_C="../configs/data_configs/rosbank.py"
-MODEL_C="../configs/model_configs/gen/rosbank.py"
-LOG_D="./rosbank/logs/"
+NAME='TPPDDPM'
+DATA_C="../configs/data_configs/alpha.py"
+MODEL_C="../configs/model_configs/gen/alpha.py"
+LOG_D="./alpha/logs/"
 GENVAL=1
-GENVAL_EPOCH=1
-RECON_VAL=0
-RECON_VAL_EPOCH=1
-DRAW=0
+GENVAL_EPOCH=10
+RECON_VAL=1
+RECON_VAL_EPOCH=10
+DRAW=1
 
-python pipeline_gen.py \
+python pipeline_gen_distributed.py \
     --run-name=$NAME \
     --data-conf=$DATA_C \
     --model-conf=$MODEL_C \

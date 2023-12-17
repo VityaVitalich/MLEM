@@ -233,7 +233,6 @@ class TimeEncoder(nn.Module):
         time_emb = self.create_emb(delta_feature)
 
         x = torch.cat([x, time_emb], dim=-1)
-
         return x
 
     def create_emb(self, delta_feature):

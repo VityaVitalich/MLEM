@@ -146,7 +146,7 @@ class TimeVAE(nn.Module):
         pred.update(self.numeric_projector(out))
 
         if self.model_conf.use_deltas:
-            pred["delta"] = out[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(out[:, :, -1].squeeze(-1))
 
         return pred
 

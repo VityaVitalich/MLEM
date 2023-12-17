@@ -34,14 +34,12 @@ class EmbeddingPredictor(nn.Module):
 
     def forward(self, x_recon):
         batch_size, seq_len, out_dim = x_recon.size()
-
         resized_x = x_recon[:, :, : self.categorical_len].view(
             batch_size,
             seq_len,
             self.num_embeds,
             self.model_conf.features_emb_dim,
         )
-
         embeddings_distribution = {}
         for i, name in enumerate(self.emb_names):
             embeddings_distribution[name] = self.embed_predictors[name](

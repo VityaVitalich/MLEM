@@ -11,10 +11,11 @@ SENTINEL = None
 
 
 class SplittingDataset(Dataset):
-    def __init__(self, base_dataset, splitter, target_col=None):
+    def __init__(self, base_dataset, splitter, target_col=None, track_metric='roc_auc'):
         self.base_dataset = base_dataset
         self.splitter = splitter
         self.target_col = target_col
+        self.track_metric = track_metric
 
     def __len__(self):
         return len(self.base_dataset)
@@ -31,7 +32,10 @@ class SplittingDataset(Dataset):
         if self.target_col:
             target = row[self.target_col]
             try:
-                target = int(target)
+                if self.track_metric == 'mse':
+                    target = float(target)
+                else:
+                    target = int(target)
             except (ValueError, TypeError):
                 target = -1
             return data, target

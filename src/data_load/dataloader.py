@@ -37,6 +37,7 @@ def _create_data_loaders_basic(conf, supervised=True, pinch_test=False):
         train_data,
         split_strategy.create(**conf.train.split_strategy),
         conf.features.target_col,
+        conf.track_metric,
     )
     train_dataset = TargetEnumeratorDataset(train_dataset)
     train_dataset = ConvertingTrxDataset(train_dataset)

@@ -11,55 +11,69 @@ def data_configs():
     config.train_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "rosbank"
+        / "alpha"
         / "data"
-        / "train.parquet" #"train_trx.parquet"
+        / "train_new.parquet"
     )
-    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/generated_data/delta100_2023-10-31_16:32:20'
-    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/reconstructed_data/delta100_2023-10-31_16:32:20'
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "rosbank"
+        / "alpha"
         / "data"
-        / "test.parquet"
+        / "test_new.parquet"
     )
-    config.load_distributed = False
-    config.recon_limit = 100
-    config.gen_limit = 100
-    config.predict_limit = 1000
-    config.FT_number_objects = [10, 50, 100]
+    config.load_distributed = True
+    config.recon_limit = 10000
+    config.gen_limit = 10000
+    config.predict_limit = 100000
 
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
-    config.col_id = "cl_id"  # column defining ids. used for sorting data
+    config.col_id = "seq_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
+    config.shift_embedding = False  # embeddings start with 1
     features.embeddings = {
-        "mcc": {"in": 100, "out": 24, "max_value": 100},
-        "channel_type": {"in": 4, "out": 4, "max_value": 5},
-        "currency": {"in": 4, "out": 4, "max_value": 5},
-        "trx_category": {"in": 10, "out": 4, "max_value": 12},
+        "currency": {"in": 12, "out": 12, "max_value": 12},
+        "operation_kind": {"in": 8, "out": 8, "max_value": 8},
+        "card_type": {"in": 174, "out": 174, "max_value": 174},
+        "operation_type": {"in": 23, "out": 23, "max_value": 23},
+        "operation_type_group": {"in": 5, "out": 5, "max_value": 5},
+        "ecommerce_flag": {"in": 4, "out": 4, "max_value": 4},
+        "payment_system": {"in": 8, "out": 8, "max_value": 8},
+        "income_flag": {"in": 4, "out": 4, "max_value": 4},
+        "mcc": {"in": 109, "out": 109, "max_value": 109},
+        "country": {"in": 25, "out": 25, "max_value": 25},
+        "city": {"in": 164, "out": 164, "max_value": 164},
+        "mcc_category": {"in": 29, "out": 29, "max_value": 29},
+        "day_of_week": {"in": 8, "out": 8, "max_value": 8},
+        "hour": {"in": 25, "out": 25, "max_value": 25},
+        "weekofyear": {"in": 54, "out": 54, "max_value": 54},
+        "product": {"in": 6, "out": 6, "max_value": 6},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
-    features.numeric_values = {"amount": "identity"}
+    features.numeric_values = {
+        "amnt": "identity",
+        "hour_diff": "identity",
+        "days_before": "identity",
+    }
 
     # name of target col
-    features.target_col = "target_target_flag"
+    features.target_col = "flag"
     config.num_classes = 2
 
     ### TIME ###
-    config.max_time = 17623.972627314815
-    config.min_time = 17081.0
+    config.max_time = 1.0
+    config.min_time = 0.0
 
     # train specific parameters
     train = config.train = ml_collections.ConfigDict()
@@ -96,8 +110,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 128
-    val.batch_size = 128
+    train.batch_size = 256
+    val.batch_size = 256
     test.batch_size = 16
 
     return config

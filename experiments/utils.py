@@ -12,6 +12,47 @@ import sys
 
 
 def draw_generated(generated_path, true_path, reconstructed_path, data_conf, out_path):
+    
+    if 'num_plots' in data_conf.keys():
+        draw_generated_pendulum(generated_path, true_path, reconstructed_path, data_conf, out_path)
+    else:
+        draw_generated_trx(generated_path, true_path, reconstructed_path, data_conf, out_path)
+
+def draw_generated_pendulum(generated_path, true_path, reconstructed_path, data_conf, out_path):
+    train = pd.read_parquet(true_path)
+    gen = pd.read_parquet(generated_path)
+    recon = pd.read_parquet(reconstructed_path)
+
+    train.index = np.arange(len(train))
+    dataframes = [train, gen, recon]
+    names = ["True", "Generated", "Reconstructed"]
+    num_plots = data_conf['num_plots']
+    idx = np.random.choice(train.index)
+    l = train['flag'][idx]
+
+    start_idx = np.random.randint(0, train.loc[idx]['trx_count'] - num_plots, 1)[0]
+
+    fig, axs = plt.subplots(num_plots, len(dataframes), figsize=(25, 25))
+
+    for i, df in enumerate(dataframes):
+
+        random_row = df.loc[idx]
+        X = random_row[[str(i) for i in range(256)]].values
+        images = np.vstack(X).T
+        for j, idx in enumerate(range(start_idx, start_idx + num_plots)):
+            image = images[idx]
+            ax = axs[j, i]
+            ax.imshow(image.reshape(16, 16), cmap='gray', vmin=0, vmax=1)
+
+            time = random_row['event_time'][idx]
+            ax.set_title(f"{names[i]} with time: {time}")
+
+    # Adjust spacing between subplots
+    plt.tight_layout()
+    fig.suptitle(f"Length: {l}", fontsize=16, y=1.02)
+    plt.savefig(out_path)
+
+def draw_generated_trx(generated_path, true_path, reconstructed_path, data_conf, out_path):
     train = pd.read_parquet(true_path)
     gen = pd.read_parquet(generated_path)
     recon = pd.read_parquet(reconstructed_path)
@@ -24,7 +65,7 @@ def draw_generated(generated_path, true_path, reconstructed_path, data_conf, out
     dataframes = [train, gen, recon]
     names = ["True", "Generated", "Reconstructed"]
     num_plots = len(cols)
-    fig, axs = plt.subplots(num_plots + 1, len(dataframes), figsize=(15, 15))
+    fig, axs = plt.subplots(num_plots + 1, len(dataframes), figsize=(25, 25))
 
     # Iterate through dataframes and columns
     for i, df in enumerate(dataframes):

@@ -10,7 +10,7 @@ sys.path.append("../")
 
 import src.models.base_models
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_timegan import TGTrainer
+from src.trainers.trainer_alpha import AlphaTGTrainer
 from src.models.TimeGan import TG
 from experiments.utils import get_parser, read_config, draw_generated
 from experiments.pipeline import Pipeline
@@ -69,18 +69,20 @@ class GenerativePipeline(Pipeline):
         Make sure that metric_value is going to be MAXIMIZED (higher -> better)
         """
         ### Create loaders and train ###
-        train_loader, valid_loader, _ = create_data_loaders(
-            data_conf, supervised=False, pinch_test=True
-        )
+        train_loader, valid_loader = create_data_loaders(data_conf)
         fixed_test_loader = create_test_loader(data_conf)
 
         data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
         data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
-        (
-            train_supervised_loader,
-            valid_supervised_loader,
-            test_supervised_loader,
-        ) = create_data_loaders(data_conf, pinch_test=True)
+        # (
+        #     train_supervised_loader,
+        #     valid_supervised_loader,
+        #     test_supervised_loader,
+        # ) = create_data_loaders(data_conf, pinch_test=True)
+        train_supervised_loader, valid_supervised_loader = create_data_loaders(
+            data_conf
+        )
+        test_supervised_loader = []
 
         net = TG(model_conf=model_conf, data_conf=data_conf)
         opt_e_params = (
@@ -107,7 +109,7 @@ class GenerativePipeline(Pipeline):
             weight_decay=model_conf.weight_decay,
         )
 
-        trainer = TGTrainer(
+        trainer = AlphaTGTrainer(
             model=net,
             optimizer_e=opt_e,
             optimizer_d=opt_d,
@@ -132,16 +134,15 @@ class GenerativePipeline(Pipeline):
         trainer.run()
 
         # trainer.load_best_model()
-        train_metric, (supervised_val_metric, supervised_test_metric, fixed_test_metric), lin_prob_test = trainer.test(
+        train_metric, (val_metric, test_metric, another_test_metric), lin_prob_metrics = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         )
         metrics = {
             "train_metric": train_metric,
-            "val_metric": supervised_val_metric,
-            "test_metric": supervised_test_metric,
-            "other_test_metric": fixed_test_metric,
-            "lin_prob_test": lin_prob_test,
+            "val_metric": val_metric,
+            "test_metric": test_metric,
+            "another_test_metric": another_test_metric,
         }
 
         true_train_path = data_conf.train_path
@@ -149,6 +150,7 @@ class GenerativePipeline(Pipeline):
             reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
             data_conf.train_path = reconstructed_data_path
             data_conf.valid_size = 0.1
+            data_conf.load_distributed = False
 
             total_epochs = self.recon_val_epoch
             model_conf_genval = model_conf.genval
@@ -176,6 +178,7 @@ class GenerativePipeline(Pipeline):
             generated_data_path = trainer.generate_data(train_supervised_loader)
             data_conf.train_path = generated_data_path
             data_conf.valid_size = 0.1
+            data_conf.load_distributed = False
 
             total_epochs = self.gen_val_epoch
             model_conf_genval = model_conf.genval

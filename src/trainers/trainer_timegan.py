@@ -12,16 +12,21 @@ import torch.nn as nn
 from ..models.mTAND.model import MegaNetCE
 from ..data_load.dataloader import PaddedBatch
 from .base_trainer import BaseTrainer, _CyclicalLoader
-from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.metrics import roc_auc_score, accuracy_score, mean_squared_error
 
-from lightgbm import LGBMClassifier
+from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.preprocessing import MaxAbsScaler
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
 from datetime import datetime
 from tqdm import tqdm
-from ..models.model_utils import out_to_padded_batch
+from ..models.model_utils import (
+    out_to_padded_batch,
+    calc_anisotropy,
+    calc_intrinsic_dimension,
+)
 
+from sklearn.linear_model import LogisticRegression, LinearRegression
 
 params = {
     "n_estimators": 200,
@@ -271,7 +276,7 @@ class TGTrainer(BaseTrainer):
             g_loss_u.backward(retain_graph=True)
             g_loss_s.backward(retain_graph=True)
             g_loss_v.backward(retain_graph=True)
-            e_loss.backward()
+            e_loss.backward(retain_graph=True)
 
             loss_np = g_loss_u.item() + g_loss_v.item() + g_loss_s.item()
             losses_g.append(loss_np)
@@ -336,6 +341,7 @@ class TGTrainer(BaseTrainer):
         if metrics is not None:
             logger.info(f"Epoch: {epoch}; metrics on {phase}: {metrics}")
 
+
     def test(
         self, train_supervised_loader: DataLoader, other_loaders: List[DataLoader]
     ) -> Dict[str, float]:
@@ -357,14 +363,23 @@ class TGTrainer(BaseTrainer):
             for other_out in other_outs
         ]
 
-        train_metric, other_metrics = self.compute_test_metric(
+        anisotropy = calc_anisotropy(train_embeddings, other_embeddings).item()
+        logger.info("Anisotropy: %s", str(anisotropy))
+
+        intrinsic_dimension = calc_intrinsic_dimension(
+            train_embeddings, other_embeddings
+        )
+        logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
+
+        train_metric, other_metrics, lin_prob_metrics = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
-        logger.info("Other metrics: %s", str(other_metrics))
-        logger.info("Test finished")
+        logger.info("Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics))
+        logger.info("LinProb Validation, supervised Test, Fixed Test Metrics: %s", str(lin_prob_metrics))
 
-        return train_metric, other_metrics
+        logger.info("Test finished")
+        return train_metric, other_metrics, lin_prob_metrics
 
     def compute_test_metric(
         self,
@@ -400,8 +415,20 @@ class TGTrainer(BaseTrainer):
         if metric == "roc_auc":
             params["objective"] = "binary"
             params["metric"] = "auc"
+            model = LGBMClassifier(
+                **params,
+            )
+            lin_prob = LogisticRegression(max_iter=5000)
         elif metric == "accuracy":
             params["objective"] = "multiclass"
+            model = LGBMClassifier(
+                **params,
+            )
+            lin_prob = LogisticRegression(max_iter=5000)
+        elif metric == 'mse':
+            params["objective"] = "regression"
+            model = LGBMRegressor()
+            lin_prob = LinearRegression()
         else:
             raise NotImplementedError(f"Unknown objective {metric}")
 
@@ -410,18 +437,20 @@ class TGTrainer(BaseTrainer):
                 return roc_auc_score(target, model.predict_proba(x)[:, 1])
             elif metric == "accuracy":
                 return accuracy_score(target, model.predict(x))
+            elif metric == 'mse':
+                return mean_squared_error(target, model.predict(x))
             else:
                 raise NotImplementedError(f"Unknown objective {metric}")
 
-        model = LGBMClassifier(
-            **params,
-        )
+
         preprocessor = MaxAbsScaler()
         train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
         model.fit(train_embeddings_tr, train_labels)
+        lin_prob.fit(train_embeddings_tr, train_labels)
 
         train_metric = get_metric(model, train_embeddings_tr, train_labels)
         other_metrics = []
+        lin_prob_metrics = []
         for i, (other_embedding, other_label) in enumerate(
             zip(other_embeddings_new, other_labels)
         ):
@@ -430,9 +459,12 @@ class TGTrainer(BaseTrainer):
                 other_metrics.append(
                     get_metric(model, other_embedding_proccesed, other_label)
                 )
+                lin_prob_metrics.append(get_metric(lin_prob, other_embedding_proccesed, other_label))
             else:
                 other_metrics.append(0)
-        return train_metric, other_metrics
+                lin_prob_metrics.append(0)
+        
+        return train_metric, other_metrics, lin_prob_metrics
 
     def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
         self._model.eval()
@@ -576,7 +608,7 @@ class TGTrainer(BaseTrainer):
         logger.info("Predictions saved")
         return save_path
 
-    def output_to_df(self, outs, gts):
+    def output_to_df(self, outs, gts, **kwargs):
         df_dic = {
             "event_time": [],
             "trx_count": [],
@@ -595,9 +627,15 @@ class TGTrainer(BaseTrainer):
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
-            df_dic["event_time"].extend(out["time_steps"].tolist())
-
-            df_dic["trx_count"].extend((out["time_steps"] != -1).sum(dim=1).tolist())
+            if "delta" in out["pred"].keys():
+                pred_delta = out["pred"]["delta"].cumsum(1)
+                df_dic["event_time"].extend(pred_delta.tolist())
+                df_dic["trx_count"].extend((pred_delta != -1).sum(dim=1).tolist())
+            else:
+                df_dic["event_time"].extend(out["time_steps"].tolist())
+                df_dic["trx_count"].extend(
+                    (out["time_steps"] != -1).sum(dim=1).tolist()
+                )
 
             df_dic[self._data_conf.features.target_col].extend(gt[1].cpu().tolist())
 

@@ -17,6 +17,8 @@ from functools import partial
 from einops import repeat
 from .timevae import TimeVAE
 from .seq2seq import Seq2Seq
+from .tpp_vae import TPPVAE
+from .tpp_ddpm import TPPDDPM
 
 
 class BaseMixin(nn.Module):
@@ -147,6 +149,7 @@ class BaseMixin(nn.Module):
                 # d_model=self.input_dim,
                 nhead=self.model_conf.encoder_num_heads,
                 batch_first=True,
+                dim_feedforward=self.model_conf.encoder_dim_ff,
             )
 
             self.encoder = nn.TransformerEncoder(
@@ -178,6 +181,7 @@ class BaseMixin(nn.Module):
                 num_layers=self.model_conf.decoder_num_layers,
                 norm=self.decoder_norm,
                 pos_encoding=self.dec_pos_encoding,
+                dim_feedforward=self.model_conf.decoder_dim_ff,
             )
             self.decoder_proj = nn.Linear(
                 self.input_dim, self.model_conf.decoder_hidden
@@ -262,7 +266,6 @@ class BaseMixin(nn.Module):
         total_mse_loss = 0
         for key, values in output["gt"]["input_batch"].payload.items():
             if key in self.processor.numeric_names:
-                gt_val = values.float()
                 gt_val = values.float()
                 pred_val = output["pred"][key].squeeze(-1)
 
@@ -474,7 +477,7 @@ class SeqGen(BaseMixin):
         pred = self.embedding_predictor(out)
         pred.update(self.numeric_projector(out))
         if self.model_conf.use_deltas:
-            pred["delta"] = out[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(out[:, :, -1].squeeze(-1))
 
         return pred
 
@@ -493,7 +496,7 @@ class SeqGen(BaseMixin):
         pred = self.embedding_predictor(gens)
         pred.update(self.numeric_projector(gens))
         if self.model_conf.use_deltas:
-            pred["delta"] = gens[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(gens[:, :, -1].squeeze(-1))
 
         return pred
 
@@ -511,7 +514,7 @@ class GRUCell(nn.Module):
 
         self.x2h = nn.Linear(input_size, 3 * hidden_size, bias=bias)
         self.h2h = nn.Linear(hidden_size, 3 * hidden_size, bias=bias)
-        self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
+        # self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
         self.act = nn.GELU()
         self.reset_parameters()
 
@@ -652,12 +655,13 @@ class DecoderGRU(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, d_model, nhead, num_layers, norm, pos_encoding):
+    def __init__(self, d_model, nhead, num_layers, norm, pos_encoding, dim_feedforward):
         super().__init__()
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=d_model,
             nhead=nhead,
             batch_first=True,
+            dim_feedforward=dim_feedforward,
         )
         self.decoder = nn.TransformerDecoder(
             decoder_layer,
