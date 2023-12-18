@@ -176,6 +176,7 @@ class GenerativePipeline(Pipeline):
             generated_data_path = trainer.generate_data(train_supervised_loader)
             data_conf.train_path = generated_data_path
             data_conf.valid_size = 0.1
+            data_conf.load_distributed = False
 
             total_epochs = self.gen_val_epoch
             model_conf_genval = model_conf.genval
