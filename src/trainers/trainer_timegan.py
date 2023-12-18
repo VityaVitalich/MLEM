@@ -348,20 +348,20 @@ class TGTrainer(BaseTrainer):
         Logs test metrics with self.compute_metrics
         """
         logger.info("Test started")
-        train_out, train_gts = self.predict(train_supervised_loader)
+        limit = self._data_conf.get("predict_limit", None)
+        train_out, train_gts = self.get_embeddings(train_supervised_loader, limit)
         other_outs, other_gts = [], []
         for other_loader in other_loaders:
             other_out, other_gt = (
-                self.predict(other_loader) if len(other_loader) > 0 else (None, None)
+                self.get_embeddings(other_loader, limit) if len(other_loader) > 0 else (None, None)
             )
             other_outs.append(other_out), other_gts.append(other_gt)
 
-        train_embeddings = [out[0] for out in train_out]
+        train_embeddings = train_out
         other_embeddings = [
-            [out[0] for out in other_out] if other_out is not None else None
+            other_out if other_out is not None else None
             for other_out in other_outs
         ]
-
         anisotropy = calc_anisotropy(train_embeddings, other_embeddings).item()
         logger.info("Anisotropy: %s", str(anisotropy))
 
@@ -471,7 +471,30 @@ class TGTrainer(BaseTrainer):
 
         return train_metric, other_metrics, lin_prob_metrics
 
-    def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+    def get_embeddings(self, loader, limit: int = None):
+        counter = 0
+        self._model.eval()
+        preds, gts = [], []
+        with torch.no_grad():
+            for inp, gt in tqdm(loader):
+                gts.append(gt.to(self._device))
+                inp = inp.to(self._device)
+                global_hidden = self._model.train_embedder(inp)[0]
+                #out = self.dict_to_cpu(out)
+
+                preds.append(global_hidden.to('cpu'))
+
+                counter += loader.batch_size
+                if limit and counter > limit:
+                    break
+
+        return preds, gts
+
+    def predict(
+        self, loader: DataLoader, limit: int = None
+    ) -> Tuple[List[Any], List[Any]]:
+        counter = 0
+
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
@@ -480,6 +503,10 @@ class TGTrainer(BaseTrainer):
                 inp = inp.to(self._device)
                 out = self._model.train_embedder(inp)
                 preds.append(out)
+
+                counter += loader.batch_size
+                if limit and counter > limit:
+                    break
 
         return preds, gts
 
@@ -556,7 +583,10 @@ class TGTrainer(BaseTrainer):
 
         return out
 
-    def reconstruct(self, loader):
+    def reconstruct(
+        self, loader: DataLoader, limit: int = None
+    ) -> Tuple[List[Any], List[Any]]:
+        counter = 0
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
@@ -567,11 +597,16 @@ class TGTrainer(BaseTrainer):
                 out = self.dict_to_cpu(out)
                 preds.append(out)
 
+                counter += gt[0].size(0)
+
+                if counter > limit:
+                    break
         return preds, gts
 
     def reconstruct_data(self, train_supervised_loader):
-        logger.info("Reconstruction started")
-        train_out, train_gts = self.reconstruct(train_supervised_loader)
+        limit = self._data_conf.get("recon_limit", None)
+        logger.info(f"Reconstruction started with limit {limit}")
+        train_out, train_gts = self.reconstruct(train_supervised_loader, limit=limit)
         logger.info("Reconstructions convertation started")
 
         reconstructed_data = self.output_to_df(train_out, train_gts)
@@ -584,7 +619,10 @@ class TGTrainer(BaseTrainer):
         logger.info("Reconstructions saved")
         return save_path
 
-    def generate(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+    def generate(
+        self, loader: DataLoader, limit: int = None
+    ) -> Tuple[List[Any], List[Any]]:
+        counter = 0
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
@@ -594,15 +632,22 @@ class TGTrainer(BaseTrainer):
                 out = self._model.generate(inp)
                 out = self.dict_to_cpu(out)
                 preds.append(out)
+                counter += gt[0].size(0)
+
+                if counter > limit:
+                    break
 
         return preds, gts
 
     def generate_data(self, train_supervised_loader):
-        logger.info("Generation started")
-        train_out, train_gts = self.generate(train_supervised_loader)
+        limit = self._data_conf.get("gen_limit", None)
+        logger.info(f"Generation started with limit {limit}")
+        train_out, train_gts = self.generate(train_supervised_loader, limit=limit)
         logger.info("Predictions convertation started")
 
-        generated_data = self.output_to_df(train_out, train_gts)
+        generated_data = self.output_to_df(
+            train_out, train_gts, use_generated_time=True
+        )
         logger.info("Predictions converted")
         save_path = (
             Path(self._ckpt_dir) / f"{self._run_name}" / "generated_data.parquet"
@@ -624,11 +669,11 @@ class TGTrainer(BaseTrainer):
 
         for feature in self._data_conf.features.numeric_values.keys():
             df_dic[feature] = []
-
+        shift = int(self._data_conf.get("shift_embedding", True))
         for out, gt in zip(outs, gts):
             for key, val in out["pred"].items():
                 if key in self._data_conf.features.embeddings.keys():
-                    df_dic[key].extend((val.cpu().argmax(dim=-1) - 1).tolist())
+                    df_dic[key].extend((val.cpu().argmax(dim=-1) - shift).tolist())
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 

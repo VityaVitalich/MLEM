@@ -25,33 +25,12 @@ from ..models.model_utils import (
     calc_intrinsic_dimension,
 )
 from .trainer_gen import GenTrainer
-from .trainer_alpha import TrainerAlpha
-
 
 class TrainerDDPM(GenTrainer):
-    def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
-        self._model.eval()
-        preds, gts = [], []
-        with torch.no_grad():
-            for inp, gt in tqdm(loader):
-                gts.append(gt.to(self._device))
-                inp = inp.to(self._device)
-                out = self._model(inp, need_delta=True)
-                out = self.dict_to_cpu(out)
-
-                out["gt"].pop("input_batch")
-                out.pop("all_latents", None)
-                preds.append(out)
-
-        return preds, gts
-
-
-class TrainerAlphaDDPM(TrainerAlpha):
     def predict(
-        self, loader: DataLoader, limit: int = 100000000
+        self, loader: DataLoader, limit: int = None
     ) -> Tuple[List[Any], List[Any]]:
         counter = 0
-
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
@@ -60,14 +39,12 @@ class TrainerAlphaDDPM(TrainerAlpha):
                 inp = inp.to(self._device)
                 out = self._model(inp, need_delta=True)
                 out = self.dict_to_cpu(out)
-
                 out["gt"].pop("input_batch")
                 out.pop("all_latents", None)
                 preds.append(out)
 
-                counter += gt[0].size(0)
-
-                if counter > limit:
+                counter += loader.batch_size
+                if limit and counter > limit:
                     break
 
         return preds, gts
