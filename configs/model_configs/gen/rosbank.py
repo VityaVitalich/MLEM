@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "GenContrastive"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -107,13 +107,20 @@ def model_configs():
     tppddpm.num_layers_enc = 1
     tppddpm.diff_steps = 100
 
-    ### FINE TUNE SPECIFIC ###
-    ### LOSS ###
+    ### CONTRASTIVE LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "ContrastiveLoss"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
+    loss.projector = "Identity"  # all losses
+    loss.project_dim = 32  # all losses
+    loss.temperature = 0.1  # all except ContrastiveLoss
+    loss.angular_margin = 0.3  # InfoNCELoss only
+    loss.q = 0.03  # RINCELoss only
+    loss.lam = 0.01  # RINCELoss only
+    loss.reconstruction_weight = 1
+    loss.contrastive_weight = 1
     return config
 
 

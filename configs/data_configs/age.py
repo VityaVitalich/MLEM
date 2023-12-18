@@ -24,8 +24,8 @@ def data_configs():
         / "test_trx.parquet"
     )
     config.load_distributed = False
-    config.FT_number_objects = []
-    config.post_gen_FT_epochs = 10
+    config.FT_number_objects = [1000, 'all']
+    config.post_gen_FT_epochs = 20
 
     config.track_metric = "accuracy"
 
@@ -73,8 +73,24 @@ def data_configs():
     # test params
     test = config.test = ml_collections.ConfigDict()
 
-    train.split_strategy = {"split_strategy": "NoSplit"}
-    val.split_strategy = {"split_strategy": "NoSplit"}
+
+    # splitters
+    train.split_strategy = {
+        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_count": 5,
+        # "seq_len": 25,
+        "cnt_min": 25,
+        "cnt_max": 200,
+    }
+    val.split_strategy = {
+        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_count": 5,
+        #  "seq_len": 50,
+        "cnt_min": 25,
+        "cnt_max": 100,
+    }
+    # train.split_strategy = {"split_strategy": "NoSplit"}
+    # val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout

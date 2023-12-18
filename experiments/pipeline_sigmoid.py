@@ -25,7 +25,7 @@ from experiments.pipeline_supervised import (
 )
 
 
-class GenerativePipeline(Pipeline):
+class GenContrastivePipeline(Pipeline):
     def __init__(
         self,
         run_name,
@@ -36,13 +36,9 @@ class GenerativePipeline(Pipeline):
         TrainerClass,
         resume,
         log_dir,
-        gen_val,
-        gen_val_epoch,
-        recon_val,
-        recon_val_epoch,
+        contrastive_ckpt,
         console_lvl="warning",
         file_lvl="info",
-        draw_generated=False,
         FT_on_labeled=False,
     ):
         super().__init__(
@@ -57,12 +53,8 @@ class GenerativePipeline(Pipeline):
             console_lvl,
             file_lvl,
         )
-        self.gen_val = gen_val
-        self.gen_val_epoch = gen_val_epoch
-        self.recon_val = recon_val
-        self.recon_val_epoch = recon_val_epoch
-        self.draw_generated = draw_generated
         self.FT_on_labeled = FT_on_labeled
+        self.contrastive_ckpt = contrastive_ckpt
 
     def _train_eval(self, run_name, data_conf, model_conf):
         """

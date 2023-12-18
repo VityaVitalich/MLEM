@@ -1,11 +1,11 @@
 #!/bin/bash
 
-EPOCHS=1
+EPOCHS=150
 DEVICE="cuda"
-NAME='test-ft'
-DATA_C="../configs/data_configs/rosbank.py"
-MODEL_C="../configs/model_configs/gen/rosbank.py"
-LOG_D="./rosbank/test_logs/"
+NAME='GC-1-1-GRU512-TR128-1l-2h'
+DATA_C="../configs/data_configs/age.py"
+MODEL_C="../configs/model_configs/gen/age.py"
+LOG_D="./age/logs/"
 GENVAL=0
 GENVAL_EPOCH=10
 RECON_VAL=0
