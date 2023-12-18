@@ -52,7 +52,6 @@ params = {
 }
 
 
-
 def calc_intrinsic_dimension(other_embeddings):
     all_embeddings = []
     for other_embedding in other_embeddings:
@@ -96,11 +95,9 @@ def calc_anisotropy(other_embeddings):
         if other_embedding is not None:
             all_embeddings.append(torch.cat(other_embedding).cpu())
 
-    
     all_embeddings = torch.cat(all_embeddings, dim=0)
     num_embds = min(all_embeddings.size(0), 10001) - 1
-    all_embeddings = all_embeddings[:num_embds,:]
-
+    all_embeddings = all_embeddings[:num_embds, :]
 
     U, S, Vt = torch.linalg.svd(all_embeddings, full_matrices=False)
 
@@ -111,7 +108,6 @@ logger = logging.getLogger("event_seq")
 
 
 class TrainerAlpha(GenTrainer):
-
     def test(
         self, train_supervised_loader: DataLoader, other_loaders: List[DataLoader]
     ) -> Dict[str, float]:
@@ -120,37 +116,43 @@ class TrainerAlpha(GenTrainer):
         """
         logger.info("Test started")
         predict_limit = self._data_conf.get("predict_limit", 100000)
-        train_out, train_gts = self.get_embeddings(train_supervised_loader, predict_limit)
+        train_out, train_gts = self.get_embeddings(
+            train_supervised_loader, predict_limit
+        )
         other_outs, other_gts = [], []
         for other_loader in other_loaders:
             other_out, other_gt = (
-                self.get_embeddings(other_loader, predict_limit) if len(other_loader) > 0 else (None, None)
+                self.get_embeddings(other_loader, predict_limit)
+                if len(other_loader) > 0
+                else (None, None)
             )
             other_outs.append(other_out), other_gts.append(other_gt)
 
-        train_embeddings = train_out#[out["latent"] for out in train_out]
+        train_embeddings = train_out  # [out["latent"] for out in train_out]
         other_embeddings = [
-            other_out if other_out is not None else None
-            for other_out in other_outs
+            other_out if other_out is not None else None for other_out in other_outs
         ]
         anisotropy = calc_anisotropy(other_embeddings).item()
         logger.info("Anisotropy: %s", str(anisotropy))
 
-        intrinsic_dimension = calc_intrinsic_dimension(
-           other_embeddings
-        )
+        intrinsic_dimension = calc_intrinsic_dimension(other_embeddings)
         logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
 
         train_metric, other_metrics, lin_prob_metrics = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
-        logger.info("Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics))
-        logger.info("LinProb Validation, supervised Test, Fixed Test Metrics: %s", str(lin_prob_metrics))
+        logger.info(
+            "Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics)
+        )
+        logger.info(
+            "LinProb Validation, supervised Test, Fixed Test Metrics: %s",
+            str(lin_prob_metrics),
+        )
 
         logger.info("Test finished")
         return train_metric, other_metrics, lin_prob_metrics
-    
+
     def compute_test_metric(
         self,
         train_embeddings,
@@ -195,7 +197,7 @@ class TrainerAlpha(GenTrainer):
                 **params,
             )
             lin_prob = LogisticRegression(max_iter=5000)
-        elif metric == 'mse':
+        elif metric == "mse":
             params["objective"] = "regression"
             model = LGBMRegressor()
             lin_prob = LinearRegression()
@@ -207,11 +209,10 @@ class TrainerAlpha(GenTrainer):
                 return roc_auc_score(target, model.predict_proba(x)[:, 1])
             elif metric == "accuracy":
                 return accuracy_score(target, model.predict(x))
-            elif metric == 'mse':
+            elif metric == "mse":
                 return mean_squared_error(target, model.predict(x))
             else:
                 raise NotImplementedError(f"Unknown objective {metric}")
-
 
         preprocessor = MaxAbsScaler()
         train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
@@ -229,11 +230,13 @@ class TrainerAlpha(GenTrainer):
                 other_metrics.append(
                     get_metric(model, other_embedding_proccesed, other_label)
                 )
-                lin_prob_metrics.append(get_metric(lin_prob, other_embedding_proccesed, other_label))
+                lin_prob_metrics.append(
+                    get_metric(lin_prob, other_embedding_proccesed, other_label)
+                )
             else:
                 other_metrics.append(0)
                 lin_prob_metrics.append(0)
-        
+
         return train_metric, other_metrics, lin_prob_metrics
 
     def get_embeddings(self, loader, limit: int = 50000):
@@ -247,13 +250,14 @@ class TrainerAlpha(GenTrainer):
                 out = self._model(inp)
                 out = self.dict_to_cpu(out)
 
-                preds.append(out['latent'])
+                preds.append(out["latent"])
 
                 counter += gt[0].size(0)
                 if counter > limit:
                     break
 
         return preds, gts
+
     def predict(
         self, loader: DataLoader, limit: int = 100000000
     ) -> Tuple[List[Any], List[Any]]:
@@ -399,8 +403,6 @@ class TrainerAlpha(GenTrainer):
 
 
 class AlphaTGTrainer(TGTrainer):
-
-
     def test(
         self, train_supervised_loader: DataLoader, other_loaders: List[DataLoader]
     ) -> Dict[str, float]:
@@ -409,37 +411,42 @@ class AlphaTGTrainer(TGTrainer):
         """
         logger.info("Test started")
         predict_limit = self._data_conf.get("predict_limit", 100000)
-        train_out, train_gts = self.get_embeddings(train_supervised_loader, predict_limit)
+        train_out, train_gts = self.get_embeddings(
+            train_supervised_loader, predict_limit
+        )
         other_outs, other_gts = [], []
         for other_loader in other_loaders:
             other_out, other_gt = (
-                self.get_embeddings(other_loader, predict_limit) if len(other_loader) > 0 else (None, None)
+                self.get_embeddings(other_loader, predict_limit)
+                if len(other_loader) > 0
+                else (None, None)
             )
             other_outs.append(other_out), other_gts.append(other_gt)
 
-        train_embeddings = train_out#[out["latent"] for out in train_out]
+        train_embeddings = train_out  # [out["latent"] for out in train_out]
         other_embeddings = [
-            other_out if other_out is not None else None
-            for other_out in other_outs
+            other_out if other_out is not None else None for other_out in other_outs
         ]
         anisotropy = calc_anisotropy(other_embeddings).item()
         logger.info("Anisotropy: %s", str(anisotropy))
 
-        intrinsic_dimension = calc_intrinsic_dimension(
-           other_embeddings
-        )
+        intrinsic_dimension = calc_intrinsic_dimension(other_embeddings)
         logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
 
         train_metric, other_metrics, lin_prob_metrics = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
-        logger.info("Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics))
-        logger.info("LinProb Validation, supervised Test, Fixed Test Metrics: %s", str(lin_prob_metrics))
+        logger.info(
+            "Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics)
+        )
+        logger.info(
+            "LinProb Validation, supervised Test, Fixed Test Metrics: %s",
+            str(lin_prob_metrics),
+        )
 
         logger.info("Test finished")
         return train_metric, other_metrics, lin_prob_metrics
-
 
     def compute_test_metric(
         self,
@@ -485,7 +492,7 @@ class AlphaTGTrainer(TGTrainer):
                 **params,
             )
             lin_prob = LogisticRegression(max_iter=5000)
-        elif metric == 'mse':
+        elif metric == "mse":
             params["objective"] = "regression"
             model = LGBMRegressor()
             lin_prob = LinearRegression()
@@ -497,11 +504,10 @@ class AlphaTGTrainer(TGTrainer):
                 return roc_auc_score(target, model.predict_proba(x)[:, 1])
             elif metric == "accuracy":
                 return accuracy_score(target, model.predict(x))
-            elif metric == 'mse':
+            elif metric == "mse":
                 return mean_squared_error(target, model.predict(x))
             else:
                 raise NotImplementedError(f"Unknown objective {metric}")
-
 
         preprocessor = MaxAbsScaler()
         train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
@@ -519,11 +525,13 @@ class AlphaTGTrainer(TGTrainer):
                 other_metrics.append(
                     get_metric(model, other_embedding_proccesed, other_label)
                 )
-                lin_prob_metrics.append(get_metric(lin_prob, other_embedding_proccesed, other_label))
+                lin_prob_metrics.append(
+                    get_metric(lin_prob, other_embedding_proccesed, other_label)
+                )
             else:
                 other_metrics.append(0)
                 lin_prob_metrics.append(0)
-        
+
         return train_metric, other_metrics, lin_prob_metrics
 
     def get_embeddings(self, loader, limit: int = 50000):
@@ -535,16 +543,16 @@ class AlphaTGTrainer(TGTrainer):
                 gts.append(gt.to(self._device))
                 inp = inp.to(self._device)
                 global_hidden, loss = self._model.train_embedder(inp)
-                #out = self.dict_to_cpu(out)
+                # out = self.dict_to_cpu(out)
 
-                preds.append(global_hidden.to('cpu'))
+                preds.append(global_hidden.to("cpu"))
 
                 counter += gt[0].size(0)
                 if counter > limit:
                     break
 
         return preds, gts
-    
+
     def predict(
         self, loader: DataLoader, limit: int = 100000000
     ) -> Tuple[List[Any], List[Any]]:
@@ -627,7 +635,6 @@ class AlphaTGTrainer(TGTrainer):
         logger.info("Predictions saved")
         return save_path
 
-
     def predict(
         self, loader: DataLoader, limit: int = 100000000
     ) -> Tuple[List[Any], List[Any]]:
@@ -649,7 +656,7 @@ class AlphaTGTrainer(TGTrainer):
                     break
 
         return preds, gts
-    
+
     def generate(
         self, loader: DataLoader, limit: int = 100000000
     ) -> Tuple[List[Any], List[Any]]:

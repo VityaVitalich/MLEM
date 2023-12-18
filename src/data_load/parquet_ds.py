@@ -88,9 +88,9 @@ class ParquetDataset(Dataset):
         target_val_len = int(approx_val_fraction * len(self))
 
         n_groups = len(self._rg_lens)
-        rg_idx_shuffled = random.Random(
-            self.data_conf.client_list_shuffle_seed
-        ).sample(range(n_groups), n_groups)
+        rg_idx_shuffled = random.Random(self.data_conf.client_list_shuffle_seed).sample(
+            range(n_groups), n_groups
+        )
 
         for i in rg_idx_shuffled:
             rg_len = self._rg_lens[i]

@@ -24,6 +24,7 @@ from functools import partialmethod
 
 tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
+
 class ContrastivePipeline(Pipeline):
     def _train_eval(self, run_name, data_conf, model_conf):
         """
@@ -176,13 +177,13 @@ if __name__ == "__main__":
             "weight_decay": 0.0,
         },
     ]
-    # metrics = pipeline.run_experiment()
+    metrics = pipeline.run_experiment()
     # metrics = pipeline.do_n_runs()
-    metrics = pipeline.optuna_setup(
-        "val_metric",
-        request_list=request,
-        n_startup_trials=3,
-        n_trials=50,
-        n_runs=3,
-    )
+    # metrics = pipeline.optuna_setup(
+    #     "val_metric",
+    #     request_list=request,
+    #     n_startup_trials=3,
+    #     n_trials=50,
+    #     n_runs=3,
+    # )
     print(metrics)

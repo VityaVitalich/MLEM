@@ -44,12 +44,13 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        str(i):  {"in": 2, "out": 1, "max_value": 2} for i in range(0, 256)
-        #"pad_category": {"in": 2, "out": 1, "max_value": 2},
+        str(i): {"in": 2, "out": 1, "max_value": 2}
+        for i in range(0, 256)
+        # "pad_category": {"in": 2, "out": 1, "max_value": 2},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
-    features.numeric_values = {}#{str(i): "identity" for i in range(0, 256)}
+    features.numeric_values = {}  # {str(i): "identity" for i in range(0, 256)}
 
     # name of target col
     features.target_col = "flag"

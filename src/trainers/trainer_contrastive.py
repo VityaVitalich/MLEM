@@ -10,7 +10,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import MaxAbsScaler
 from torch.utils.data import DataLoader
 
-from ..models.model_utils import (calc_anisotropy, calc_intrinsic_dimension)
+from ..models.model_utils import calc_anisotropy, calc_intrinsic_dimension
 from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
 
@@ -150,7 +150,9 @@ class SimpleTrainerContrastive(BaseTrainer):
 
         logger.info("Test started")
         predict_limit = self._data_conf.get("predict_limit", None)
-        train_embeddings, train_gts = self.predict(train_supervised_loader, predict_limit)
+        train_embeddings, train_gts = self.predict(
+            train_supervised_loader, predict_limit
+        )
         other_embeddings, other_gts = [], []
         for loader in other_loaders:
             other_embedding, other_gt = (
@@ -167,8 +169,10 @@ class SimpleTrainerContrastive(BaseTrainer):
         logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
 
         (
-            train_metric, other_metrics, 
-            train_logist, other_logist
+            train_metric,
+            other_metrics,
+            train_logist,
+            other_logist,
         ) = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
@@ -176,10 +180,14 @@ class SimpleTrainerContrastive(BaseTrainer):
         logger.info("Other metrics: %s", str(other_metrics))
         logger.info("Test finished")
         return (
-            train_metric, other_metrics, 
-            train_logist, other_logist, 
-            anisotropy, intrinsic_dimension
+            train_metric,
+            other_metrics,
+            train_logist,
+            other_logist,
+            anisotropy,
+            intrinsic_dimension,
         )
+
     def compute_test_metric(
         self,
         train_embeddings,
@@ -204,8 +212,8 @@ class SimpleTrainerContrastive(BaseTrainer):
                 else None
             )
 
-        train_emb_subset = train_embeddings  
-        train_labels_subset = train_labels  
+        train_emb_subset = train_embeddings
+        train_labels_subset = train_labels
 
         model, log_model = self.get_model()
         preprocessor = MaxAbsScaler()
@@ -236,9 +244,12 @@ class SimpleTrainerContrastive(BaseTrainer):
                 other_metrics.append(0)
                 other_logist.append(0)
         return (
-            train_metric, other_metrics, 
-            train_logist, other_logist, 
+            train_metric,
+            other_metrics,
+            train_logist,
+            other_logist,
         )
+
 
 class AucTrainerContrastive(SimpleTrainerContrastive):
     def get_metric(self, model, x, target):

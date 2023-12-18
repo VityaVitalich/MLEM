@@ -4,15 +4,20 @@ def model_conf_sugg(model_conf, trial, data):
         model_conf[name] = trial.suggest_categorical(name, value_range)
     else:
         assert len(value_range) == 2
-    if value_type is int:    
+    if value_type is int:
         model_conf[name] = trial.suggest_int(name, value_range[0], value_range[1])
     elif value_type is float:
         model_conf[name] = trial.suggest_float(name, value_range[0], value_range[1])
     elif value_type == "int_log":
-        model_conf[name] = trial.suggest_int(name, value_range[0], value_range[1], log=True)
+        model_conf[name] = trial.suggest_int(
+            name, value_range[0], value_range[1], log=True
+        )
     elif value_type == "int_float":
-        model_conf[name] = trial.suggest_float(name, value_range[0], value_range[1], log=True)
+        model_conf[name] = trial.suggest_float(
+            name, value_range[0], value_range[1], log=True
+        )
     return model_conf
+
 
 def contrastive_base(trial, model_conf, data_conf):
     # Looking for max gpu usage, debuging alongside
@@ -26,7 +31,7 @@ def contrastive_base(trial, model_conf, data_conf):
         ("use_deltas", [True, False], str),
         ("encoder", ["Identity", "TransformerEncoder"], str),
         ("num_enc_layers", [1, 2], int),
-        ("num_heads_enc", [1, 1], int), # TODO complicated not to fail
+        ("num_heads_enc", [1, 1], int),  # TODO complicated not to fail
         ("after_enc_dropout", [0.0, 0.4], float),
         ("activation", ["ReLU", "LeakyReLU", "Mish", "Tanh"], str),
         ("lr", [3e-4, 3e-3], "float_log"),
@@ -36,7 +41,9 @@ def contrastive_base(trial, model_conf, data_conf):
     # model_conf["features_emb_dim"] = model_conf["features_emb_dim"] // 2 * 2 # make sure that features_emb_dim is even
     model_conf["numeric_emb_size"] = model_conf["features_emb_dim"]
     if model_conf["encoder"] == "TransformerEncoder":
-        model_conf_sugg(model_conf, trial, ("encoder_norm", ["Identity", "LayerNorm"], str))  # important to know corr to encoder
+        model_conf_sugg(
+            model_conf, trial, ("encoder_norm", ["Identity", "LayerNorm"], str)
+        )  # important to know corr to encoder
     # if model_conf["encoder_feature_mixer"]:
     #     model_conf["time_embedding"] = model_conf["features_emb_dim"] // 2
     elif model_conf["encoder"] == "Identity":
@@ -63,10 +70,11 @@ def contrastive_base(trial, model_conf, data_conf):
     #     )
     return trial, model_conf, data_conf
 
+
 def contrasive_loss_27_11_23(trial, model_conf, data_conf):
     trial, model_conf, data_conf = contrastive_base(trial, model_conf, data_conf)
     for param in (
-        ("loss_fn", ["ContrastiveLoss"], str), 
+        ("loss_fn", ["ContrastiveLoss"], str),
         ("projector", ["Identity", "Linear", "MLP"], str),
         ("project_dim", [32, 256], "int_log"),
     ):
@@ -74,14 +82,16 @@ def contrasive_loss_27_11_23(trial, model_conf, data_conf):
     model_conf.loss.margin = trial.suggest_float("margin", 0.0, 1.0)
     return trial, model_conf, data_conf
 
+
 def decoupledinfoloss_27_11_23(trial, model_conf, data_conf):
     trial, model_conf, data_conf = contrastive_base(trial, model_conf, data_conf)
     for param in (
-        ("loss_fn", ["DecoupledInfoNCELoss"], str), 
+        ("loss_fn", ["DecoupledInfoNCELoss"], str),
         ("projector", ["Identity", "Linear", "MLP"], str),
         ("project_dim", [32, 256], "int_log"),
     ):
         model_conf_sugg(model_conf.loss, trial, param)
-    model_conf.loss.temperature = trial.suggest_float("temperature", 0.01, 1.0, log=True)
+    model_conf.loss.temperature = trial.suggest_float(
+        "temperature", 0.01, 1.0, log=True
+    )
     return trial, model_conf, data_conf
-

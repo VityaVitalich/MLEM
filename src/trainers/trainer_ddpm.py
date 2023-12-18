@@ -45,6 +45,7 @@ class TrainerDDPM(GenTrainer):
 
         return preds, gts
 
+
 class TrainerAlphaDDPM(TrainerAlpha):
     def predict(
         self, loader: DataLoader, limit: int = 100000000

@@ -21,7 +21,8 @@ class BaseMixin(nn.Module):
             model_conf=model_conf, data_conf=data_conf
         )
         # TIME PROCESSOR DISABLED !!! ###
-        assert self.model_conf.get('time_preproc', None) is None, "TIME PROCESSOR DISABLED"
+        time_preproc = self.model_conf.get("time_preproc", None)
+        assert time_preproc in [None, "Identity"], "TIME PROCESSOR DISABLED"
         # self.time_processor = getattr(prp, self.model_conf.time_preproc)(
         #     self.model_conf.num_time_blocks, model_conf.device
         # )
@@ -67,12 +68,14 @@ class BaseMixin(nn.Module):
             self.encoder_feature_mixer = nn.Identity()
 
         ### NORMS ###
-        self.pre_encoder_norm = getattr(nn, self.model_conf.pre_encoder_norm)(self.input_dim)
+        self.pre_encoder_norm = getattr(nn, self.model_conf.pre_encoder_norm)(
+            self.input_dim
+        )
         self.post_encoder_norm = getattr(nn, self.model_conf.post_encoder_norm)(
             self.model_conf.encoder_hidden
         )
         self.encoder_norm = getattr(nn, self.model_conf.encoder_norm)(self.input_dim)
-        
+
         ### INTERBATCH TRANSFORMER ###
         if self.model_conf.preENC_TR:
             encoder_layer = nn.TransformerEncoderLayer(
@@ -117,9 +120,7 @@ class BaseMixin(nn.Module):
         #     entropy_term = torch.tensor(0)
         # else:
         #     entropy_term = torch.tensor(0)
-        return {
-            "total_loss": loss
-        }
+        return {"total_loss": loss}
 
 
 class GRUClassifier(BaseMixin):
@@ -147,7 +148,7 @@ class GRUClassifier(BaseMixin):
         encoded = self.preENC_TR(x)
 
         all_hiddens, hn = self.encoder(self.pre_encoder_norm(encoded))
-        if not self.model_conf.get('time_preproc', None):
+        if not self.model_conf.get("time_preproc", None):
             lens = padded_batch.seq_lens - 1
             last_hidden = self.post_encoder_norm(all_hiddens[:, lens, :].diagonal().T)
         else:

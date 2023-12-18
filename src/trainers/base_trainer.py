@@ -176,7 +176,7 @@ class BaseTrainer:
                 kv = it.split("__")
                 assert len(kv) == 2, f"Failed to parse filename: {p.name}"
                 k = kv[0]
-                v = -float(kv[1]) if ("loss" in k) or ('mse' in k) else float(kv[1])
+                v = -float(kv[1]) if ("loss" in k) or ("mse" in k) else float(kv[1])
                 metrics[k] = v
             return metrics[key]
 
@@ -271,7 +271,7 @@ class BaseTrainer:
                 logger.warning(
                     "optimizer is not loaded now due to problems in FineTUning stage"
                 )
-                #self._opt.load_state_dict(ckpt["opt"])
+                # self._opt.load_state_dict(ckpt["opt"])
         if "sched" in ckpt:
             if self._sched is None:
                 logger.warning(
@@ -282,9 +282,9 @@ class BaseTrainer:
                 logger.warning(
                     "scheduller is not loaded now due to problems in FineTUning stage"
                 )
-                #self._sched.load_state_dict(ckpt["sched"])
-        #self._last_iter = ckpt["last_iter"]
-        #self._last_epoch = ckpt["last_epoch"]
+                # self._sched.load_state_dict(ckpt["sched"])
+        # self._last_iter = ckpt["last_iter"]
+        # self._last_epoch = ckpt["last_epoch"]
 
     def train(self, iters: int) -> None:
         assert self._opt is not None, "Set an optimizer first"
@@ -519,7 +519,7 @@ class BaseTrainer:
         best_ckpt = max(all_ckpt, key=self._make_key_extractor(self._ckpt_track_metric))
 
         return best_ckpt
-    
+
     def load_best_model(self) -> None:
         """
         Loads the best model to self._model according to the track metric.
