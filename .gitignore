@@ -1,6 +1,8 @@
 # Data Files
 data
 logs/
+test_logs/
+ckpt_test/
 ckpt/
 checkpoints/
 test/

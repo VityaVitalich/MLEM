@@ -29,7 +29,7 @@ def data_configs():
     config.gen_limit = 100
     config.predict_limit = 1000
     config.FT_number_objects = [100, 500, 'all']
-    config.post_gen_FT_epochs = 15
+    config.post_gen_FT_epochs = 20
 
     config.track_metric = "roc_auc"
 
@@ -69,21 +69,21 @@ def data_configs():
     test = config.test = ml_collections.ConfigDict()
 
     # splitters
-    # train.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 50,
-    #     "cnt_max": 150,
-    # }
-    # val.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 15,
-    #     "cnt_max": 150,
-    # }
+    train.split_strategy = {
+        "split_strategy": "SampleSlices",
+        "split_count": 5,
+        "cnt_min": 50,
+        "cnt_max": 150,
+    }
+    val.split_strategy = {
+        "split_strategy": "SampleSlices",
+        "split_count": 5,
+        "cnt_min": 15,
+        "cnt_max": 150,
+    }
 
-    train.split_strategy = {"split_strategy": "NoSplit"}
-    val.split_strategy = {"split_strategy": "NoSplit"}
+    # train.split_strategy = {"split_strategy": "NoSplit"}
+    # val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout

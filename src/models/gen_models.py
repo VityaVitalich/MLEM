@@ -504,6 +504,57 @@ class SeqGen(BaseMixin):
         all_hid, global_hidden, time_steps = self.encode(padded_batch)
         return {"pred": self.generate_sequence(global_hidden, lens)}
 
+class GenContrastive(SeqGen):
+    def __init__(self, model_conf, data_conf):
+
+        super().__init__(model_conf=model_conf, data_conf=data_conf)
+        self.contrastive_loss_fn = get_loss(self.model_conf)
+
+    def loss(self, output, ground_truth):
+        """
+        output: Dict that is outputed from forward method
+        """
+        ### MSE ###
+        total_mse_loss = self.numerical_loss(output)
+        delta_mse_loss = self.delta_mse_loss(output)
+
+        ### CROSS ENTROPY ###
+        cross_entropy_losses = self.embedding_predictor.loss(
+            output["pred"], output["gt"]["input_batch"]
+        )
+        total_ce_loss = torch.sum(
+            torch.cat([value.unsqueeze(0) for _, value in cross_entropy_losses.items()])
+        )
+
+        ### SPARCE EMBEDDINGS ###
+        sparce_loss = torch.mean(torch.sum(torch.abs(output["latent"]), dim=1))
+
+        ### GENERATED EMBEDDINGS DISTANCE ###
+        gen_embeddings_loss = self.generative_embedding_loss(output)
+
+        losses_dict = {
+            "total_mse_loss": total_mse_loss,
+            "total_CE_loss": total_ce_loss,
+            "delta_loss": self.model_conf.delta_weight * delta_mse_loss,
+            "sparcity_loss": sparce_loss,
+            "gen_embedding_loss": gen_embeddings_loss,
+        }
+        losses_dict.update(cross_entropy_losses)
+
+        ### CONTRASTIVE LOSS ###
+        contrastive_loss = self.model_conf.loss.contrastive_weight * self.contrastive_loss_fn(output['latent'], ground_truth[0].to(output['latent'].device))
+        losses_dict['contrastive_loss'] = contrastive_loss
+
+        total_loss = (
+            self.model_conf.mse_weight * losses_dict["total_mse_loss"]
+            + self.model_conf.CE_weight * total_ce_loss
+            + self.model_conf.delta_weight * delta_mse_loss
+            + self.model_conf.l1_weight * sparce_loss
+            + self.model_conf.gen_emb_weight * gen_embeddings_loss
+        )
+        losses_dict["total_loss"] = self.model_conf.loss.reconstruction_weight * total_loss +  contrastive_loss
+
+        return losses_dict
 
 class GRUCell(nn.Module):
     def __init__(self, input_size, hidden_size, global_hidden_size, bias=True):

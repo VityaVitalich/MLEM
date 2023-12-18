@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "GenContrastive"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -13,10 +13,10 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 12
+    config.features_emb_dim = 16
     config.use_numeric_emb = True
-    config.numeric_emb_size = 12
-    config.encoder_feature_mixer = True
+    config.numeric_emb_size = 16
+    config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
     ### ENCODER ###
@@ -30,7 +30,7 @@ def model_configs():
     ### DECODER ###
     config.decoder = "TR"
     config.decoder_hidden = 128
-    config.decoder_num_layers = 3
+    config.decoder_num_layers = 1
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 2
@@ -95,6 +95,21 @@ def model_configs():
     tppvae.hidden_rnn = 128
     tppvae.joint_layer_num = 2
     tppvae.num_layers_enc = 1
+
+    ### CONTRASTIVE LOSS ###
+    loss = config.loss = ml_collections.ConfigDict()
+    loss.sampling_strategy = "HardNegativePair"
+    loss.neg_count = 5
+    loss.loss_fn = "ContrastiveLoss"  # "ContrastiveLoss" or CrossEntropy
+    loss.margin = 0.5
+    loss.projector = "Identity"  # all losses
+    loss.project_dim = 32  # all losses
+    loss.temperature = 0.1  # all except ContrastiveLoss
+    loss.angular_margin = 0.3  # InfoNCELoss only
+    loss.q = 0.03  # RINCELoss only
+    loss.lam = 0.01  # RINCELoss only
+    loss.reconstruction_weight = 1
+    loss.contrastive_weight = 1
     return config
 
 
