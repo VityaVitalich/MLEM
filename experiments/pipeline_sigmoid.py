@@ -10,11 +10,9 @@ sys.path.append("../")
 
 import src.models.base_models
 from src.data_load.dataloader import create_data_loaders, create_test_loader
-from src.trainers.trainer_gen import (
-    GenTrainer,
-    GANGenTrainer,
+from src.trainers.trainer_sigmoid import (
+    SigmoidTrainer,
 )
-from src.trainers.trainer_ddpm import TrainerDDPM
 import src.models.gen_models
 from experiments.utils import get_parser, read_config, draw_generated
 from experiments.pipeline import Pipeline
@@ -25,7 +23,7 @@ from experiments.pipeline_supervised import (
 )
 
 
-class GenContrastivePipeline(Pipeline):
+class SigmoidPipeline(Pipeline):
     def __init__(
         self,
         run_name,
@@ -36,7 +34,6 @@ class GenContrastivePipeline(Pipeline):
         TrainerClass,
         resume,
         log_dir,
-        contrastive_ckpt,
         console_lvl="warning",
         file_lvl="info",
         FT_on_labeled=False,
@@ -54,7 +51,6 @@ class GenContrastivePipeline(Pipeline):
             file_lvl,
         )
         self.FT_on_labeled = FT_on_labeled
-        self.contrastive_ckpt = contrastive_ckpt
 
     def _train_eval(self, run_name, data_conf, model_conf):
         """
@@ -74,6 +70,17 @@ class GenContrastivePipeline(Pipeline):
             valid_supervised_loader,
             test_supervised_loader,
         ) = create_data_loaders(data_conf, pinch_test=True)
+        ### LOAD CONTRASTIVE CKPT ###
+        contrastive_net = (
+            getattr(src.models.base_models, model_conf.contrastive.model_name)(
+                model_conf=model_conf.contrastive, data_conf=data_conf
+            )
+            .to(self.model_conf.device)
+            .eval()
+        )
+        contrastive_ckpt = torch.load(data_conf.pre_trained_contrastive_path)
+        contrastive_net.load_state_dict(contrastive_ckpt["model"], strict=True)
+        print("Contrastive Net Loaded")
 
         net = getattr(src.models.gen_models, model_conf.model_name)(
             model_conf=model_conf, data_conf=data_conf
@@ -81,60 +88,34 @@ class GenContrastivePipeline(Pipeline):
         opt = torch.optim.Adam(
             net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
         )
-        if model_conf.use_discriminator:
-            model_conf_D = model_conf.D
-            D = getattr(src.models.base_models, model_conf_D.model_name)(
-                model_conf=model_conf_D, data_conf=data_conf
-            )
-            D_opt = torch.optim.Adam(
-                D.parameters(), model_conf_D.lr, weight_decay=model_conf_D.weight_decay
-            )
 
-            trainer = GANGenTrainer(
-                model=net,
-                optimizer=opt,
-                discriminator=D,
-                d_opt=D_opt,
-                train_loader=train_loader,
-                val_loader=valid_loader,
-                run_name=run_name,
-                ckpt_dir=Path(self.log_dir).parent / "ckpt",
-                ckpt_replace=True,
-                ckpt_resume=self.resume,
-                ckpt_track_metric="total_loss",
-                metrics_on_train=False,
-                total_epochs=self.total_epochs,
-                device=self.device,
-                model_conf=model_conf,
-                data_conf=data_conf,
-                model_conf_d=model_conf_D,
-            )
-        else:
-            gen_trainer_class = (
-                TrainerDDPM if "DDPM" in self.model_conf.model_name else GenTrainer
-            )
-            trainer = gen_trainer_class(
-                model=net,
-                optimizer=opt,
-                train_loader=train_loader,
-                val_loader=valid_loader,
-                run_name=run_name,
-                ckpt_dir=Path(self.log_dir).parent / "ckpt",
-                ckpt_replace=True,
-                ckpt_resume=self.resume,
-                ckpt_track_metric="total_loss",
-                metrics_on_train=False,
-                total_epochs=self.total_epochs,
-                device=self.device,
-                model_conf=model_conf,
-                data_conf=data_conf,
-            )
+        trainer = SigmoidTrainer(
+            model=net,
+            optimizer=opt,
+            train_loader=train_loader,
+            val_loader=valid_loader,
+            run_name=run_name,
+            ckpt_dir=Path(self.log_dir).parent / "ckpt",
+            ckpt_replace=True,
+            ckpt_resume=self.resume,
+            ckpt_track_metric="total_loss",
+            metrics_on_train=False,
+            total_epochs=self.total_epochs,
+            device=self.device,
+            model_conf=model_conf,
+            data_conf=data_conf,
+            contrastive_model=contrastive_net,
+        )
 
         ### RUN TRAINING ###
         trainer.run()
         trainer.load_best_model()
         # trainer.load_best_model()
-        train_metric, (supervised_val_metric, supervised_test_metric, fixed_test_metric), lin_prob_test = trainer.test(
+        (
+            train_metric,
+            (supervised_val_metric, supervised_test_metric, fixed_test_metric),
+            lin_prob_test,
+        ) = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         )
@@ -148,72 +129,6 @@ class GenContrastivePipeline(Pipeline):
 
         true_train_path = data_conf.train_path
         self.data_conf.FT_train_path = true_train_path
-        if self.recon_val:
-            reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
-            data_conf.train_path = reconstructed_data_path
-            data_conf.valid_size = 0.1
-
-            total_epochs = self.recon_val_epoch
-            model_conf_genval = model_conf.genval
-            log_dir = self.log_dir
-            trainer_class = self.TrainerClass
-            super_pipe = GenSupervisedPipeline(
-                run_name=f"{run_name}/reconstruction",
-                device=self.device,
-                total_epochs=total_epochs,
-                data_conf=data_conf,
-                model_conf=model_conf_genval,
-                TrainerClass=trainer_class,
-                resume=None,
-                log_dir=log_dir,
-                console_lvl=self.console_lvl,
-                file_lvl=self.file_lvl,
-                valid_supervised_loader=valid_supervised_loader,
-            )
-            super_df = super_pipe.do_n_runs(
-                n_runs=3, max_workers=3
-            )  # if you short in gpu, change max_workers=1
-            for k in super_df:
-                metrics[f"reconstruction_mean_{k}"] = super_df.loc["mean", k]
-        if self.gen_val:
-            data_conf.post_gen_FT = True
-            
-            generated_data_path = trainer.generate_data(train_supervised_loader)
-            data_conf.train_path = generated_data_path
-            data_conf.valid_size = 0.1
-
-            total_epochs = self.gen_val_epoch
-            model_conf_genval = model_conf.genval
-            log_dir = self.log_dir
-            trainer_class = self.TrainerClass
-            super_pipe = GenSupervisedPipeline(
-                run_name=f"{run_name}/generation",
-                device=self.device,
-                total_epochs=total_epochs,
-                data_conf=data_conf,
-                model_conf=model_conf_genval,
-                TrainerClass=trainer_class,
-                resume=None,
-                log_dir=log_dir,
-                console_lvl=self.console_lvl,
-                file_lvl=self.file_lvl,
-                valid_supervised_loader=valid_supervised_loader,
-            )
-            super_df = super_pipe.do_n_runs(
-                n_runs=3, max_workers=3
-            )  # if you short in gpu, change max_workers=1
-            for k in super_df:
-                metrics[f"generation_mean_{k}"] = super_df.loc["mean", k]
-
-        if self.draw_generated:
-            save_path = self.log_dir / run_name / "distributions.png"
-            draw_generated(
-                generated_path=generated_data_path,
-                true_path=true_train_path,
-                reconstructed_path=reconstructed_data_path,
-                data_conf=self.data_conf,
-                out_path=save_path,
-            )
 
         if self.FT_on_labeled:
             resume_path = trainer.best_checkpoint()
@@ -247,7 +162,7 @@ class GenContrastivePipeline(Pipeline):
         self.data_conf.FT_train_path = train_supervised_path
 
         res_ft = {}
-        for observed_real_data_num in self.data_conf['FT_number_objects']:
+        for observed_real_data_num in self.data_conf["FT_number_objects"]:
             subset_path = self.create_subset(ckpt_dir, run_name, observed_real_data_num)
             self.data_conf.train_path = subset_path
             self.data_conf.valid_size = 0.0
@@ -268,10 +183,12 @@ class GenContrastivePipeline(Pipeline):
                 valid_supervised_loader=valid_loader,
             )
 
-            results = super_pipe.run_experiment(run_name=f"{run_name}_FT_{observed_real_data_num}",
-                                                conf=self.data_conf,
-                                                model_conf=self.model_conf,
-                                                seed=0)
+            results = super_pipe.run_experiment(
+                run_name=f"{run_name}_FT_{observed_real_data_num}",
+                conf=self.data_conf,
+                model_conf=self.model_conf,
+                seed=0,
+            )
 
             for k, v in results.items():
                 res_ft[f"{k}_FT_{observed_real_data_num}"] = v
@@ -280,13 +197,12 @@ class GenContrastivePipeline(Pipeline):
 
     def create_subset(self, ckpt_dir, run_name, observed_real_data_num):
         train = pd.read_parquet(self.data_conf.FT_train_path)
-        if observed_real_data_num == 'all':
+        if observed_real_data_num == "all":
             observed_real_data_num = len(train)
         subset = train.head(observed_real_data_num)
         subset_path = ckpt_dir / f"{run_name}" / "subset.parquet"
         subset.to_parquet(subset_path)
         return subset_path
-
 
     def _param_grid(self, trial, model_conf, data_conf):
         model_conf.classifier_gru_hidden_dim = trial.suggest_int(
@@ -337,7 +253,7 @@ if __name__ == "__main__":
     data_conf = read_config(args.data_conf, "data_configs")
     model_conf = read_config(args.model_conf, "model_configs")
     TrainerClass = get_supervised_trainer_class(data_conf)
-    pipeline = GenerativePipeline(
+    pipeline = SigmoidPipeline(
         run_name=args.run_name,
         device=args.device,
         total_epochs=args.total_epochs,
@@ -346,14 +262,9 @@ if __name__ == "__main__":
         TrainerClass=TrainerClass,
         resume=args.resume,
         log_dir=args.log_dir,
-        gen_val=args.gen_val,
-        gen_val_epoch=args.gen_val_epoch,
-        recon_val=args.recon_val,
-        recon_val_epoch=args.recon_val_epoch,
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
-        draw_generated=args.draw,
-        FT_on_labeled=args.FT
+        FT_on_labeled=args.FT,
     )
     request = {"classifier_gru_hidden_dim": 16}
     metrics = pipeline.run_experiment()

@@ -160,8 +160,13 @@ class GenTrainer(BaseTrainer):
             train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
-        logger.info("Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics))
-        logger.info("LinProb Validation, supervised Test, Fixed Test Metrics: %s", str(lin_prob_metrics))
+        logger.info(
+            "Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics)
+        )
+        logger.info(
+            "LinProb Validation, supervised Test, Fixed Test Metrics: %s",
+            str(lin_prob_metrics),
+        )
 
         logger.info("Test finished")
         return train_metric, other_metrics, lin_prob_metrics
@@ -210,7 +215,7 @@ class GenTrainer(BaseTrainer):
                 **params,
             )
             lin_prob = LogisticRegression(max_iter=5000)
-        elif metric == 'mse':
+        elif metric == "mse":
             params["objective"] = "regression"
             model = LGBMRegressor()
             lin_prob = LinearRegression()
@@ -222,11 +227,10 @@ class GenTrainer(BaseTrainer):
                 return roc_auc_score(target, model.predict_proba(x)[:, 1])
             elif metric == "accuracy":
                 return accuracy_score(target, model.predict(x))
-            elif metric == 'mse':
+            elif metric == "mse":
                 return mean_squared_error(target, model.predict(x))
             else:
                 raise NotImplementedError(f"Unknown objective {metric}")
-
 
         preprocessor = MaxAbsScaler()
         train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
@@ -244,11 +248,13 @@ class GenTrainer(BaseTrainer):
                 other_metrics.append(
                     get_metric(model, other_embedding_proccesed, other_label)
                 )
-                lin_prob_metrics.append(get_metric(lin_prob, other_embedding_proccesed, other_label))
+                lin_prob_metrics.append(
+                    get_metric(lin_prob, other_embedding_proccesed, other_label)
+                )
             else:
                 other_metrics.append(0)
                 lin_prob_metrics.append(0)
-        
+
         return train_metric, other_metrics, lin_prob_metrics
     
     def get_embeddings(self, loader, limit=None):

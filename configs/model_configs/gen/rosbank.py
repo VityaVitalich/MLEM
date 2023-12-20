@@ -49,7 +49,6 @@ def model_configs():
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.05
-    
 
     ### ACTIVATION ###
     config.activation = "ReLU"

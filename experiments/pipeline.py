@@ -151,7 +151,10 @@ class Pipeline:
         import optuna
         from optuna.samplers import TPESampler
         from optuna.storages import JournalFileStorage, JournalStorage
-        optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
+
+        optuna.logging.get_logger("optuna").addHandler(
+            logging.StreamHandler(sys.stdout)
+        )
         optuna.logging.enable_propagation()
         sampler = TPESampler(
             # seed=0, important to NOT specify, otherwise parallel scripts repeat themself
@@ -161,7 +164,9 @@ class Pipeline:
         )
         (self.log_dir / self.run_name).mkdir(exist_ok=True, parents=True)
 
-        storage = JournalStorage(JournalFileStorage(f"{self.log_dir / self.run_name}/study.log"))
+        storage = JournalStorage(
+            JournalFileStorage(f"{self.log_dir / self.run_name}/study.log")
+        )
         study = optuna.create_study(
             storage=storage,
             sampler=sampler,
@@ -205,7 +210,9 @@ class Pipeline:
             (Path(self.log_dir) / name / "ERROR.txt").write_text(traceback.format_exc())
             print(traceback.format_exc())
             raise e
-        (Path(self.log_dir) / name / "params.txt").write_text(str(trial.params).replace(", ", ",\n"))
+        (Path(self.log_dir) / name / "params.txt").write_text(
+            str(trial.params).replace(", ", ",\n")
+        )
 
         for k in summary_df:
             trial.set_user_attr(f"{k}_mean", summary_df.loc["mean", k])

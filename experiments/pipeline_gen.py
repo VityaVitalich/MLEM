@@ -142,7 +142,11 @@ class GenerativePipeline(Pipeline):
         trainer.run()
         trainer.load_best_model()
         # trainer.load_best_model()
-        train_metric, (supervised_val_metric, supervised_test_metric, fixed_test_metric), lin_prob_test = trainer.test(
+        (
+            train_metric,
+            (supervised_val_metric, supervised_test_metric, fixed_test_metric),
+            lin_prob_test,
+        ) = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         )
@@ -186,7 +190,7 @@ class GenerativePipeline(Pipeline):
                 metrics[f"reconstruction_mean_{k}"] = super_df.loc["mean", k]
         if self.gen_val:
             data_conf.post_gen_FT = True
-            
+
             generated_data_path = trainer.generate_data(train_supervised_loader)
             data_conf.train_path = generated_data_path
             data_conf.valid_size = 0.1
@@ -257,7 +261,7 @@ class GenerativePipeline(Pipeline):
         self.data_conf.FT_train_path = train_supervised_path
 
         res_ft = {}
-        for observed_real_data_num in self.data_conf['FT_number_objects']:
+        for observed_real_data_num in self.data_conf["FT_number_objects"]:
             subset_path = self.create_subset(ckpt_dir, run_name, observed_real_data_num)
             self.data_conf.train_path = subset_path
             self.data_conf.valid_size = 0.0
@@ -278,10 +282,12 @@ class GenerativePipeline(Pipeline):
                 valid_supervised_loader=valid_loader,
             )
 
-            results = super_pipe.run_experiment(run_name=f"{run_name}_FT_{observed_real_data_num}",
-                                                conf=self.data_conf,
-                                                model_conf=self.model_conf,
-                                                seed=0)
+            results = super_pipe.run_experiment(
+                run_name=f"{run_name}_FT_{observed_real_data_num}",
+                conf=self.data_conf,
+                model_conf=self.model_conf,
+                seed=0,
+            )
 
             for k, v in results.items():
                 res_ft[f"{k}_FT_{observed_real_data_num}"] = v
@@ -290,13 +296,12 @@ class GenerativePipeline(Pipeline):
 
     def create_subset(self, ckpt_dir, run_name, observed_real_data_num):
         train = pd.read_parquet(self.data_conf.FT_train_path)
-        if observed_real_data_num == 'all':
+        if observed_real_data_num == "all":
             observed_real_data_num = len(train)
         subset = train.head(observed_real_data_num)
         subset_path = ckpt_dir / f"{run_name}" / "subset.parquet"
         subset.to_parquet(subset_path)
         return subset_path
-
 
     def _param_grid(self, trial, model_conf, data_conf):
         model_conf.classifier_gru_hidden_dim = trial.suggest_int(
@@ -363,7 +368,7 @@ if __name__ == "__main__":
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
         draw_generated=args.draw,
-        FT_on_labeled=args.FT
+        FT_on_labeled=args.FT,
     )
     request = {"classifier_gru_hidden_dim": 16}
     metrics = pipeline.run_experiment()

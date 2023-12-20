@@ -115,4 +115,3 @@ def data_configs():
     test.batch_size = 128
 
     return config
-

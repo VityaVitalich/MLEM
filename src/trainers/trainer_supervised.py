@@ -121,7 +121,7 @@ class MSETrainerSupervised(SimpleTrainerSupervised):
         preds = torch.cat([it.cpu() for it in model_outputs])
         preds = torch.nan_to_num(preds, nan=0.0, posinf=0.0, neginf=0.0)
         gold = torch.cat([gt[1].cpu() for gt in ground_truths])
-        
+
         score = mean_squared_error(gold, preds)
 
         losses_dict["mse"] = score

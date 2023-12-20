@@ -263,7 +263,7 @@ class BaseMixin(nn.Module):
 
     def numerical_loss(self, output):
         # MSE
-        total_mse_loss = torch.tensor(0., device=self.model_conf.device)
+        total_mse_loss = torch.tensor(0.0, device=self.model_conf.device)
         for key, values in output["gt"]["input_batch"].payload.items():
             if key in self.processor.numeric_names:
                 gt_val = values.float()
@@ -504,9 +504,9 @@ class SeqGen(BaseMixin):
         all_hid, global_hidden, time_steps = self.encode(padded_batch)
         return {"pred": self.generate_sequence(global_hidden, lens)}
 
+
 class GenContrastive(SeqGen):
     def __init__(self, model_conf, data_conf):
-
         super().__init__(model_conf=model_conf, data_conf=data_conf)
         self.contrastive_loss_fn = get_loss(self.model_conf)
 
@@ -542,8 +542,13 @@ class GenContrastive(SeqGen):
         losses_dict.update(cross_entropy_losses)
 
         ### CONTRASTIVE LOSS ###
-        contrastive_loss = self.model_conf.loss.contrastive_weight * self.contrastive_loss_fn(output['latent'], ground_truth[0].to(output['latent'].device))
-        losses_dict['contrastive_loss'] = contrastive_loss
+        contrastive_loss = (
+            self.model_conf.loss.contrastive_weight
+            * self.contrastive_loss_fn(
+                output["latent"], ground_truth[0].to(output["latent"].device)
+            )
+        )
+        losses_dict["contrastive_loss"] = contrastive_loss
 
         total_loss = (
             self.model_conf.mse_weight * losses_dict["total_mse_loss"]
@@ -552,9 +557,22 @@ class GenContrastive(SeqGen):
             + self.model_conf.l1_weight * sparce_loss
             + self.model_conf.gen_emb_weight * gen_embeddings_loss
         )
-        losses_dict["total_loss"] = self.model_conf.loss.reconstruction_weight * total_loss +  contrastive_loss
+        losses_dict["total_loss"] = (
+            self.model_conf.loss.reconstruction_weight * total_loss + contrastive_loss
+        )
 
         return losses_dict
+
+
+class GenSigmoid(SeqGen):
+    def __init__(self, model_conf, data_conf):
+        super().__init__(model_conf=model_conf, data_conf=data_conf)
+
+        init_temp = torch.tensor(10.0)
+        init_bias = torch.tensor(-10.0)
+        self.sigmoid_temp = nn.Parameter(torch.log(init_temp))
+        self.sigmoid_bias = nn.Parameter(init_bias)
+
 
 class GRUCell(nn.Module):
     def __init__(self, input_size, hidden_size, global_hidden_size, bias=True):

@@ -102,7 +102,7 @@ def _create_data_loaders_basic(conf, supervised=True, pinch_test=False):
 
 def create_test_loader(conf):
     print("Load distributed", conf.get("load_distributed", False))
-    #return create_test_loader_basic(conf)
+    # return create_test_loader_basic(conf)
     if conf.get("load_distributed", False):
         return create_test_loader_distributed(conf)
     else:
@@ -268,7 +268,9 @@ def _create_data_loaders_distributed(conf, supervised=True, pinch_test=False):
     )
     test_loader = []
     if pinch_test:
-        print("Warning. Pinch test not implemented yet for ParquetDataset. Passing placeholder list")
+        print(
+            "Warning. Pinch test not implemented yet for ParquetDataset. Passing placeholder list"
+        )
         return train_loader, valid_loader, test_loader
     return train_loader, valid_loader
 

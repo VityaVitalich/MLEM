@@ -13,7 +13,7 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "data"
-        / "train.parquet" #"train_trx.parquet"
+        / "train_trx.parquet"  # "train_trx.parquet"
     )
     # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/generated_data/delta100_2023-10-31_16:32:20'
     # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/reconstructed_data/delta100_2023-10-31_16:32:20'
@@ -22,13 +22,26 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "data"
-        / "test.parquet"
+        / "test_trx.parquet"
+    )
+    config.pre_trained_contrastive_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "rosbank"
+        / "logs"
+        / "test-contrastive"
+        / "seed_0"
+        / "ckpt"
+        / "test-contrastive"
+        / "seed_0"
+        / "epoch__0020.ckpt"
+        # /home/event_seq/experiments/rosbank/logs/test-contrastive/seed_0/ckpt/test-contrastive/seed_0/epoch__0020.ckpt
     )
     config.load_distributed = False
     config.recon_limit = 100
     config.gen_limit = 100
     config.predict_limit = 1000
-    config.FT_number_objects = [100, 500, 'all']
+    config.FT_number_objects = [100, 500, "all"]
     config.post_gen_FT_epochs = 20
 
     config.track_metric = "roc_auc"

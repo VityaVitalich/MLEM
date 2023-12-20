@@ -24,7 +24,7 @@ def data_configs():
         / "test_trx.parquet"
     )
     config.load_distributed = False
-    config.FT_number_objects = [1000, 'all']
+    config.FT_number_objects = [1000, "all"]
     config.post_gen_FT_epochs = 20
 
     config.track_metric = "accuracy"
@@ -72,7 +72,6 @@ def data_configs():
     val = config.val = ml_collections.ConfigDict()
     # test params
     test = config.test = ml_collections.ConfigDict()
-
 
     # splitters
     train.split_strategy = {

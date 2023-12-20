@@ -132,7 +132,11 @@ class GenerativePipeline(Pipeline):
         trainer.run()
 
         # trainer.load_best_model()
-        train_metric, (supervised_val_metric, supervised_test_metric, fixed_test_metric), lin_prob_test = trainer.test(
+        (
+            train_metric,
+            (supervised_val_metric, supervised_test_metric, fixed_test_metric),
+            lin_prob_test,
+        ) = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         )
