@@ -10,8 +10,10 @@ def model_conf_sugg(model_conf, trial, data):
         model_conf[name] = trial.suggest_float(name, value_range[0], value_range[1])
     elif value_type == "int_log":
         model_conf[name] = trial.suggest_int(name, value_range[0], value_range[1], log=True)
-    elif value_type == "int_float":
+    elif value_type == "float_log":
         model_conf[name] = trial.suggest_float(name, value_range[0], value_range[1], log=True)
+    else:
+        raise NotImplementedError
     return model_conf
 
 def contrastive_base(trial, model_conf, data_conf):
