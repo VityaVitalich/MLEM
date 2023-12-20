@@ -5,11 +5,11 @@ def model_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
-    config.predict_head = "Identity"  # Linear or Identity
+    config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
     config.preENC_TR = False
-    config.batch_first_encoder = True
+    config.batch_first_encoder = False
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
@@ -28,7 +28,7 @@ def model_configs():
     config.encoder_dim_ff = 256
 
     ### TIME DELTA ###
-    config.use_deltas = False
+    config.use_deltas = True
     config.time_embedding = 0
 
     ### NORMALIZATIONS ###
@@ -38,10 +38,10 @@ def model_configs():
     # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.0
+    config.after_enc_dropout = 0.05
 
     ### ACTIVATION ###
-    config.activation = "ReLU"
+    config.activation = "LeakyReLU"
 
     ### TIME TRICKS ###
     config.num_time_blocks = 50  # [4, 16]
@@ -51,11 +51,11 @@ def model_configs():
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
-    loss.loss_fn = "ContrastiveLoss"
-    loss.margin = 0.87  # ContrastiveLoss only
+    loss.loss_fn = "CrossEntropy"
+    loss.margin = 0.5  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = "MLP"  # all losses
-    loss.project_dim = 64  # all losses
+    loss.projector = "Identity"  # all losses
+    loss.project_dim = 32  # all losses
     loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only
@@ -68,4 +68,16 @@ def model_configs():
     config.weight_decay = 0.0
 
     config.comments = ""
+
+    ### CKCONV ###
+    ckconv = config.ckconv = ml_collections.ConfigDict()
+    ckconv.hidden_channels = 64
+    ckconv.num_blocks = 3
+    ckconv.kernel_hidden_channels = 64
+    ckconv.kernel_activation = "Sine"
+    ckconv.kernel_norm = ""
+    ckconv.omega = 30
+    ckconv.dropout = 0.1
+    ckconv.weight_dropout = 0.0
+    ckconv.use_real_time = True
     return config
