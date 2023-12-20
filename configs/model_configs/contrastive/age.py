@@ -7,7 +7,7 @@ def model_configs():
     config.model_name = "GRUClassifier"
     config.predict_head = "Identity"  # Linear or Identity
 
-    # Vitya NIPS
+    # Vitya NIPS 
     config.batch_first_encoder = True
 
     ### EMBEDDINGS ###
