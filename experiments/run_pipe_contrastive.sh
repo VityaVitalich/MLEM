@@ -18,9 +18,16 @@ case $DATASET in
         ;;
 esac
 
-DATA_C="../configs/data_configs/contrastive/$DATASET.py"
-MODEL_C="../configs/model_configs/contrastive/$DATASET.py"
-LOG_D="./$DATASET/logs/"
+# DATA_C="../configs/data_configs/contrastive/$DATASET.py"
+# MODEL_C="../configs/model_configs/contrastive/$DATASET.py"
+# LOG_D="./$DATASET/logs/"
+EPOCHS=30
+DEVICE='cuda'
+NAME='GRU512'
+DATA_C="../configs/data_configs/contrastive/alpha.py"
+MODEL_C="../configs/model_configs/contrastive/alpa.py"
+LOG_D="./alpha/logs/"
+GRID_NAME=''
 
 python pipeline_contrastive.py \
     --run-name=$NAME \
