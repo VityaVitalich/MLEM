@@ -32,7 +32,7 @@ def data_configs():
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
     config.col_id = "client_id"  # column defining ids. used for sorting data
 
@@ -41,7 +41,7 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "small_group": {"in": 202, "out": 203, "max_value": 203},
+        "small_group": {"in": 250, "out": 250, "max_value": 252},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
@@ -73,29 +73,26 @@ def data_configs():
     # test params
     test = config.test = ml_collections.ConfigDict()
 
-    # # splitters
-    # train.split_strategy = {
-    #     "split_strategy": "SampleSlices",  # SampleSlices
-    #     "split_count": 5,
-    #     # "seq_len": 25,
-    #     "cnt_min": 25,
-    #     "cnt_max": 200,
-    # }
-    # val.split_strategy = {
-    #     "split_strategy": "SampleSlices",  # SampleSlices
-    #     "split_count": 5,
-    #     #  "seq_len": 50,
-    #     "cnt_min": 25,
-    #     "cnt_max": 100,
-    # }
-    train.split_strategy = {"split_strategy": "NoSplit"}
-    val.split_strategy = {"split_strategy": "NoSplit"}
+    # splitters
+    train.split_strategy = {
+        "split_strategy": "SampleSlices",
+        "split_count": 5,
+        "cnt_min": 25,
+        "cnt_max": 200,
+    }
+    val.split_strategy = {
+        "split_strategy": "SampleSlices",
+        "split_count": 5,
+        "cnt_min": 25,
+        "cnt_max": 100,
+    }
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.01
 
     # seq len
+    config.min_seq_len = 25
     config.use_constant_pad = False
     train.max_seq_len = 1200
     val.max_seq_len = 1200
