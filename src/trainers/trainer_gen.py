@@ -97,6 +97,9 @@ class GenTrainer(BaseTrainer):
         """
         # assert isinstance(self.model, MegaNet)
         losses = self.model.loss(model_output, ground_truth)
+
+        for k, v in losses.items():
+            losses[k] = torch.nan_to_num(v, nan=2000, posinf=1e8, neginf=-1e8)
         return losses["total_loss"]
 
     def log_metrics(

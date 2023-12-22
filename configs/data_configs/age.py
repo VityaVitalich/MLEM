@@ -73,23 +73,23 @@ def data_configs():
     # test params
     test = config.test = ml_collections.ConfigDict()
 
-    # splitters
-    train.split_strategy = {
-        "split_strategy": "SampleSlices",  # SampleSlices
-        "split_count": 5,
-        # "seq_len": 25,
-        "cnt_min": 25,
-        "cnt_max": 200,
-    }
-    val.split_strategy = {
-        "split_strategy": "SampleSlices",  # SampleSlices
-        "split_count": 5,
-        #  "seq_len": 50,
-        "cnt_min": 25,
-        "cnt_max": 100,
-    }
-    # train.split_strategy = {"split_strategy": "NoSplit"}
-    # val.split_strategy = {"split_strategy": "NoSplit"}
+    # # splitters
+    # train.split_strategy = {
+    #     "split_strategy": "SampleSlices",  # SampleSlices
+    #     "split_count": 5,
+    #     # "seq_len": 25,
+    #     "cnt_min": 25,
+    #     "cnt_max": 200,
+    # }
+    # val.split_strategy = {
+    #     "split_strategy": "SampleSlices",  # SampleSlices
+    #     "split_count": 5,
+    #     #  "seq_len": 50,
+    #     "cnt_min": 25,
+    #     "cnt_max": 100,
+    # }
+    train.split_strategy = {"split_strategy": "NoSplit"}
+    val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
@@ -97,9 +97,9 @@ def data_configs():
 
     # seq len
     config.use_constant_pad = False
-    train.max_seq_len = 1000
-    val.max_seq_len = 1000
-    test.max_seq_len = 1000
+    train.max_seq_len = 1200
+    val.max_seq_len = 1200
+    test.max_seq_len = 1200
 
     train.num_workers = 1
     val.num_workers = 1

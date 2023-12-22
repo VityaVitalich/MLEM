@@ -27,7 +27,8 @@ class SupervisedPipeline(Pipeline):
         Make sure that metric_value is going to be MAXIMIZED (higher -> better)
         """
         ### Create loaders and train ###
-        train_loader, valid_loader = create_data_loaders(data_conf)
+        train_loader, valid_loader = create_data_loaders(data_conf, supervised=True)
+        print(len(train_loader))
         another_test_loader = create_test_loader(data_conf)
 
         net = getattr(src.models.base_models, model_conf.model_name)(

@@ -4,50 +4,44 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "GRUD"
+    config.model_name = "GRUClassifier"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
-    config.batch_first_encoder = False
+    config.preENC_TR = False
+    config.batch_first_encoder = True
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 4
-    config.use_numeric_emb = False
-    config.numeric_emb_size = 1
-    config.encoder_feature_mixer = True
-    ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
-    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
+    config.use_numeric_emb = True
+    config.numeric_emb_size = 4
+    config.encoder_feature_mixer = False
+
+    ### ENCODER ###
+    config.encoder = "GRU"  # GRU LSTM TR
+    config.encoder_hidden = 512
+    config.encoder_num_layers = 1
+
+    ### TRANSFORMER ENCODER ###
+    config.encoder_num_heads = 1
+    config.encoder_dim_ff = 256
 
     ### TIME DELTA ###
     config.use_deltas = True
-
-    ### TRANSFORMER ###
-    config.encoder = "Identity"  # Identity or TransformerEncoder
-    config.num_enc_layers = 1
-    config.num_heads_enc = 1
+    config.time_embedding = 2
 
     ### NORMALIZATIONS ###
-    config.pre_gru_norm = "Identity"
-    config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = (
-        "Identity"  # if TransformerEncoder -> LayerNorm. else Identity
-    )
+    config.pre_encoder_norm = "Identity"
+    config.post_encoder_norm = "Identity"
+    config.encoder_norm = "Identity"
+    # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.0
-
-    ### CONVOLUTIONAL ###
-    conv = config.conv = ml_collections.ConfigDict()
-    conv.out_channels = 32
-    conv.kernels = [3, 5, 9]
-    conv.dilations = [3, 5, 9]
-    conv.num_stacks = 3
-    conv.proj = "Linear"
+    config.after_enc_dropout = 0.03
 
     ### ACTIVATION ###
-    config.activation = "ReLU"
+    config.activation = "LeakyReLU"
 
     ### TIME TRICKS ###
     config.num_time_blocks = 50  # [4, 16]
@@ -57,52 +51,35 @@ def model_configs():
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
+    loss.loss_fn = "CrossEntropy"
+    loss.margin = 0.5  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
-    loss.margin = 0.5
-    # loss.loss_fn = "RINCELoss"
-    loss.temperature = 0.03
-    loss.projector = "Linear"
-    loss.project_dim = 128
-    # loss.q = 0.01
-    # loss.lam = 0.1
-
-    ### MTAND ###
-    # # number of reference points on encoder
-    # config.num_ref_points = 128
-    # # latent dimension for mu and sigma
-    # config.latent_dim = 2
-    # # dimension of reference points after mTAN layer
-    # # in fact is the dimension of output linear in attention
-    # config.ref_point_dim = 128
-    # # dim of each time emb
-    # config.time_emb_dim = 16
-    # # number of heads in mTAN attention
-    # config.num_heads_enc = 2
-    # # dim in FF layer after attention
-    # config.linear_hidden_dim = 50
-    # # number of time embeddings
-    # config.num_time_emb = 3
-
-    ### VAE PARAMS ###
-    # number of iwae samples
-    config.k_iwae = 1
-    # noise to diagonal matrix of output distribution
-    config.noise_std = 0.01
-    # weight of kl term in loss
-    config.kl_weight = 0.0
-    config.CE_weight = 0
-    config.reconstruction_weight = 0
-    config.classification_weight = 1
+    loss.projector = "Identity"  # all losses
+    loss.project_dim = 32  # all losses
+    loss.temperature = 0.1  # all except ContrastiveLoss
+    loss.angular_margin = 0.3  # InfoNCELoss only
+    loss.q = 0.03  # RINCELoss only
+    loss.lam = 0.01  # RINCELoss only
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"
 
-    config.lr = 3e-3
-    config.weight_decay = 1e-3
-    config.cv_splits = 5
+    config.lr = 0.001
+    config.weight_decay = 0.0
 
     config.comments = ""
+
+    ### CKCONV ###
+    ckconv = config.ckconv = ml_collections.ConfigDict()
+    ckconv.hidden_channels = 64
+    ckconv.num_blocks = 3
+    ckconv.kernel_hidden_channels = 64
+    ckconv.kernel_activation = "Sine"
+    ckconv.kernel_norm = ""
+    ckconv.omega = 30
+    ckconv.dropout = 0.1
+    ckconv.weight_dropout = 0.0
+    ckconv.use_real_time = True
 
     ### GRU D ###
     GRUD = config.GRUD = ml_collections.ConfigDict()
