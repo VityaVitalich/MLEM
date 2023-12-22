@@ -18,11 +18,11 @@ case $DATASET in
         ;;
 esac
 
-EPOCHS=30
+EPOCHS=100
 DEVICE='cuda'
-NAME='GRU512'
+NAME='GRU512-32emb-2'
 DATA_C="../configs/data_configs/contrastive/alpha.py"
-MODEL_C="../configs/model_configs/contrastive/alpa.py"
+MODEL_C="../configs/model_configs/contrastive/alpha.py"
 LOG_D="./alpha/logs/"
 GRID_NAME=''
 

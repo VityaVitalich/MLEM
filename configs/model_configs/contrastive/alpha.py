@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 16
+    config.features_emb_dim = 32
     config.use_numeric_emb = True
-    config.numeric_emb_size = 16
+    config.numeric_emb_size = 32
     config.encoder_feature_mixer = False
 
     ### ENCODER ###
@@ -28,12 +28,12 @@ def model_configs():
     config.encoder_dim_ff = 256
 
     ### TIME DELTA ###
-    config.use_deltas = False
-    config.time_embedding = 0
+    config.use_deltas = True
+    config.time_embedding = 2
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
-    config.post_encoder_norm = "LayerNorm"
+    config.post_encoder_norm = "Identity"
     config.encoder_norm = "Identity"
     # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
@@ -51,12 +51,12 @@ def model_configs():
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
-    loss.loss_fn = "ContrastiveLoss"
+    loss.loss_fn = "DecoupledInfoNCELoss"
     loss.margin = 0.87  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = "MLP"  # all losses
+    loss.projector = "Linear"  # all losses
     loss.project_dim = 64  # all losses
-    loss.temperature = 0.1  # all except ContrastiveLoss
+    loss.temperature = 0.01  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only
     loss.lam = 0.01  # RINCELoss only

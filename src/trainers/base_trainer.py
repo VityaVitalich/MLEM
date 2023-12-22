@@ -314,6 +314,8 @@ class BaseTrainer:
             loss_ema = loss_np if i == 0 else 0.9 * loss_ema + 0.1 * loss_np
             pbar.set_postfix_str(f"Loss: {loss_ema:.4g}")
 
+            # CLIP GRADIENTS
+            torch.nn.utils.clip_grad_norm_(self._model.parameters(), 5)
             self._opt.step()
 
             self._last_iter += 1

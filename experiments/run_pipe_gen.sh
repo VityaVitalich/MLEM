@@ -1,8 +1,8 @@
 #!/bin/bash
 
-EPOCHS=150
+EPOCHS=100
 DEVICE="cuda"
-NAME='GC-1-1-GRU512-TR128-1l-2h'
+NAME='GRU512-GRU128-2l'
 DATA_C="../configs/data_configs/age.py"
 MODEL_C="../configs/model_configs/gen/age.py"
 LOG_D="./age/logs/"

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-EPOCHS=30
+EPOCHS=70
 DEVICE="cuda"
-NAME='GRU512-noFM'
-DATA_C="../configs/data_configs/alpha.py"
-MODEL_C="../configs/model_configs/supervised/alpha.py"
-LOG_D="./alpha/logs/"
+NAME='GRU512-supervised'
+DATA_C="../configs/data_configs/pendulum.py"
+MODEL_C="../configs/model_configs/supervised/pendulum.py"
+LOG_D="./pendulum/logs/"
 
 python pipeline_supervised.py \
     --run-name=$NAME \

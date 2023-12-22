@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "GenContrastive"
+    config.model_name = "SeqGen"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 16
+    config.features_emb_dim = 32
     config.use_numeric_emb = True
-    config.numeric_emb_size = 16
+    config.numeric_emb_size = 32
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
@@ -28,9 +28,9 @@ def model_configs():
     config.encoder_num_heads = 1
 
     ### DECODER ###
-    config.decoder = "TR"
+    config.decoder = "GRU"
     config.decoder_hidden = 128
-    config.decoder_num_layers = 1
+    config.decoder_num_layers = 2
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 2
@@ -38,8 +38,8 @@ def model_configs():
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
-    config.post_encoder_norm = "LayerNorm"
-    config.decoder_norm = "LayerNorm"
+    config.post_encoder_norm = "Identity"
+    config.decoder_norm = "Identity"
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
@@ -47,13 +47,13 @@ def model_configs():
     config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.05
+    config.after_enc_dropout = 0.03
 
     ### ACTIVATION ###
-    config.activation = "ReLU"
+    config.activation = "LeakyReLU"
 
     ### TIME ###
-    config.use_deltas = True
+    config.use_deltas = False
     config.time_embedding = 0
     config.use_log_delta = False
     config.delta_weight = 10
