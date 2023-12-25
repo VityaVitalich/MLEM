@@ -23,6 +23,6 @@
 srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c '
     cd /home/event_seq/experiments;
     nvidia-smi;
-    (sh run_pipe_contrastive.sh cuda:0 Contrastive contrasive_loss_27_11_23 age) &
+    (sh zhores_exps/alpha/run_pipe_gen.sh) &
     wait
 '

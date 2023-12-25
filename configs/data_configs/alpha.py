@@ -26,6 +26,8 @@ def data_configs():
     config.recon_limit = 10000
     config.gen_limit = 10000
     config.predict_limit = 100000
+    config.FT_number_objects = [1000, "all"]
+    config.post_gen_FT_epochs = 20
 
     config.track_metric = "roc_auc"
 
