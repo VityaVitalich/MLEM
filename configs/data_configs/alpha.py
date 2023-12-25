@@ -13,14 +13,14 @@ def data_configs():
         / "experiments"
         / "alpha"
         / "data"
-        / "train_new.parquet"
+        / "train.parquet"
     )
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
         / "alpha"
         / "data"
-        / "test_new.parquet"
+        / "test.parquet"
     )
     config.load_distributed = True
     config.recon_limit = 10000
