@@ -99,18 +99,19 @@ def model_configs():
     ### CONTRASTIVE LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
-    loss.loss_fn = "ContrastiveLoss"
-    loss.margin = 0.87  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = "MLP"  # all losses
-    loss.project_dim = 64  # all losses
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.margin = 0.5
+    loss.projector = "Identity"  # all losses
+    loss.project_dim = 32  # all losses
     loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only
     loss.lam = 0.01  # RINCELoss only
     loss.reconstruction_weight = 1
-    loss.contrastive_weight = 5
+    loss.contrastive_weight = 1
     return config
+
 
 
 def genval_config():

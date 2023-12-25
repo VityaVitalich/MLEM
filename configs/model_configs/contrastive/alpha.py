@@ -29,7 +29,7 @@ def model_configs():
 
     ### TIME DELTA ###
     config.use_deltas = True
-    config.time_embedding = 2
+    config.time_embedding = 0
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
@@ -38,7 +38,7 @@ def model_configs():
     # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.0
+    config.after_enc_dropout = 0.03
 
     ### ACTIVATION ###
     config.activation = "ReLU"

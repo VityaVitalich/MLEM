@@ -28,8 +28,8 @@ def model_configs():
     config.encoder_dim_ff = 256
 
     ### TIME DELTA ###
-    config.use_deltas = False
-    config.time_embedding = 2
+    config.use_deltas = True
+    config.time_embedding = 0
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"

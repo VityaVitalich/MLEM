@@ -376,8 +376,8 @@ if __name__ == "__main__":
         FT_on_labeled=args.FT,
     )
     request = {"classifier_gru_hidden_dim": 16}
-    metrics = pipeline.run_experiment()
-    # metrics = pipeline.do_n_runs()
+    #metrics = pipeline.run_experiment()
+    metrics = pipeline.do_n_runs()
     # metrics = pipeline.optuna_setup(
     #     "val_metric",
     #     request_list=[request],

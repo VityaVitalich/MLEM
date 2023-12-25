@@ -23,11 +23,14 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
+    config.load_distributed = False
+    config.FT_number_objects = [1000, "all"]
+    config.post_gen_FT_epochs = 20
 
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        42  # 0xAB0BA  # seed for splitting data to train and validation
+        0  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0
