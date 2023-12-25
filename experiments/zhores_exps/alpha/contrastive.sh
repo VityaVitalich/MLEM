@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/contrastive.txt
+#SBATCH --output=outputs/alpha_contrastive.txt
 
 #SBATCH --time=6-00
 

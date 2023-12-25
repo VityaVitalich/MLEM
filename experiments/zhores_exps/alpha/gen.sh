@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/gen.txt
+#SBATCH --output=outputs/alpha_gen.txt
 
 #SBATCH --time=6-00
 

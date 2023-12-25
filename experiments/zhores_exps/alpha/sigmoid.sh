@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/sigmoid.txt
+#SBATCH --output=outputs/alpha_sigmoid.txt
 
 #SBATCH --time=6-00
 

@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/gen_contrastive.txt
+#SBATCH --output=outputs/alpha_gen_contrastive.txt
 
 #SBATCH --time=6-00
 
