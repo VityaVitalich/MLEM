@@ -23,7 +23,9 @@ from experiments.pipeline_supervised import (
     SupervisedPipeline,
     get_trainer_class as get_supervised_trainer_class,
 )
-
+from functools import partialmethod
+from tqdm import tqdm
+tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
 class GenerativePipeline(Pipeline):
     def __init__(
@@ -249,6 +251,9 @@ class GenerativePipeline(Pipeline):
         valid = train.tail(num_valid_rows)
         valid_path = ckpt_dir / f"{run_name}" / "valid_subset.parquet"
         valid.to_parquet(valid_path)
+        self.data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
+        self.data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
+        data_conf = self.data_conf
         data_conf.valid_size = 0.0
         data_conf.train_path = valid_path
         valid_loader, _ = create_data_loaders(

@@ -26,4 +26,5 @@ python pipeline_gen.py \
     --recon-val=$RECON_VAL \
     --recon-val-epoch=$RECON_VAL_EPOCH  \
     --draw=$DRAW \
-    --FT=$FT
+    --FT=$FT \
+    --console-lvl="info" 

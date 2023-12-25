@@ -28,9 +28,9 @@ def model_configs():
     config.encoder_num_heads = 1
 
     ### DECODER ###
-    config.decoder = "GRU"
+    config.decoder = "TR"
     config.decoder_hidden = 128
-    config.decoder_num_layers = 2
+    config.decoder_num_layers = 3
 
     ### TRANSFORMER DECODER ###
     config.decoder_heads = 2
@@ -38,8 +38,8 @@ def model_configs():
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
-    config.post_encoder_norm = "Identity"
-    config.decoder_norm = "Identity"
+    config.post_encoder_norm = "LayerNorm"
+    config.decoder_norm = "LayerNorm"
     config.encoder_norm = "Identity"
 
     ### GENERATED EMBEDDINGS LOSS ###
