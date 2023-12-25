@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "GenContrastive"
+    config.model_name = "SeqGen"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -111,7 +111,6 @@ def model_configs():
     loss.reconstruction_weight = 1
     loss.contrastive_weight = 1
     return config
-
 
 
 def genval_config():

@@ -73,19 +73,23 @@ def data_configs():
     # test params
     test = config.test = ml_collections.ConfigDict()
 
-    # splitters
-    train.split_strategy = {
-        "split_strategy": "SampleSlices",
-        "split_count": 5,
-        "cnt_min": 25,
-        "cnt_max": 200,
-    }
-    val.split_strategy = {
-        "split_strategy": "SampleSlices",
-        "split_count": 5,
-        "cnt_min": 25,
-        "cnt_max": 100,
-    }
+    # # splitters
+    # train.split_strategy = {
+    #     "split_strategy": "SampleSlices",  # SampleSlices
+    #     "split_count": 5,
+    #     # "seq_len": 25,
+    #     "cnt_min": 25,
+    #     "cnt_max": 200,
+    # }
+    # val.split_strategy = {
+    #     "split_strategy": "SampleSlices",  # SampleSlices
+    #     "split_count": 5,
+    #     #  "seq_len": 50,
+    #     "cnt_min": 25,
+    #     "cnt_max": 100,
+    # }
+    train.split_strategy = {"split_strategy": "NoSplit"}
+    val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
