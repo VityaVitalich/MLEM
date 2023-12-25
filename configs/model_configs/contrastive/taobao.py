@@ -5,7 +5,7 @@ def model_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
-    config.predict_head = "Linear"  # Linear or Identity
+    config.predict_head = "Identity"  # Linear or Identity
 
     # Vitya NIPS
     config.batch_first_encoder = False

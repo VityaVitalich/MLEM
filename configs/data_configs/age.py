@@ -32,7 +32,7 @@ def data_configs():
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
     config.col_id = "client_id"  # column defining ids. used for sorting data
 
@@ -41,7 +41,7 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "small_group": {"in": 202, "out": 203, "max_value": 203},
+        "small_group": {"in": 202, "out": 203, "max_value": 252},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere

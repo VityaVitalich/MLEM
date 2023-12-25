@@ -177,8 +177,8 @@ if __name__ == "__main__":
             "weight_decay": 0.0,
         },
     ]
-    metrics = pipeline.run_experiment()
-    # metrics = pipeline.do_n_runs()
+    #metrics = pipeline.run_experiment()
+    metrics = pipeline.do_n_runs()
     # metrics = pipeline.optuna_setup(
     #     "val_metric",
     #     request_list=request,
