@@ -2,7 +2,7 @@
 
 EPOCHS=40
 DEVICE="cuda:0"
-NAME='GC_GRU512-TR128-3l-2h'
+NAME='GC_GRU512-TR128-3l-2h-Restart'
 DATA_C="../configs/data_configs/contrastive/alpha.py"
 MODEL_C="../configs/model_configs/GC/alpha.py"
 LOG_D="./alpha/logs/"

@@ -315,7 +315,7 @@ class BaseTrainer:
             pbar.set_postfix_str(f"Loss: {loss_ema:.4g}")
 
             # CLIP GRADIENTS
-            # torch.nn.utils.clip_grad_norm_(self._model.parameters(), 5)
+            torch.nn.utils.clip_grad_norm_(self._model.parameters(), 5)
             self._opt.step()
 
             self._last_iter += 1
