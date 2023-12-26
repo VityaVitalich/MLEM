@@ -12,17 +12,18 @@ def reload_with_new_targets(train_path, test_path, event_column, Ns=[1]):
         path = Path(path)
         new_path = path.with_name("tpp_" + path.name)
         df = pd.read_parquet(path)
+        print("Data loaded")
         cut_n = max(Ns)
         cols_to_cut = [col for col in df if isinstance(df.iloc[0][col], np.ndarray)]
         for n in Ns:
             df[f"{n}_time"] = df["event_time"].apply(lambda x: x[-cut_n + (n - 1)])
             df[f"{n}_event"] = df[event_column].apply(lambda x: x[-cut_n + (n - 1)])
-
+        print("Targets added")
         for col in cols_to_cut:
             df[col] = df[col].apply(lambda x: x[:-cut_n])
-            assert df[col].apply(len).min() > cut_n
-
-        if path == train_path and "alpha" in path:
+            assert df[col].apply(len).min() > 0
+        print("Trunsactions cuted")
+        if str(path) == train_path and "alpha" in str(path):
             n_partition = 100
         else:
             n_partition = 10
@@ -40,10 +41,10 @@ if __name__ == "__main__":
         event_column = "small_group"
         Ns = [1, 10, 30, 100]
     elif args.dataset == "alpha":
-        train_path = "./age/data/train.parquet"
-        test_path = "./age/data/test.parquet"
+        train_path = "./alpha/data/train.parquet"
+        test_path = "./alpha/data/test.parquet"
         event_column = "mcc"
-        Ns = [1, 10, 30]
+        Ns = [1, 5]
     else:
         raise NotImplementedError
 

@@ -2,7 +2,7 @@
 
 EPOCHS=40
 DEVICE="cuda:0"
-NAME='GEN_GRU512-TR128-3l-2h'
+NAME='GEN_GRU512-TR128-3l-2h-NO-CLIP'
 DATA_C="../configs/data_configs/alpha.py"
 MODEL_C="../configs/model_configs/gen/alpha.py"
 LOG_D="./alpha/logs/"
