@@ -28,11 +28,11 @@ def data_configs():
     config.predict_limit = 100000
     config.FT_number_objects = [1000, 100000]
     config.post_gen_FT_epochs = 20
-
+    config.pre_trained_contrastive_path = "alpha/logs/CONTRASTIVE_GRU512-32emb/seed_0/ckpt/CONTRASTIVE_GRU512-32emb/seed_0/epoch__0040.ckpt"
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
-        0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
+        0  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size

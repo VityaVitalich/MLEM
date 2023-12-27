@@ -14,6 +14,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
+import time
 
 import numpy as np
 import pandas as pd
@@ -67,7 +68,7 @@ class Pipeline:
         conf = conf or copy.deepcopy(self.data_conf)
         model_conf = model_conf or copy.deepcopy(self.model_conf)
 
-        conf.client_list_shuffle_seed = seed
+        conf.client_list_shuffle_seed += seed
 
         log_file = self.log_dir / run_name / "log"
         log_file.parent.mkdir(exist_ok=True, parents=True)
@@ -86,6 +87,8 @@ class Pipeline:
         torch.cuda.empty_cache()
         torch.cuda.init()
         torch.cuda.reset_peak_memory_stats(self.device)
+        print(f"Sleeping for {args[-1]} minutes")
+        time.sleep(60 * args[-1])
         metrics = self.run_experiment(*args)
         metrics["memory_after"] = torch.cuda.max_memory_reserved(self.device) / (
             2**20

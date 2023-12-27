@@ -26,11 +26,11 @@ def data_configs():
     config.load_distributed = False
     config.FT_number_objects = [1000, "all"]
     config.post_gen_FT_epochs = 20
-
+    config.pre_trained_contrastive_path = "age/logs/CONTRASTIVE_GRU512-32emb/seed_2/ckpt/CONTRASTIVE_GRU512-32emb/seed_2/epoch__0100.ckpt"
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation
+        1  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
