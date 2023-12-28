@@ -14,6 +14,9 @@ from src.trainers.trainer_gen import (
     GenTrainer,
     GANGenTrainer,
 )
+from src.trainers.trainer_sigmoid import (
+    SigmoidTrainer,
+)
 from src.trainers.trainer_ddpm import TrainerDDPM
 import src.models.gen_models
 from experiments.utils import get_parser, read_config, draw_generated
@@ -23,6 +26,8 @@ from experiments.pipeline_supervised import (
     SupervisedPipeline,
     get_trainer_class as get_supervised_trainer_class,
 )
+from src.trainers.randomness import seed_everything
+
 
 
 class GenerativePipeline(Pipeline):
@@ -145,7 +150,9 @@ class GenerativePipeline(Pipeline):
         (
             train_metric,
             (supervised_val_metric, supervised_test_metric, fixed_test_metric),
-            lin_prob_test,
+            (log_val_metric, log_test_metric, log_fixed_test_metric),
+            intrinsic,
+            anisotropy
         ) = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
@@ -155,7 +162,9 @@ class GenerativePipeline(Pipeline):
             "val_metric": supervised_val_metric,
             "test_metric": supervised_test_metric,
             "other_metric": fixed_test_metric,
-            "lin_prob_test": lin_prob_test,
+            "lin_prob_test": log_fixed_test_metric,
+            "anisotropy": anisotropy,
+            "intrinsic": intrinsic
         }
 
         true_train_path = data_conf.train_path
@@ -233,7 +242,10 @@ class GenerativePipeline(Pipeline):
             resume_path = trainer.best_checkpoint()
             self.model_conf.model_name = "GRUClassifier"
             self.model_conf.predict_head = "Linear"
-            self.model_conf.loss.loss_fn = "CrossEntropy"
+            if self.data_conf.track_metric == 'mse':
+                self.model_conf.loss.loss_fn = "MSE"
+            else:
+                self.model_conf.loss.loss_fn = "CrossEntropy"
 
             res_ft = self.run_finetuning(run_name, resume_path, trainer._ckpt_dir)
             metrics.update(res_ft)
@@ -241,6 +253,8 @@ class GenerativePipeline(Pipeline):
         return metrics
 
     def run_finetuning(self, run_name, resume_path, ckpt_dir):
+        self.data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
+        self.data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
         train = pd.read_parquet(self.data_conf.FT_train_path)
         train = train[~train[self.data_conf.features.target_col].isna()]
 
@@ -371,8 +385,8 @@ if __name__ == "__main__":
         FT_on_labeled=args.FT,
     )
     request = {"classifier_gru_hidden_dim": 16}
-    #metrics = pipeline.run_experiment()
-    metrics = pipeline.do_n_runs()
+    metrics = pipeline.run_experiment()
+   # metrics = pipeline.do_n_runs()
     # metrics = pipeline.optuna_setup(
     #     "val_metric",
     #     request_list=[request],

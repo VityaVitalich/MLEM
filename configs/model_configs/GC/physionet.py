@@ -14,8 +14,8 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 4
-    config.use_numeric_emb = False
-    config.numeric_emb_size = 1
+    config.use_numeric_emb = True
+    config.numeric_emb_size = 4
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
@@ -48,10 +48,10 @@ def model_configs():
     config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.03
+    config.after_enc_dropout = 0.05
 
     ### ACTIVATION ###
-    config.activation = "LeakyReLU"
+    config.activation = "ReLU"
 
     ### TIME ###
     config.use_deltas = True
@@ -76,7 +76,7 @@ def model_configs():
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
-    config.gen_len = 50
+    config.gen_len = 200
     config.comments = ""
     config.genval = genval_config()
     config.D = d_config()
@@ -89,13 +89,13 @@ def model_configs():
 
     ### Time VAE ###
     timevae = config.timevae = ml_collections.ConfigDict()
-    timevae.hiddens = [128, 128]
+    timevae.hiddens = [32, 32]
     timevae.latent_dim = 64
     timevae.recon_weight = 3
 
     ### TPP VAE ###
     tppvae = config.tppvae = ml_collections.ConfigDict()
-    tppvae.hidden_rnn = 128
+    tppvae.hidden_rnn = 64
     tppvae.joint_layer_num = 2
     tppvae.num_layers_enc = 1
 
@@ -106,14 +106,14 @@ def model_configs():
     tppddpm.num_layers_enc = 1
     tppddpm.diff_steps = 100
 
-    ### CONTRASTIVE LOSS ###
+    ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
+    loss.loss_fn = "ContrastiveLoss"
+    loss.margin = 0.87  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
-    loss.margin = 0.5
-    loss.projector = "Identity"  # all losses
-    loss.project_dim = 32  # all losses
+    loss.projector = "MLP"  # all losses
+    loss.project_dim = 64  # all losses
     loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only
@@ -135,8 +135,8 @@ def genval_config():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
-    config.use_numeric_emb = False
-    config.numeric_emb_size = 1
+    config.use_numeric_emb = True
+    config.numeric_emb_size = 8
     config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
@@ -185,7 +185,7 @@ def genval_config():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "MSE"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
 
     ### DEVICE + OPTIMIZER ###
@@ -257,7 +257,7 @@ def d_config():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "MSE"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
 
     ### STEP EVERY ###

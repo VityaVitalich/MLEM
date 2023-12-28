@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 32
-    config.use_numeric_emb = True
-    config.numeric_emb_size = 32
+    config.features_emb_dim = 4
+    config.use_numeric_emb = False
+    config.numeric_emb_size = 4
     config.encoder_feature_mixer = False
 
     ### ENCODER ###
@@ -38,7 +38,7 @@ def model_configs():
     # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.0
+    config.after_enc_dropout = 0.03
 
     ### ACTIVATION ###
     config.activation = "LeakyReLU"
@@ -68,4 +68,22 @@ def model_configs():
     config.weight_decay = 0.0
 
     config.comments = ""
+
+    ### CKCONV ###
+    ckconv = config.ckconv = ml_collections.ConfigDict()
+    ckconv.hidden_channels = 64
+    ckconv.num_blocks = 3
+    ckconv.kernel_hidden_channels = 64
+    ckconv.kernel_activation = "Sine"
+    ckconv.kernel_norm = ""
+    ckconv.omega = 30
+    ckconv.dropout = 0.1
+    ckconv.weight_dropout = 0.0
+    ckconv.use_real_time = True
+
+    ### GRU D ###
+    GRUD = config.GRUD = ml_collections.ConfigDict()
+    GRUD.hidden_dim = 64
+    GRUD.num_layers = 1
+    GRUD.dropout = 0.2
     return config

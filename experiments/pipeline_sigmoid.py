@@ -13,6 +13,10 @@ from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_sigmoid import (
     SigmoidTrainer,
 )
+from src.trainers.trainer_gen import (
+    GenTrainer,
+    GANGenTrainer,
+)
 import src.models.gen_models
 from experiments.utils import get_parser, read_config, draw_generated
 from experiments.pipeline import Pipeline
@@ -21,7 +25,7 @@ from experiments.pipeline_supervised import (
     SupervisedPipeline,
     get_trainer_class as get_supervised_trainer_class,
 )
-
+from src.trainers.randomness import seed_everything
 
 class SigmoidPipeline(Pipeline):
     def __init__(
@@ -81,6 +85,11 @@ class SigmoidPipeline(Pipeline):
         contrastive_ckpt = torch.load(data_conf.pre_trained_contrastive_path)
         contrastive_net.load_state_dict(contrastive_ckpt["model"], strict=True)
         print("Contrastive Net Loaded")
+        seed_everything(
+                data_conf.client_list_shuffle_seed,
+                avoid_benchmark_noise=True,
+                only_deterministic_algorithms=False,
+        )
 
         net = getattr(src.models.gen_models, model_conf.model_name)(
             model_conf=model_conf, data_conf=data_conf
@@ -88,7 +97,6 @@ class SigmoidPipeline(Pipeline):
         opt = torch.optim.Adam(
             net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
         )
-
         trainer = SigmoidTrainer(
             model=net,
             optimizer=opt,
@@ -107,6 +115,7 @@ class SigmoidPipeline(Pipeline):
             contrastive_model=contrastive_net,
         )
 
+
         ### RUN TRAINING ###
         trainer.run()
         trainer.load_best_model()
@@ -114,7 +123,9 @@ class SigmoidPipeline(Pipeline):
         (
             train_metric,
             (supervised_val_metric, supervised_test_metric, fixed_test_metric),
-            lin_prob_test,
+            (log_val_metric, log_test_metric, log_fixed_test_metric),
+            intrinsic,
+            anisotropy
         ) = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
@@ -124,7 +135,9 @@ class SigmoidPipeline(Pipeline):
             "val_metric": supervised_val_metric,
             "test_metric": supervised_test_metric,
             "other_metric": fixed_test_metric,
-            "lin_prob_test": lin_prob_test,
+            "lin_prob_test": log_fixed_test_metric,
+            "anisotropy": anisotropy,
+            "intrinsic": intrinsic
         }
 
         true_train_path = data_conf.train_path
@@ -134,7 +147,10 @@ class SigmoidPipeline(Pipeline):
             resume_path = trainer.best_checkpoint()
             self.model_conf.model_name = "GRUClassifier"
             self.model_conf.predict_head = "Linear"
-            self.model_conf.loss.loss_fn = "CrossEntropy"
+            if self.data_conf.track_metric == 'mse':
+                self.model_conf.loss.loss_fn = "MSE"
+            else:
+                self.model_conf.loss.loss_fn = "CrossEntropy"
 
             res_ft = self.run_finetuning(run_name, resume_path, trainer._ckpt_dir)
             metrics.update(res_ft)

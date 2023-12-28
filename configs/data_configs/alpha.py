@@ -22,12 +22,26 @@ def data_configs():
         / "data"
         / "test_new.parquet"
     )
+    config.pre_trained_contrastive_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "alpha"
+        / "logs"
+        / "GRU512-32emb-2"
+        / "seed_0"
+        / "ckpt"
+        / "GRU512-32emb-2"
+        / "seed_0"
+        / "epoch__0030.ckpt"
+        # /home/event_seq/experiments/age/logs/GRU512-32emb-2/seed_0/ckpt/GRU512-32emb-2/seed_0/epoch__0100.ckpt
+    )
+
     config.load_distributed = True
     config.recon_limit = 10000
     config.gen_limit = 10000
     config.predict_limit = 100000
-    config.FT_number_objects = [1000, "all"]
-    config.post_gen_FT_epochs = 20
+    config.FT_number_objects = [1000, 100000]
+    config.post_gen_FT_epochs = 10
 
     config.track_metric = "roc_auc"
 
@@ -84,21 +98,21 @@ def data_configs():
     test = config.test = ml_collections.ConfigDict()
 
     # splitters
-    # train.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 50,
-    #     "cnt_max": 150,
-    # }
-    # val.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 15,
-    #     "cnt_max": 150,
-    # }
+    train.split_strategy = {
+        "split_strategy": "SampleSlices",
+        "split_count": 5,
+        "cnt_min": 50,
+        "cnt_max": 150,
+    }
+    val.split_strategy = {
+        "split_strategy": "SampleSlices",
+        "split_count": 5,
+        "cnt_min": 15,
+        "cnt_max": 150,
+    }
 
-    train.split_strategy = {"split_strategy": "NoSplit"}
-    val.split_strategy = {"split_strategy": "NoSplit"}
+    # train.split_strategy = {"split_strategy": "NoSplit"}
+    # val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout

@@ -4,7 +4,7 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "GenContrastive"
     config.predict_head = "Linear"  # Linear or Identity
 
     # Vitya NIPS
@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 4
-    config.use_numeric_emb = False
-    config.numeric_emb_size = 1
+    config.features_emb_dim = 32
+    config.use_numeric_emb = True
+    config.numeric_emb_size = 32
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
@@ -76,7 +76,7 @@ def model_configs():
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
-    config.gen_len = 50
+    config.gen_len = 100
     config.comments = ""
     config.genval = genval_config()
     config.D = d_config()
@@ -106,14 +106,14 @@ def model_configs():
     tppddpm.num_layers_enc = 1
     tppddpm.diff_steps = 100
 
-    ### CONTRASTIVE LOSS ###
+    ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
+    loss.loss_fn = "ContrastiveLoss"
+    loss.margin = 0.87  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
-    loss.margin = 0.5
-    loss.projector = "Identity"  # all losses
-    loss.project_dim = 32  # all losses
+    loss.projector = "MLP"  # all losses
+    loss.project_dim = 64  # all losses
     loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only
@@ -135,26 +135,26 @@ def genval_config():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 8
-    config.use_numeric_emb = False
-    config.numeric_emb_size = 1
+    config.use_numeric_emb = True
+    config.numeric_emb_size = 8
     config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
+    config.encoder_hidden = 64
+    config.encoder_num_layers = 1
 
     ### TIME DELTA ###
     config.use_deltas = True
-    config.time_embedding = 0
+    config.time_embedding = 2
 
     ### TRANSFORMER ###
-    config.encoder = "Identity"  # IDnetity or TransformerEncoder
+    config.preENC_TR = False  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
-    config.pre_gru_norm = "Identity"
-    config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "Identity"
+    config.pre_encoder_norm = "Identity"
+    config.post_encoder_norm = "LayerNorm"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.0
@@ -185,7 +185,7 @@ def genval_config():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "MSE"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
 
     ### DEVICE + OPTIMIZER ###
@@ -257,7 +257,7 @@ def d_config():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "MSE"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
 
     ### STEP EVERY ###

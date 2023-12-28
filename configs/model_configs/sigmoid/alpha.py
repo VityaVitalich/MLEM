@@ -21,7 +21,7 @@ def model_configs():
 
     ### ENCODER ###
     config.encoder = "GRU"  # GRU LSTM TR
-    config.encoder_hidden = 128
+    config.encoder_hidden = 512
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
@@ -65,7 +65,7 @@ def model_configs():
     config.l1_weight = 0.001  # l1 loss H
     config.gen_emb_weight = 1
     config.reconstruction_weight = 1
-    config.contrastive_weight = 1
+    config.contrastive_weight = 10
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"

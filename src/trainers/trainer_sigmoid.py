@@ -7,10 +7,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from pathlib import Path
 import os
+from copy import deepcopy
 import pandas as pd
 
 from .trainer_gen import GenTrainer
-
+from ..data_load.dataloader import PaddedBatch
 
 from torch.utils.data import DataLoader
 from datetime import datetime
@@ -110,6 +111,7 @@ class SigmoidTrainer(GenTrainer):
         # Reconstruction Loss
         losses = self.model.loss(model_output, ground_truth)
         # Contrastive component
+       # loss_sigmoid = torch.tensor(0, device='cuda') 
         loss_sigmoid = self.sigmoid_loss(model_output)
         losses["contrastive"] = loss_sigmoid
         losses["total_loss"] = (
@@ -121,13 +123,17 @@ class SigmoidTrainer(GenTrainer):
     def sigmoid_loss(self, model_output):
         # https://github.com/google-research/big_vision/blob/main/big_vision/trainers/proj/image_text/siglip.py
         # https://arxiv.org/abs/2303.15343
+        lens = model_output["gt"]["input_batch"].seq_lens
+        input_batch = PaddedBatch({k: v.detach().clone() for k, v in model_output["gt"]["input_batch"].payload.items()}, lens)
         with torch.no_grad():
             contrastive_output = self.contrastive_model(
-                model_output["gt"]["input_batch"]
+                input_batch
             ).detach()
 
         z_recon = F.normalize(model_output["latent"])
         z_contrastive = F.normalize(contrastive_output)
+       # z_recon = model_output['latent']
+        #z_contrastive = contrastive_output
 
         logits = (z_recon @ z_contrastive.T) * self.temp + self.bias
         m1_diag1 = -torch.ones_like(logits) + 2 * torch.eye(logits.size(0)).to(
@@ -144,3 +150,50 @@ class SigmoidTrainer(GenTrainer):
     @property
     def bias(self):
         return self.model.sigmoid_bias
+
+    def validate(self) -> None:
+        assert self._val_loader is not None, "Set a val loader first"
+
+        logger.info("Epoch %04d: validation started", self._last_epoch + 1)
+        self._model.eval()
+        loss_dicts = []
+        with torch.no_grad():
+            for inp, gt in tqdm(self._val_loader):
+                inp = inp.to(self._device)
+                model_output = self._model(inp)
+                loss_dicts.append(self.compute_all_losses(model_output, gt))
+
+        self._metric_values = {
+            k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
+        }
+        logger.info(
+            "Epoch %04d: validation metrics: %s",
+            self._last_epoch + 1,
+            str(self._metric_values),
+        )
+        logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
+
+    def compute_all_losses(
+        self,
+        model_output: Any,
+        ground_truth: Tuple[int, int],  # pyright: ignore unused
+    ) -> torch.Tensor:
+        """Compute loss for backward.
+
+        The function is called every iteration in training loop to compute loss.
+
+        Args:
+            model_output: raw model output as is.
+            ground_truth: tuple of raw idx and raw ground truth label from dataloader.
+        """
+        # Reconstruction Loss
+        losses = self.model.loss(model_output, ground_truth)
+        # Contrastive component
+       # loss_sigmoid = torch.tensor(0, device='cuda') 
+        loss_sigmoid = self.sigmoid_loss(model_output)
+        losses["contrastive"] = loss_sigmoid
+        losses["total_loss"] = (
+            self._model_conf.reconstruction_weight * losses["total_loss"]
+            + self._model_conf.contrastive_weight * loss_sigmoid
+        )
+        return losses

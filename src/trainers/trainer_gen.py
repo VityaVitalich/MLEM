@@ -172,7 +172,7 @@ class GenTrainer(BaseTrainer):
         )
 
         logger.info("Test finished")
-        return train_metric, other_metrics, lin_prob_metrics
+        return train_metric, other_metrics, lin_prob_metrics, intrinsic_dimension, anisotropy
 
     def compute_test_metric(
         self,

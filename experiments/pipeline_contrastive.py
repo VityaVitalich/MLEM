@@ -14,6 +14,7 @@ from src.trainers.trainer_contrastive import (
     AccuracyTrainerContrastive,
     AucTrainerContrastive,
     SimpleTrainerContrastive,
+    MSETrainerContrastive
 )
 import param_grids
 from experiments.utils import get_parser, read_config
@@ -105,6 +106,7 @@ def get_trainer_class(data_conf) -> type:
     trainer_types = {
         "accuracy": AccuracyTrainerContrastive,
         "roc_auc": AucTrainerContrastive,
+        "mse": MSETrainerContrastive,
         None: SimpleTrainerContrastive,
     }
 
@@ -177,7 +179,7 @@ if __name__ == "__main__":
             "weight_decay": 0.0,
         },
     ]
-    #metrics = pipeline.run_experiment()
+   # metrics = pipeline.run_experiment()
     metrics = pipeline.do_n_runs()
     # metrics = pipeline.optuna_setup(
     #     "val_metric",

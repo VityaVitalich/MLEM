@@ -23,6 +23,19 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
+    config.pre_trained_contrastive_path = (
+        Path(__file__).parent.parent.parent
+        / "experiments"
+        / "age"
+        / "logs"
+        / "GRU512-32emb-2"
+        / "seed_0"
+        / "ckpt"
+        / "GRU512-32emb-2"
+        / "seed_0"
+        / "epoch__0100.ckpt"
+        # /home/event_seq/experiments/age/logs/GRU512-32emb-2/seed_0/ckpt/GRU512-32emb-2/seed_0/epoch__0100.ckpt
+    )
     config.load_distributed = False
     config.FT_number_objects = [1000, "all"]
     config.post_gen_FT_epochs = 20
@@ -41,7 +54,7 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "small_group": {"in": 202, "out": 203, "max_value": 252},
+        "small_group": {"in": 250, "out": 250, "max_value": 252},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere

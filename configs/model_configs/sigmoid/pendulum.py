@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 32
-    config.use_numeric_emb = True
-    config.numeric_emb_size = 32
+    config.features_emb_dim = 4
+    config.use_numeric_emb = False
+    config.numeric_emb_size = 4
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
@@ -48,7 +48,7 @@ def model_configs():
     config.gen_emb_loss_type = "cosine"
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.03
+    config.after_enc_dropout = 0.05
 
     ### ACTIVATION ###
     config.activation = "LeakyReLU"
@@ -57,16 +57,15 @@ def model_configs():
     config.use_deltas = True
     config.time_embedding = 0
     config.use_log_delta = False
-    config.delta_weight = 10
+    config.delta_weight = 1
 
     ### LOSS ###
-    config.use_discriminator = False
     config.mse_weight = 1
     config.CE_weight = 1  # B x L x D
     config.l1_weight = 0.001  # l1 loss H
     config.gen_emb_weight = 1
     config.reconstruction_weight = 1
-    config.contrastive_weight = 10
+    config.contrastive_weight = 100
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"
@@ -76,7 +75,7 @@ def model_configs():
     config.cv_splits = 5
 
     config.comments = ""
-    config.contrastive = constrastive_configs()
+    config.contrastive = contrastive_configs()
 
     ### FINE TUNING ###
     loss = config.loss = ml_collections.ConfigDict()
@@ -94,7 +93,7 @@ def model_configs():
     return config
 
 
-def constrastive_configs():
+def contrastive_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
@@ -106,9 +105,9 @@ def constrastive_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 32
-    config.use_numeric_emb = True
-    config.numeric_emb_size = 32
+    config.features_emb_dim = 4
+    config.use_numeric_emb = False
+    config.numeric_emb_size = 4
     config.encoder_feature_mixer = False
 
     ### ENCODER ###
@@ -134,7 +133,7 @@ def constrastive_configs():
     config.after_enc_dropout = 0.03
 
     ### ACTIVATION ###
-    config.activation = "ReLU"
+    config.activation = "LeakyReLU"
 
     ### TIME TRICKS ###
     config.num_time_blocks = 50  # [4, 16]
@@ -144,12 +143,12 @@ def constrastive_configs():
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
-    loss.loss_fn = "DecoupledInfoNCELoss"
+    loss.loss_fn = "ContrastiveLoss"
     loss.margin = 0.87  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = "Linear"  # all losses
+    loss.projector = "MLP"  # all losses
     loss.project_dim = 64  # all losses
-    loss.temperature = 0.01  # all except ContrastiveLoss
+    loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only
     loss.lam = 0.01  # RINCELoss only
@@ -161,4 +160,22 @@ def constrastive_configs():
     config.weight_decay = 0.0
 
     config.comments = ""
+
+    ### CKCONV ###
+    ckconv = config.ckconv = ml_collections.ConfigDict()
+    ckconv.hidden_channels = 64
+    ckconv.num_blocks = 3
+    ckconv.kernel_hidden_channels = 64
+    ckconv.kernel_activation = "Sine"
+    ckconv.kernel_norm = ""
+    ckconv.omega = 30
+    ckconv.dropout = 0.1
+    ckconv.weight_dropout = 0.0
+    ckconv.use_real_time = True
+
+    ### GRU D ###
+    GRUD = config.GRUD = ml_collections.ConfigDict()
+    GRUD.hidden_dim = 64
+    GRUD.num_layers = 1
+    GRUD.dropout = 0.2
     return config
