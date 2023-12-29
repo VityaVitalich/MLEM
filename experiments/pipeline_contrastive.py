@@ -14,6 +14,7 @@ from src.trainers.trainer_contrastive import (
     AccuracyTrainerContrastive,
     AucTrainerContrastive,
     SimpleTrainerContrastive,
+    MseTrainerContrastive,
 )
 import param_grids
 from experiments.utils import get_parser, read_config
@@ -105,6 +106,7 @@ def get_trainer_class(data_conf) -> type:
     trainer_types = {
         "accuracy": AccuracyTrainerContrastive,
         "roc_auc": AucTrainerContrastive,
+        "mse": MseTrainerContrastive,
         None: SimpleTrainerContrastive,
     }
 

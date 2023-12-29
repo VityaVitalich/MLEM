@@ -7,6 +7,11 @@ import src.models.gen_models
 import src.models.base_models
 import torch
 from pathlib import Path
+from experiments.utils import read_config
+from experiments.utils import log_to_file
+import copy
+from argparse import ArgumentParser
+
 
 def prepare_trainer(setting, checkpoint_path, data_conf, model_conf):
     if setting == "gen" or setting == "gen_contrastive":
@@ -124,7 +129,8 @@ def parse_test_res(setting, test_res):
     else:
         raise NotImplementedError
     
-def run_validation(setting, checkpoint_path, data_conf, model_conf):
+def run_noise(setting, checkpoint_path, data_conf, model_conf):
+    data_conf = copy.deepcopy(data_conf)
     data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
     data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
     data_conf.train.dropout = 0
@@ -143,7 +149,7 @@ def run_validation(setting, checkpoint_path, data_conf, model_conf):
         "Drop_0.7_",
         "Permute_",
     ]
-    res = pd.DataFrame(index=prefixes)
+    res = pd.DataFrame({})
     for prefix in prefixes:
         data_conf.train_path = init_train_path.with_name(prefix + init_train_path.name)
         data_conf.test_path = init_test_path.with_name(prefix + init_test_path.name)
@@ -153,12 +159,84 @@ def run_validation(setting, checkpoint_path, data_conf, model_conf):
             test_supervised_loader,
         ) = create_data_loaders(data_conf, pinch_test=True)
         fixed_test_loader = create_test_loader(data_conf)
-        metrics = parse_test_res(trainer.test(
+        metrics = parse_test_res(setting, trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         ))
+        print(f"{prefix} DONE")
         for k in metrics:
-            res.loc[prefix[:-1], k]
+            res.loc[k, prefix[:-1]] = metrics[k]
     return res
 
-# def validate_seeds()
+def run_tpp(setting, checkpoint_path, data_conf, model_conf):
+    data_conf = copy.deepcopy(data_conf)
+    data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
+    data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
+    data_conf.train.dropout = 0
+    data_conf.valid_size = 0.0
+    data_conf.test_size = 0.0
+    # TODO set seed via checkpoint_path
+    init_train_path = data_conf.train_path
+    init_test_path = data_conf.test_path
+    data_conf.train_path = init_train_path.with_name("tpp_" + init_train_path.name)
+    data_conf.test_path = init_test_path.with_name("tpp_" + init_test_path.name)
+
+    res = pd.DataFrame({})
+    if "age" in str(init_train_path):
+        Ns = [1, 10, 30, 100]
+    elif "alpha" in str(init_train_path):
+        Ns = [1, 5]
+    else:
+        raise NotImplementedError
+    for n in Ns:
+        for target in ["time", "event"]:
+            data_conf.track_metric = "accuracy" if target == "event" else "mse"
+            data_conf.features.target_col = f"{n}_{target}"
+            trainer = prepare_trainer(setting, checkpoint_path, data_conf, model_conf)
+            (
+                train_supervised_loader,
+                valid_supervised_loader,
+                test_supervised_loader,
+            ) = create_data_loaders(data_conf, pinch_test=True)
+            fixed_test_loader = create_test_loader(data_conf)
+            metrics = parse_test_res(setting, trainer.test(
+                train_supervised_loader,
+                (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
+            ))
+            print(f"{n}_{target} DONE")
+            for k in metrics:
+                res.loc[k, f"{n}_{target}"] = metrics[k]
+    return res
+
+def run_all(DATA_C, MODEL_C, device, setting, checkpoint_path):
+    print("START", DATA_C, MODEL_C, device, setting, checkpoint_path)
+    data_conf = read_config(DATA_C, "data_configs")
+    model_conf = read_config(MODEL_C, "model_configs")
+    model_conf.device = device
+    res = []
+    for func in [run_tpp, run_noise]: 
+        with log_to_file("tmp", file_lvl="info", cons_lvl="info"):
+            res += [func(
+                setting, 
+                checkpoint_path,
+                data_conf,
+                model_conf,
+            )]
+    res = pd.concat(res, axis=1)
+    res.to_csv(Path(checkpoint_path).parent / "tpp_noise.csv")
+    return res
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("device", default="cuda:0")
+    parser.add_argument("configuration", default=0, type=int)
+    args = parser.parse_args()
+    configurations = []
+    configurations += [
+        ["../configs/data_configs/contrastive/age.py",
+        "../configs/model_configs/contrastive/age.py",
+        args.device,
+        "contrastive",
+        f"age/logs/CONTRASTIVE_GRU512-32emb/seed_{i}/ckpt/CONTRASTIVE_GRU512-32emb/seed_{i}/epoch__0100.ckpt",
+        ] for i in range(3)
+    ]
+    run_all(*configurations[args.configuration])

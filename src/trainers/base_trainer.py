@@ -256,7 +256,7 @@ class BaseTrainer:
             ckpt_fname: path to checkpoint.
         """
 
-        ckpt = torch.load(ckpt_fname)
+        ckpt = torch.load(ckpt_fname, map_location=self._device)
 
         if "model" in ckpt:
             msg = self._model.load_state_dict(ckpt["model"], strict=False)

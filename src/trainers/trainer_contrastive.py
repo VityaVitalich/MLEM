@@ -3,9 +3,9 @@ from typing import Any, Dict, List, Literal, Tuple, Union
 
 import numpy as np
 import torch
-from lightgbm import LGBMClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, roc_auc_score
+from lightgbm import LGBMClassifier, LGBMRegressor
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.metrics import accuracy_score, roc_auc_score, mean_squared_error
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import MaxAbsScaler
 from torch.utils.data import DataLoader
@@ -267,11 +267,20 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
 class AccuracyTrainerContrastive(SimpleTrainerContrastive):
     def get_metric(self, model, x, target):
         pred = model.predict(x)
-        auc_score = accuracy_score(target, pred)
-        return auc_score
+        acc_score = accuracy_score(target, pred)
+        return acc_score
 
     def get_model(self):
         args = params.copy()
         args["objective"] = "multiclass"
         args["metric"] = "multi_error"
         return LGBMClassifier(verbosity=-1, **args), LogisticRegression(solver="saga")
+
+class MseTrainerContrastive(SimpleTrainerContrastive):
+    def get_metric(self, model, x, target):
+        pred = model.predict(x)
+        mse_score = mean_squared_error(target, pred)
+        return mse_score
+
+    def get_model(self):
+        return LGBMRegressor(verbosity=-1), LinearRegression()

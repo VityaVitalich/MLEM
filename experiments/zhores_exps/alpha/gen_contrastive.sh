@@ -12,7 +12,7 @@
 
 #SBATCH --time=6-00
 
-#SBATCH --mem=100G
+#SBATCH --mem=200G
 
 #SBATCH --nodes=1
 
