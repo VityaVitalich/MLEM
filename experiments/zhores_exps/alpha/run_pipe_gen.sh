@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EPOCHS=1
+EPOCHS=40
 DEVICE="cuda:0"
 NAME='GEN-NO-CLIP'
 DATA_C="../configs/data_configs/alpha.py"
@@ -11,7 +11,7 @@ GENVAL_EPOCH=10
 RECON_VAL=0
 RECON_VAL_EPOCH=10
 DRAW=0
-FT=1
+FT=0
 
 
 python pipeline_gen.py \

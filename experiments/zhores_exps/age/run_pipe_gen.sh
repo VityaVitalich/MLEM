@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EPOCHS=1
+EPOCHS=100
 DEVICE="cuda:0"
 NAME='GEN-NO-CLIP'
 DATA_C="../configs/data_configs/gen/age.py"
