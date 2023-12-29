@@ -94,7 +94,7 @@ def parse_test_res(setting, test_res):
         (
             train_metric,
             (supervised_val_metric, supervised_test_metric, fixed_test_metric),
-            lin_prob_test, anisotropy, intrinsic_dimension
+            lin_prob_test, intrinsic_dimension, anisotropy
         ) = test_res
         metrics = {
             "train_metric": train_metric,

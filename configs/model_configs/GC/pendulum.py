@@ -106,14 +106,14 @@ def model_configs():
     tppddpm.num_layers_enc = 1
     tppddpm.diff_steps = 100
 
-    ### CONTRASTIVE LOSS ###
+    ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
+    loss.loss_fn = "ContrastiveLoss"
+    loss.margin = 0.87  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
-    loss.margin = 0.5
-    loss.projector = "Identity"  # all losses
-    loss.project_dim = 32  # all losses
+    loss.projector = "MLP"  # all losses
+    loss.project_dim = 64  # all losses
     loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only

@@ -9,47 +9,33 @@ def data_configs():
     ########## DATA ##############
 
     config.train_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "pendulum"
         / "data"
         / "train_hawkes_16.parquet"  # "train_trx.parquet"
     )
     config.test_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "pendulum"
         / "data"
         / "test_hawkes_16.parquet"
     )
-    config.pre_trained_contrastive_path = (
-        Path(__file__).parent.parent.parent
-        / "experiments"
-        / "pendulum"
-        / "logs"
-        / "CONTRASTIVE-GRU512-4emb"
-        / "seed_0"
-        / "ckpt"
-        / "CONTRASTIVE-GRU512-4emb"
-        / "seed_0"
-        / "epoch__0100.ckpt"
-    )
-
-    #/home/event_seq/experiments/pendulum/logs/CONTRASTIVE-GRU512-4emb/seed_0/ckpt/CONTRASTIVE-GRU512-4emb/seed_0/epoch__0100.ckpt
     config.load_distributed = False
     config.recon_limit = 100
     config.gen_limit = 100
     config.num_plots = 15
 
     config.FT_number_objects = [1000, 'all']
-    config.post_gen_FT_epochs = 20
+    config.post_gen_FT_epochs = 10
 
     config.track_metric = "mse"
 
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
     config.col_id = "pendulum_id"  # column defining ids. used for sorting data
 
@@ -80,22 +66,22 @@ def data_configs():
     val = config.val = ml_collections.ConfigDict()
     test = config.test = ml_collections.ConfigDict()
 
-    # splitters
-    # train.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 50,
-    #     "cnt_max": 150,
-    # }
-    # val.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 15,
-    #     "cnt_max": 150,
-    # }
+    #splitters
+    train.split_strategy = {
+        "split_strategy": "SampleSlices",
+        "split_count": 5,
+        "cnt_min": 50,
+        "cnt_max": 150,
+    }
+    val.split_strategy = {
+        "split_strategy": "SampleSlices",
+        "split_count": 5,
+        "cnt_min": 15,
+        "cnt_max": 150,
+    }
 
-    train.split_strategy = {"split_strategy": "NoSplit"}
-    val.split_strategy = {"split_strategy": "NoSplit"}
+    # train.split_strategy = {"split_strategy": "NoSplit"}
+    # val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout

@@ -1,12 +1,12 @@
 #!/bin/bash
 
-EPOCHS=1
+EPOCHS=250
 DEVICE="cuda"
-NAME='test'
+NAME='SIGMOID_10s_1r_512BATCH_LONG'
 DATA_C="../configs/data_configs/rosbank.py"
 MODEL_C="../configs/model_configs/sigmoid/rosbank.py"
-LOG_D="./rosbank/test_logs/"
-FT=1
+LOG_D="./rosbank/logs/"
+FT=0
 
 
 python pipeline_sigmoid.py \

@@ -22,12 +22,26 @@ def data_configs():
         / "data"
         / "test.parquet"
     )
+    # config.pre_trained_contrastive_path = (
+    #     Path(__file__).parent.parent.parent
+    #     / "experiments"
+    #     / "alpha"
+    #     / "logs"
+    #     / "GRU512-32emb-2"
+    #     / "seed_0"
+    #     / "ckpt"
+    #     / "GRU512-32emb-2"
+    #     / "seed_0"
+    #     / "epoch__0030.ckpt"
+    #     # /home/event_seq/experiments/age/logs/GRU512-32emb-2/seed_0/ckpt/GRU512-32emb-2/seed_0/epoch__0100.ckpt
+    # )
+
     config.load_distributed = True
     config.recon_limit = 10000
     config.gen_limit = 10000
     config.predict_limit = 100000
     config.FT_number_objects = [1000, 100000]
-    config.post_gen_FT_epochs = 20
+    config.post_gen_FT_epochs = 10
     config.pre_trained_contrastive_path = "alpha/logs/CONTRASTIVE_GRU512-32emb/seed_0/ckpt/CONTRASTIVE_GRU512-32emb/seed_0/epoch__0040.ckpt"
     config.track_metric = "roc_auc"
 

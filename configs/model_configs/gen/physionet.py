@@ -13,15 +13,15 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 8
+    config.features_emb_dim = 4
     config.use_numeric_emb = True
-    config.numeric_emb_size = 8
+    config.numeric_emb_size = 4
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
     ### ENCODER ###
     config.encoder = "GRU"  # GRU LSTM TR
-    config.encoder_hidden = 128
+    config.encoder_hidden = 512
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
@@ -57,7 +57,7 @@ def model_configs():
     config.use_deltas = True
     config.time_embedding = 0
     config.use_log_delta = False
-    config.delta_weight = 1
+    config.delta_weight = 10
 
     ### DISCRIMINATOR ###
     config.use_discriminator = False
@@ -105,6 +105,21 @@ def model_configs():
     tppddpm.denoise_layer_num = 2
     tppddpm.num_layers_enc = 1
     tppddpm.diff_steps = 100
+
+    ### CONTRASTIVE LOSS ###
+    loss = config.loss = ml_collections.ConfigDict()
+    loss.sampling_strategy = "HardNegativePair"
+    loss.neg_count = 5
+    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.margin = 0.5
+    loss.projector = "Identity"  # all losses
+    loss.project_dim = 32  # all losses
+    loss.temperature = 0.1  # all except ContrastiveLoss
+    loss.angular_margin = 0.3  # InfoNCELoss only
+    loss.q = 0.03  # RINCELoss only
+    loss.lam = 0.01  # RINCELoss only
+    loss.reconstruction_weight = 1
+    loss.contrastive_weight = 1
     return config
 
 

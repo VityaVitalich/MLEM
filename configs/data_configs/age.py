@@ -23,6 +23,19 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
+    # config.pre_trained_contrastive_path = (
+    #     Path(__file__).parent.parent.parent
+    #     / "experiments"
+    #     / "age"
+    #     / "logs"
+    #     / "GRU512-32emb-2"
+    #     / "seed_0"
+    #     / "ckpt"
+    #     / "GRU512-32emb-2"
+    #     / "seed_0"
+    #     / "epoch__0100.ckpt"
+    #     # /home/event_seq/experiments/age/logs/GRU512-32emb-2/seed_0/ckpt/GRU512-32emb-2/seed_0/epoch__0100.ckpt
+    # )
     config.load_distributed = False
     config.FT_number_objects = [1000, "all"]
     config.post_gen_FT_epochs = 20

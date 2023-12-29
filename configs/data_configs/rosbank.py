@@ -24,24 +24,25 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
-    config.pre_trained_contrastive_path = (
-        Path(__file__).parent.parent.parent
-        / "experiments"
-        / "rosbank"
-        / "logs"
-        / "test-contrastive"
-        / "seed_0"
-        / "ckpt"
-        / "test-contrastive"
-        / "seed_0"
-        / "epoch__0020.ckpt"
-        # /home/event_seq/experiments/rosbank/logs/test-contrastive/seed_0/ckpt/test-contrastive/seed_0/epoch__0020.ckpt
-    )
+    config.pre_trained_contrastive_path = '/home/event_seq/experiments/rosbank/logs/NEW_CONTRASTIVE_GRU512-32emb/seed_1/ckpt/NEW_CONTRASTIVE_GRU512-32emb/seed_1/epoch__0100.ckpt'
+    # (
+    #     Path(__file__).parent.parent.parent
+    #     / "experiments"
+    #     / "rosbank"
+    #     / "logs"
+    #     / "CONTRASTIVE-GRU512-32emb"
+    #     / "seed_0"
+    #     / "ckpt"
+    #     / "CONTRASTIVE-GRU512-32emb"
+    #     / "seed_0"
+    #     / "epoch__0100.ckpt"
+    #     # /home/event_seq/experiments/rosbank/logs/CONTRASTIVE-GRU512-32emb/seed_0/ckpt/CONTRASTIVE-GRU512-32emb/seed_0/epoch__0100.ckpt
+    # )
     config.load_distributed = False
     config.recon_limit = 100
     config.gen_limit = 100
     config.predict_limit = 1000
-    config.FT_number_objects = [100, 500, "all"]
+    config.FT_number_objects = [1000, "all"]
     config.post_gen_FT_epochs = 20
 
     config.track_metric = "roc_auc"
@@ -49,7 +50,7 @@ def data_configs():
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
     config.col_id = "cl_id"  # column defining ids. used for sorting data
 
@@ -110,8 +111,8 @@ def data_configs():
     val.num_workers = 1
     test.num_workers = 1
 
-    train.batch_size = 128
-    val.batch_size = 128
+    train.batch_size = 512
+    val.batch_size = 512
     test.batch_size = 16
 
     return config

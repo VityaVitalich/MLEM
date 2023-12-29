@@ -177,6 +177,7 @@ class SimpleTrainerContrastive(BaseTrainer):
         )
         logger.info("Train metrics: %s", str(train_metric))
         logger.info("Other metrics: %s", str(other_metrics))
+        logger.info("Logist Other metrics: %s", str(other_logist))
         logger.info("Test finished")
         return (
             train_metric,
@@ -281,11 +282,13 @@ class AccuracyTrainerContrastive(SimpleTrainerContrastive):
         # args["metric"] = "multi_error"
         return LGBMClassifier(**args), LogisticRegression(**logistic_params)
 
-class MseTrainerContrastive(SimpleTrainerContrastive):
+class MSETrainerContrastive(SimpleTrainerContrastive):
     def get_metric(self, model, x, target):
         pred = model.predict(x)
-        mse_score = mean_squared_error(target, pred)
-        return mse_score
+        score = mean_squared_error(target, pred)
+        return score
 
-    def get_model(self, n_classes=1):
-        return LGBMRegressor(verbosity=-1), LinearRegression()
+    def get_model(self):
+        args = params.copy()
+        args["objective"] = "regression"
+        return LGBMRegressor(verbosity=-1, **args), LinearRegression()

@@ -583,7 +583,7 @@ class GRUCell(nn.Module):
 
         self.x2h = nn.Linear(input_size, 3 * hidden_size, bias=bias)
         self.h2h = nn.Linear(hidden_size, 3 * hidden_size, bias=bias)
-        # self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
+        self.mix_global = nn.Linear(hidden_size + global_hidden_size, hidden_size)
         self.act = nn.GELU()
         self.reset_parameters()
 
@@ -604,7 +604,7 @@ class GRUCell(nn.Module):
             hx = Variable(input.new_zeros(input.size(0), self.hidden_size))
 
         hx = hx
-        #  hx = self.act(self.mix_global(torch.cat([global_hidden, hx], dim=-1)))
+        hx = self.act(self.mix_global(torch.cat([global_hidden, hx], dim=-1)))
         x_t = self.x2h(input)
         h_t = self.h2h(hx)
 

@@ -23,10 +23,10 @@ esac
 # LOG_D="./$DATASET/logs/"
 EPOCHS=30
 DEVICE='cuda'
-NAME='GRU512-32emb-2'
-DATA_C="../configs/data_configs/contrastive/alpha.py"
-MODEL_C="../configs/model_configs/contrastive/alpha.py"
-LOG_D="./alpha/logs/"
+NAME='NEW_CONTRASTIVE-GRU512-4emb'
+DATA_C="../configs/data_configs/contrastive/pendulum.py"
+MODEL_C="../configs/model_configs/contrastive/pendulum.py"
+LOG_D="./pendulum/logs/"
 GRID_NAME=''
 
 python pipeline_contrastive.py \
