@@ -138,6 +138,7 @@ class GenerativePipeline(Pipeline):
                 device=self.device,
                 model_conf=model_conf,
                 data_conf=data_conf,
+                iters_per_epoch=2,
             )
 
         ### RUN TRAINING ###

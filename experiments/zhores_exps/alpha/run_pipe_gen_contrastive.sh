@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EPOCHS=40
+EPOCHS=1
 DEVICE="cuda:0"
 NAME='GC'
 DATA_C="../configs/data_configs/contrastive/alpha.py"
