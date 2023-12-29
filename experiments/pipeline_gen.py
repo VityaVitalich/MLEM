@@ -147,7 +147,7 @@ class GenerativePipeline(Pipeline):
         (
             train_metric,
             (supervised_val_metric, supervised_test_metric, fixed_test_metric),
-            lin_prob_test,
+            lin_prob_test, anisotropy, intrinsic_dimension
         ) = trainer.test(
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
@@ -158,6 +158,8 @@ class GenerativePipeline(Pipeline):
             "test_metric": supervised_test_metric,
             "other_metric": fixed_test_metric,
             "lin_prob_test": lin_prob_test,
+            "anisotropy": anisotropy, 
+            "intrinsic_dimension": intrinsic_dimension,
         }
 
         true_train_path = data_conf.train_path

@@ -2,6 +2,7 @@ from pipeline_contrastive import get_trainer_class as contrastive_trainer
 from src.trainers.trainer_gen import GenTrainer
 from src.trainers.trainer_sigmoid import SigmoidTrainer
 import pandas as pd
+import numpy as np
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 import src.models.gen_models
 import src.models.base_models
@@ -93,16 +94,14 @@ def parse_test_res(setting, test_res):
         (
             train_metric,
             (supervised_val_metric, supervised_test_metric, fixed_test_metric),
-            lin_prob_test,
+            lin_prob_test, anisotropy, intrinsic_dimension
         ) = test_res
         metrics = {
             "train_metric": train_metric,
-            "val_metric": supervised_val_metric,
-            "test_metric": supervised_test_metric,
-            "other_metric": fixed_test_metric,
-            "lin_prob_val": lin_prob_test[0],
-            "lin_prob_test": lin_prob_test[1],
-            "lin_prob_fixed_test": lin_prob_test[2]
+            "test_metric": fixed_test_metric,
+            "lin_prob_fixed_test": lin_prob_test[2],
+            "anisotropy": anisotropy,
+            "intrinsic_dimension": intrinsic_dimension,
         }
         return metrics
     elif setting == "contrastive":
@@ -116,15 +115,10 @@ def parse_test_res(setting, test_res):
         ) = test_res
         return {
             "train_metric": train_metric,
-            "val_metric": val_metric,
-            "test_metric": test_metric,
-            "another_test_metric": another_test_metric,
-            # "train_logist": train_logist,
-            "lin_prob_val": val_logist,
-            "lin_prob_test": test_logist,
+            "test_metric": another_test_metric,
             "lin_prob_fixed_test": another_test_logist,
-            # "anisotropy": anisotropy,
-            # "intrinsic_dimension": intrinsic_dimension,
+            "anisotropy": anisotropy,
+            "intrinsic_dimension": intrinsic_dimension,
         }
     else:
         raise NotImplementedError
@@ -163,7 +157,9 @@ def run_noise(setting, checkpoint_path, data_conf, model_conf):
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         ))
+        prefix = "ORIG" if prefix == "" else prefix
         print(f"{prefix} DONE")
+        print(metrics)
         for k in metrics:
             res.loc[k, prefix[:-1]] = metrics[k]
     return res
@@ -189,7 +185,7 @@ def run_tpp(setting, checkpoint_path, data_conf, model_conf):
     else:
         raise NotImplementedError
     for n in Ns:
-        for target in ["time", "event"]:
+        for target in ["event", "time"]:
             data_conf.track_metric = "accuracy" if target == "event" else "mse"
             data_conf.features.target_col = f"{n}_{target}"
             trainer = prepare_trainer(setting, checkpoint_path, data_conf, model_conf)
@@ -204,6 +200,7 @@ def run_tpp(setting, checkpoint_path, data_conf, model_conf):
                 (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
             ))
             print(f"{n}_{target} DONE")
+            print(metrics)
             for k in metrics:
                 res.loc[k, f"{n}_{target}"] = metrics[k]
     return res
@@ -215,7 +212,7 @@ def run_all(DATA_C, MODEL_C, device, setting, checkpoint_path):
     model_conf.device = device
     res = []
     for func in [run_tpp, run_noise]: 
-        with log_to_file("tmp", file_lvl="info", cons_lvl="info"):
+        with log_to_file("/dev/null", file_lvl="info", cons_lvl="info"):
             res += [func(
                 setting, 
                 checkpoint_path,
@@ -225,6 +222,18 @@ def run_all(DATA_C, MODEL_C, device, setting, checkpoint_path):
     res = pd.concat(res, axis=1)
     res.to_csv(Path(checkpoint_path).parent / "tpp_noise.csv")
     return res
+
+def parse_seeds(pathes):
+    res = [pd.read_csv(path, index_col=0) for path in pathes]
+    new_df = pd.DataFrame(columns=res[0].index)
+    for col in res[0].columns:
+        for metric in res[0].index:
+            metric_seeds = []
+            for df in res:
+                metric_seeds += [df.loc[metric, col]]
+            new_df.loc[col, metric] = f"{np.mean(metric_seeds).round(4)},{np.std(metric_seeds).round(3)}"
+    print(new_df)
+    return new_df
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("device", default="cuda:0")
@@ -239,4 +248,8 @@ if __name__ == "__main__":
         f"age/logs/CONTRASTIVE_GRU512-32emb/seed_{i}/ckpt/CONTRASTIVE_GRU512-32emb/seed_{i}/epoch__0100.ckpt",
         ] for i in range(3)
     ]
-    run_all(*configurations[args.configuration])
+    res = []
+    for i in range(3):
+        res += [run_all(*configurations[i])]
+    print(res)
+    parse_seeds([f"age/logs/CONTRASTIVE_GRU512-32emb/seed_{i}/ckpt/CONTRASTIVE_GRU512-32emb/seed_{i}/epoch__0100.ckpt" for i in range(3)])
