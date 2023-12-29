@@ -21,7 +21,7 @@ esac
 # DATA_C="../configs/data_configs/contrastive/$DATASET.py"
 # MODEL_C="../configs/model_configs/contrastive/$DATASET.py"
 # LOG_D="./$DATASET/logs/"
-EPOCHS=30
+EPOCHS=100
 DEVICE='cuda'
 NAME='NEW_CONTRASTIVE-GRU512-4emb'
 DATA_C="../configs/data_configs/contrastive/pendulum.py"

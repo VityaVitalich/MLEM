@@ -288,7 +288,7 @@ class MSETrainerContrastive(SimpleTrainerContrastive):
         score = mean_squared_error(target, pred)
         return score
 
-    def get_model(self):
+    def get_model(self, n_classes=0):
         args = params.copy()
         args["objective"] = "regression"
         return LGBMRegressor(verbosity=-1, **args), LinearRegression()
