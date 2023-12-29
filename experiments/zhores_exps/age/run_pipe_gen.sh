@@ -2,7 +2,7 @@
 
 EPOCHS=1
 DEVICE="cuda:0"
-NAME='GEN_GRU512-TR128-3l-2h-NO-CLIP'
+NAME='GEN-NO-CLIP'
 DATA_C="../configs/data_configs/gen/age.py"
 MODEL_C="../configs/model_configs/gen/age.py"
 LOG_D="./age/logs/"
