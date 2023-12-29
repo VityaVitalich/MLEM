@@ -2,7 +2,7 @@
 
 EPOCHS=1
 DEVICE="cuda:0"
-NAME='GC'
+NAME='GC-NO-CLIP'
 DATA_C="../configs/data_configs/contrastive/alpha.py"
 MODEL_C="../configs/model_configs/GC/alpha.py"
 LOG_D="./alpha/logs/"
