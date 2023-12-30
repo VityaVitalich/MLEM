@@ -3,7 +3,7 @@
 EPOCHS=100
 DEVICE="cuda:0"
 NAME='Sigmoid'
-DATA_C="../configs/data_configs/age.py"
+DATA_C="../configs/data_configs/sigmoid/age.py"
 MODEL_C="../configs/model_configs/sigmoid/age.py"
 LOG_D="./age/logs/"
 FT=1
