@@ -9,7 +9,7 @@ def data_configs():
     ########## DATA ##############
 
     config.train_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "age"
         / "data"
@@ -17,7 +17,7 @@ def data_configs():
     )
 
     config.test_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "age"
         / "data"
