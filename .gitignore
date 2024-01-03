@@ -3,6 +3,8 @@ data
 logs/
 test_logs/
 ckpt_test/
+ckpt_dima/
+logs_dima/
 ckpt/
 checkpoints/
 test/
