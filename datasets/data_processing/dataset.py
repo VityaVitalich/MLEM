@@ -68,6 +68,8 @@ class SequenceDataset(Dataset):
                 .config("spark.executor.extraJavaOptions", "-Xss512m") \
                 .config("spark.driver.memory", "64g") \
                 .config("spark.executor.memory", "64g") \
+                .config("spark.driver.memoryOverhead", "16g") \
+                .config("spark.executor.memoryOverhead", "16g") \
                 .getOrCreate()
         train_data = self.read_preprocessed_data(data_path)
         test_data = None
