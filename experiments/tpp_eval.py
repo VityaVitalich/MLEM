@@ -252,4 +252,4 @@ if __name__ == "__main__":
     for i in range(3):
         res += [run_all(*configurations[i])]
     print(res)
-    parse_seeds([f"age/logs/CONTRASTIVE_GRU512-32emb/seed_{i}/ckpt/CONTRASTIVE_GRU512-32emb/seed_{i}/epoch__0100.ckpt" for i in range(3)])
+    parse_seeds([f"age/logs/CONTRASTIVE_GRU512-32emb/seed_{i}/ckpt/CONTRASTIVE_GRU512-32emb/seed_{i}/tpp_noise.csv" for i in range(3)])

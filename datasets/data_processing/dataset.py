@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 from utils import read_yaml, read_pyarrow_file
 from pathlib import Path
 from pyspark.sql import SparkSession
-from pyspark.sql import Window
+from pyspark.sql import Window, types
 from pyspark.sql import functions as F
 from random import Random
 import numpy as np
@@ -29,6 +29,7 @@ class SequenceDataset(Dataset):
         data_path = self.cfg["data_path"]
         self.train_path = Path(data_path).parent / "train.parquet"
         self.test_path = Path(data_path).parent / "test.parquet"
+        assert isinstance(self.cfg["target_columns"], list), "target_columns has to be a list"
 
     def get_dataset(self, split="train", labeled_only=False):
         assert split in ["train", "test"]
@@ -38,10 +39,10 @@ class SequenceDataset(Dataset):
             )
             if labeled_only:
                 data = (
-                    rec for rec in data if rec[self.cfg["target_column"]] is not None
+                    rec for rec in data if rec[self.cfg["target_columns"][0]] is not None
                 )
                 data = (
-                    rec for rec in data if not np.isnan(rec[self.cfg["target_column"]])
+                    rec for rec in data if not np.isnan(rec[self.cfg["target_columns"][0]])
                 )
         elif split == "test":
             data = read_pyarrow_file(
@@ -54,23 +55,39 @@ class SequenceDataset(Dataset):
         data_path = self.cfg["data_path"]
         train_path = Path(data_path).parent / "train.parquet"
         test_path = Path(data_path).parent / "test.parquet"
-        # val_path = Path(data_path).parent / "val.parquet"
 
         if train_path.exists():
             print(f"{str(train_path)} already exists.")
             return self
+        if test_path.exists():
+            print(f"{str(test_path)} already exists.")
+            return self
         if self.spark is None or self.spark._jsc.sc().isStopped():
-            self.spark = SparkSession.builder.getOrCreate()
-
-        data = self.read_preprocessed_data(data_path)
-        if not self.is_collected_list(data):
+            self.spark = SparkSession.builder \
+                .config("spark.driver.extraJavaOptions", "-Xss512m") \
+                .config("spark.executor.extraJavaOptions", "-Xss512m") \
+                .config("spark.driver.memory", "64g") \
+                .config("spark.executor.memory", "64g") \
+                .getOrCreate()
+        train_data = self.read_preprocessed_data(data_path)
+        test_data = None
+        if self.cfg.get("test_path") and Path(self.cfg["test_path"]).exists():
+            print("Using separate test.")
+            test_data = self.read_preprocessed_data(self.cfg["test_path"])
+        train_data, test_data = self.process_time([train_data, test_data])
+        train_data.show()
+        if not self.is_collected_list(train_data):
             print("Collecting lists...")
-            data = self.collect_lists(data)
-
-        train, test = self.split_dataset(data, shuffle)
-        self.save_features(train, train_path)
-        self.save_features(test, test_path)
-        # self.save_features(val, val_path)
+            train_data = self.collect_lists(train_data)
+            test_data = self.collect_lists(test_data) if test_data else test_data
+        if test_data is None:
+            print("Splitting data into train and test...")
+            train_data, test_data = self.split_dataset(train_data, shuffle)
+        # train_data = train_data.repartition(100)
+        # test_data = test_data.repartition(100)
+        test_data.show(20)
+        self.save_features(train_data, train_path)
+        self.save_features(test_data, test_path)
         self.spark.stop()
 
         return self
@@ -79,7 +96,7 @@ class SequenceDataset(Dataset):
         if self.spark is None or self.spark._jsc.sc().isStopped():
             self.spark = SparkSession.builder.getOrCreate()
         spark = self.spark
-        s_clients = all_data.filter(F.col(self.cfg["target_column"]).isNotNull())
+        s_clients = all_data.filter(F.col(self.cfg["target_columns"][0]).isNotNull())
         s_clients = set(
             cl[0]
             for cl in s_clients.select(self.cfg["index_column"]).distinct().collect()
@@ -139,8 +156,8 @@ class SequenceDataset(Dataset):
         # Input: pyspark df
         # Output: pyspark df, each row - one sequence
         col_id = self.cfg["index_column"]
-        target_col = self.cfg["target_column"]
-        col_list = [col for col in df.columns if col not in [col_id, target_col]]
+        target_cols = self.cfg["target_columns"]
+        col_list = [col for col in df.columns if col not in [col_id, *target_cols]]
         df = df.withColumn(
             "trx_count", F.count(F.lit(1)).over(Window.partitionBy(col_id))
         ).withColumn(
@@ -156,6 +173,29 @@ class SequenceDataset(Dataset):
             )
         df = df.filter("_rn = trx_count").drop("_rn")
         return df
+
+    def process_time(self, dfs):
+        print(f"Rename column {self.cfg['time_column']} with 'event_time'")
+        self.print_stats(dfs)
+        for i in range(len(dfs)):
+            df = dfs[i]
+            if df:
+                df = df.withColumnRenamed(self.cfg["time_column"], "event_time")
+                if isinstance(df.schema["event_time"].dataType, types.StringType):
+                    raise TypeError("Bad time type(str)")
+                    df = df.withColumn("event_time", F.unix_timestamp(
+                        "event_time", "yyyy-MM-dd").cast(types.FloatType())
+                    )
+                dfs[i] = df
+        self.cfg['time_column'] = "event_time"
+        self.print_stats(dfs)
+        return dfs
+    
+    def print_stats(self, dfs):
+        for df in dfs:
+            if df:
+                print("Min/Max time:", df.agg(F.min(self.cfg['time_column']), F.max(self.cfg['time_column'])).first())
+        return dfs
 
     def explode_list(self, df):
         # Input: pyspark df
@@ -279,7 +319,7 @@ class SberSequenceDataset(SequenceDataset):
 
 
 if __name__ == "__main__":
-    cfg_path = "/home/dev/2023_03/Datasets/aevent_seq/datasets/configs/taobao_regr.yaml"
+    cfg_path = "/home/dev/2023_03/Datasets/event_seq/datasets/configs/amex.yaml"
     sq = SequenceDataset(cfg_path)
     sq.load_dataset()
     print(next(sq.get_dataset(split="train")))
