@@ -27,7 +27,7 @@ from ..models.model_utils import (
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
 
-params = {
+params_fast = {
     "n_estimators": 200,
     "boosting_type": "gbdt",
     "subsample": 0.5,
@@ -39,7 +39,7 @@ params = {
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
     "random_state": 42,
-    "n_jobs": 8,
+    "n_jobs": 16,
     "reg_alpha": None,
     "reg_lambda": None,
     "colsample_bytree": None,
@@ -47,6 +47,28 @@ params = {
     "verbosity": -1,
 }
 
+params_strong = {
+    "n_estimators": 1000,
+    "boosting_type": "gbdt",
+    # "objective": "binary",
+    # "metric": "auc",
+    "subsample": 0.75,
+    "subsample_freq": 1,
+    "learning_rate": 0.02,
+    "feature_fraction": 0.75,
+    "max_depth": 12,
+    "lambda_l1": 1,
+    "lambda_l2": 1,
+    "min_data_in_leaf": 50,
+    "random_state": 42,
+    "n_jobs": 16,
+    "num_leaves": 50,
+    "reg_alpha": None,
+    "reg_lambda": None,
+    "colsample_bytree": None,
+    "min_child_samples": None,
+    "verbosity": -1,
+}
 
 logger = logging.getLogger("event_seq")
 
@@ -204,20 +226,26 @@ class GenTrainer(BaseTrainer):
             metric = self._data_conf.track_metric
         else:
             raise NotImplementedError("no metric name provided")
-
+        
+        if np.unique(train_labels).shape[0] < 15:
+            params = params_strong.copy()
+            logist_params = {"solver": "saga"}
+        else:
+            params = params_fast
+            logist_params = {"n_jobs":-1, "multi_class": "ovr", "solver": "saga"}
         if metric == "roc_auc":
             params["objective"] = "binary"
             params["metric"] = "auc"
             model = LGBMClassifier(
                 **params,
             )
-            lin_prob = LogisticRegression(max_iter=5000)
+            lin_prob = LogisticRegression(**logist_params)
         elif metric == "accuracy":
             params["objective"] = "multiclass"
             model = LGBMClassifier(
                 **params,
             )
-            lin_prob = LogisticRegression(max_iter=5000)
+            lin_prob = LogisticRegression(**logist_params)
         elif metric == "mse":
             params["objective"] = "regression"
             model = LGBMRegressor()

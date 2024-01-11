@@ -16,6 +16,11 @@ from src.trainers.trainer_contrastive import (
     SimpleTrainerContrastive,
     MSETrainerContrastive
 )
+from experiments.pipeline_supervised import (
+    GenSupervisedPipeline,
+    SupervisedPipeline,
+    get_trainer_class as get_supervised_trainer_class,
+)
 import param_grids
 from experiments.utils import get_parser, read_config
 from experiments.pipeline import Pipeline
@@ -27,6 +32,33 @@ tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
 
 class ContrastivePipeline(Pipeline):
+    def __init__(
+        self,
+        run_name,
+        device,
+        total_epochs,
+        data_conf,
+        model_conf,
+        TrainerClass,
+        resume,
+        log_dir,
+        console_lvl="warning",
+        file_lvl="info",
+        FT_on_labeled=False,
+    ):
+        super().__init__(
+            run_name,
+            device,
+            total_epochs,
+            data_conf,
+            model_conf,
+            TrainerClass,
+            resume,
+            log_dir,
+            console_lvl,
+            file_lvl,
+        )
+        self.FT_on_labeled = FT_on_labeled
     def _train_eval(self, run_name, data_conf, model_conf):
         """
         Returns metrics dict like {"train_acc": metric_value, "val_acc": metric_value}
@@ -71,6 +103,7 @@ class ContrastivePipeline(Pipeline):
 
         ### RUN TRAINING ###
         trainer.run()
+        trainer.load_best_model()
 
         (
             train_metric,
@@ -83,7 +116,8 @@ class ContrastivePipeline(Pipeline):
             train_supervised_loader,
             (valid_supervised_loader, test_supervised_loader, another_test_loader),
         )
-        return {
+
+        metrics = {
             "train_metric": train_metric,
             "val_metric": val_metric,
             "test_metric": test_metric,
@@ -95,6 +129,89 @@ class ContrastivePipeline(Pipeline):
             "anisotropy": anisotropy,
             "intrinsic_dimension": intrinsic_dimension,
         }
+
+        true_train_path = data_conf.train_path
+        self.data_conf.FT_train_path = true_train_path
+
+        if self.FT_on_labeled:
+            resume_path = trainer.best_checkpoint()
+            self.model_conf.model_name = "GRUClassifier"
+            self.model_conf.predict_head = "Linear"
+            if self.data_conf.track_metric == 'mse':
+                self.model_conf.loss.loss_fn = "MSE"
+            else:
+                self.model_conf.loss.loss_fn = "CrossEntropy"
+
+            res_ft = self.run_finetuning(run_name, resume_path, trainer._ckpt_dir)
+            metrics.update(res_ft)
+
+        return metrics
+
+    def run_finetuning(self, run_name, resume_path, ckpt_dir):
+        self.data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
+        self.data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
+        train = pd.read_parquet(self.data_conf.FT_train_path)
+        train = train[~train[self.data_conf.features.target_col].isna()]
+
+        ### Create Valid Loader to use in every run ###
+        num_valid_rows = int(len(train) * 0.1)
+        valid = train.tail(num_valid_rows)
+        valid_path = ckpt_dir / f"{run_name}" / "valid_subset.parquet"
+        valid.to_parquet(valid_path)
+        data_conf = self.data_conf
+        data_conf.valid_size = 0.0
+        data_conf.train_path = valid_path
+        valid_loader, _ = create_data_loaders(
+            data_conf, supervised=True, pinch_test=False
+        )
+        ### Create Train path with only labeled samples and not including valid ###
+        train_supervised = train.head(len(train) - num_valid_rows)
+        train_supervised_path = ckpt_dir / f"{run_name}" / "train_sup_subset.parquet"
+        train_supervised.to_parquet(train_supervised_path)
+        self.data_conf.FT_train_path = train_supervised_path
+
+        res_ft = {}
+        for observed_real_data_num in self.data_conf["FT_number_objects"]:
+            subset_path = self.create_subset(ckpt_dir, run_name, observed_real_data_num)
+            self.data_conf.train_path = subset_path
+            self.data_conf.valid_size = 0.0
+
+            log_dir = self.log_dir
+            trainer_class = self.TrainerClass
+            super_pipe = GenSupervisedPipeline(
+                run_name=f"{run_name}_FT_{observed_real_data_num}",
+                device=self.device,
+                total_epochs=self.data_conf.post_gen_FT_epochs,
+                data_conf=self.data_conf,
+                model_conf=self.model_conf,
+                TrainerClass=trainer_class,
+                resume=resume_path,
+                log_dir=log_dir,
+                console_lvl=self.console_lvl,
+                file_lvl=self.file_lvl,
+                valid_supervised_loader=valid_loader,
+            )
+
+            results = super_pipe.run_experiment(
+                run_name=f"{run_name}_FT_{observed_real_data_num}",
+                conf=self.data_conf,
+                model_conf=self.model_conf,
+                seed=0,
+            )
+
+            for k, v in results.items():
+                res_ft[f"{k}_FT_{observed_real_data_num}"] = v
+
+        return res_ft
+
+    def create_subset(self, ckpt_dir, run_name, observed_real_data_num):
+        train = pd.read_parquet(self.data_conf.FT_train_path)
+        if observed_real_data_num == "all":
+            observed_real_data_num = len(train)
+        subset = train.head(observed_real_data_num)
+        subset_path = ckpt_dir / f"{run_name}" / "subset.parquet"
+        subset.to_parquet(subset_path)
+        return subset_path
 
     def _param_grid(self, trial, model_conf, data_conf):
         return getattr(param_grids, self.grid_name)(trial, model_conf, data_conf)
@@ -138,6 +255,12 @@ if __name__ == "__main__":
         default="",
         type=str,
     )
+    parser.add_argument(
+        "--FT",
+        help="if to Fine-tune after Pre-Train",
+        default=0,
+        type=int,
+    )
     args = parser.parse_args()
     ### TRAINING SETUP ###
     data_conf = read_config(args.data_conf, "data_configs")
@@ -152,9 +275,9 @@ if __name__ == "__main__":
         TrainerClass=TrainerClass,
         resume=args.resume,
         log_dir=args.log_dir,
-        grid_name=args.grid_name,
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
+        FT_on_labeled=args.FT
     )
     request = [
         {

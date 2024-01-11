@@ -5,7 +5,7 @@ def model_configs():
     config = ml_collections.ConfigDict()
 
     config.model_name = "GRUClassifier"
-    config.predict_head = "Linear"  # Linear or Identity
+    config.predict_head = "Identity"  # Linear or Identity
 
     # Vitya NIPS
     config.preENC_TR = False
@@ -14,7 +14,7 @@ def model_configs():
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
     config.features_emb_dim = 4
-    config.use_numeric_emb = False
+    config.use_numeric_emb = True
     config.numeric_emb_size = 4
     config.encoder_feature_mixer = False
 
@@ -29,7 +29,7 @@ def model_configs():
 
     ### TIME DELTA ###
     config.use_deltas = True
-    config.time_embedding = 2
+    config.time_embedding = 0
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
@@ -51,11 +51,11 @@ def model_configs():
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
-    loss.loss_fn = "MSE"
-    loss.margin = 0.5  # ContrastiveLoss only
+    loss.loss_fn = "ContrastiveLoss"
+    loss.margin = 0.87  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.projector = "Identity"  # all losses
-    loss.project_dim = 32  # all losses
+    loss.projector = "MLP"  # all losses
+    loss.project_dim = 64  # all losses
     loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only

@@ -13,22 +13,23 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 32
+    config.features_emb_dim = 4
     config.use_numeric_emb = True
-    config.numeric_emb_size = 32
+    config.numeric_emb_size = 4
     config.encoder_feature_mixer = False
     config.decoder_feature_mixer = False
 
     ### ENCODER ###
-    config.encoder = "GRU"
+    config.encoder = "GRU"  # GRU LSTM TR
     config.encoder_hidden = 512
     config.encoder_num_layers = 1
 
     ### TRANSFORMER ENCODER ###
     config.encoder_num_heads = 1
+    config.encoder_dim_ff = 256
 
     ### DECODER ###
-    config.decoder = "TR"
+    config.decoder = "TR"  # GRU TR
     config.decoder_hidden = 128
     config.decoder_num_layers = 3
 
@@ -58,11 +59,14 @@ def model_configs():
     config.use_log_delta = False
     config.delta_weight = 10
 
+    ### DISCRIMINATOR ###
+    config.use_discriminator = False
+
     ### LOSS ###
     config.mse_weight = 1
-    config.CE_weight = 1
-    config.l1_weight = 0.0001
-    config.gen_emb_weight = 10
+    config.CE_weight = 1  # B x L x D
+    config.l1_weight = 0.001  # l1 loss H
+    config.gen_emb_weight = 1
     config.D_weight = 20
 
     ### DEVICE + OPTIMIZER ###
@@ -72,9 +76,8 @@ def model_configs():
     config.weight_decay = 1e-3
     config.cv_splits = 5
 
-    config.use_discriminator = False
+    config.gen_len = 50
     config.comments = ""
-    config.gen_len = 500
     config.genval = genval_config()
     config.D = d_config()
 
@@ -96,14 +99,21 @@ def model_configs():
     tppvae.joint_layer_num = 2
     tppvae.num_layers_enc = 1
 
+    ### TPP DDPM ###
+    tppddpm = config.tppddpm = ml_collections.ConfigDict()
+    tppddpm.hidden_rnn = 128
+    tppddpm.denoise_layer_num = 2
+    tppddpm.num_layers_enc = 1
+    tppddpm.diff_steps = 100
+
     ### CONTRASTIVE LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
+    loss.loss_fn = "ContrastiveLoss"
+    loss.margin = 0.87  # ContrastiveLoss only
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
-    loss.margin = 0.5
-    loss.projector = "Identity"  # all losses
-    loss.project_dim = 32  # all losses
+    loss.projector = "MLP"  # all losses
+    loss.project_dim = 64  # all losses
     loss.temperature = 0.1  # all except ContrastiveLoss
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only
@@ -124,27 +134,27 @@ def genval_config():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 32
-    config.use_numeric_emb = True
-    config.numeric_emb_size = 32
+    config.features_emb_dim = 8
+    config.use_numeric_emb = False
+    config.numeric_emb_size = 1
     config.encoder_feature_mixer = False
 
     ### RNN + LINEAR ###
-    config.encoder_hidden = 512
-    config.encoder_num_layers = 1
+    config.classifier_gru_hidden_dim = 64
 
     ### TIME DELTA ###
     config.use_deltas = True
     config.time_embedding = 0
 
     ### TRANSFORMER ###
-    config.preENC_TR = False  # IDnetity or TransformerEncoder
+    config.encoder = "Identity"  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
-    config.pre_encoder_norm = "Identity"
-    config.post_encoder_norm = "Identity"
+    config.pre_gru_norm = "Identity"
+    config.post_gru_norm = "LayerNorm"
+    config.encoder_norm = "Identity"
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.0
@@ -158,7 +168,7 @@ def genval_config():
     conv.proj = "Linear"
 
     ### ACTIVATION ###
-    config.activation = "LeakyReLU"
+    config.activation = "ReLU"
 
     ### TIME TRICKS ###
     config.num_time_blocks = [
@@ -175,7 +185,7 @@ def genval_config():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "MSE"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
 
     ### DEVICE + OPTIMIZER ###
@@ -183,8 +193,9 @@ def genval_config():
 
     config.lr = 3e-3
     config.weight_decay = 1e-3
-    config.cv_splits = 5
+    config.cv_splits = 5  # not needed
 
+    config.gen_len = 100  #
     config.comments = ""
     return config
 
@@ -205,26 +216,26 @@ def d_config():
     config.numeric_emb_size = 8
     config.encoder_feature_mixer = False
 
+    ### RNN + LINEAR ###
+    config.classifier_gru_hidden_dim = 32
+    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
+
     ### TIME DELTA ###
     config.use_deltas = True
     config.time_embedding = 2
 
-    ### RNN + LINEAR ###
-    config.classifier_gru_hidden_dim = 64
-    config.classifier_linear_hidden_dim = 300  # Used only in MTAN
-
     ### TRANSFORMER ###
-    config.encoder = "TransformerEncoder"  # IDnetity or TransformerEncoder
+    config.encoder = "Identity"  # IDnetity or TransformerEncoder
     config.num_enc_layers = 1
     config.num_heads_enc = 1
 
     ### NORMALIZATIONS ###
     config.pre_gru_norm = "Identity"
-    config.post_gru_norm = "LayerNorm"
-    config.encoder_norm = "LayerNorm"
+    config.post_gru_norm = "Identity"
+    config.encoder_norm = "Identity"
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.3
+    config.after_enc_dropout = 0.0
 
     ### CONVOLUTIONAL ###
     conv = config.conv = ml_collections.ConfigDict()
@@ -246,8 +257,11 @@ def d_config():
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
     loss.neg_count = 5
-    loss.loss_fn = "CrossEntropy"  # "ContrastiveLoss" or CrossEntropy
+    loss.loss_fn = "MSE"  # "ContrastiveLoss" or CrossEntropy
     loss.margin = 0.5
+
+    ### STEP EVERY ###
+    config.discriminator_step_every = 10
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"

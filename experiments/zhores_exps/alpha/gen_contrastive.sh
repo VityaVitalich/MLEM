@@ -8,11 +8,11 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/output_1.txt
+#SBATCH --output=outputs/alpha_gen_contrastive.txt
 
 #SBATCH --time=6-00
 
-#SBATCH --mem=100G
+#SBATCH --mem=200G
 
 #SBATCH --nodes=1
 

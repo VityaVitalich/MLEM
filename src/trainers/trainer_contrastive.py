@@ -16,27 +16,25 @@ from .base_trainer import BaseTrainer
 
 logger = logging.getLogger("event_seq")
 
-# params = {
-#     "n_estimators": 500,
-#     "boosting_type": "gbdt",
-#     # "objective": "binary",
-#     # "metric": "auc",
-#     "subsample": 0.5,
-#     "subsample_freq": 1,
-#     "learning_rate": 0.02,
-#     "feature_fraction": 0.75,
-#     "max_depth": 6,
-#     "lambda_l1": 1,
-#     "lambda_l2": 1,
-#     "min_data_in_leaf": 50,
-#     "random_state": 42,
-#     "n_jobs": 8,
-#     "reg_alpha": None,
-#     "reg_lambda": None,
-#     "colsample_bytree": None,
-#     "min_child_samples": None,
-# }
-
+params_fast = {
+    "n_estimators": 200,
+    "boosting_type": "gbdt",
+    "subsample": 0.5,
+    "subsample_freq": 1,
+    "learning_rate": 0.02,
+    "feature_fraction": 0.75,
+    "max_depth": 6,
+    "lambda_l1": 1,
+    "lambda_l2": 1,
+    "min_data_in_leaf": 50,
+    "random_state": 42,
+    "n_jobs": 16,
+    "reg_alpha": None,
+    "reg_lambda": None,
+    "colsample_bytree": None,
+    "min_child_samples": None,
+    "verbosity": -1,
+}
 # taken from coles age
 params = {
     "n_estimators": 1000,
@@ -58,6 +56,7 @@ params = {
     "reg_lambda": None,
     "colsample_bytree": None,
     "min_child_samples": None,
+    "verbosity":-1,
 }
 
 
@@ -216,7 +215,7 @@ class SimpleTrainerContrastive(BaseTrainer):
         train_emb_subset = train_embeddings
         train_labels_subset = train_labels
 
-        model, log_model = self.get_model()
+        model, log_model = self.get_model(np.unique(train_labels).shape[0])
         preprocessor = MaxAbsScaler()
 
         train_emb_subset = preprocessor.fit_transform(train_emb_subset)
@@ -258,24 +257,30 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
         auc_score = roc_auc_score(target, pred[:, 1])
         return auc_score
 
-    def get_model(self):
+    def get_model(self, n_classes=2):
         args = params.copy()
         args["objective"] = "binary"
         args["metric"] = "auc"
-        return LGBMClassifier(verbosity=-1, **args), LogisticRegression(solver="saga")
+        return LGBMClassifier(**args), LogisticRegression(solver="saga")
 
 
 class AccuracyTrainerContrastive(SimpleTrainerContrastive):
     def get_metric(self, model, x, target):
         pred = model.predict(x)
-        auc_score = accuracy_score(target, pred)
-        return auc_score
+        acc_score = accuracy_score(target, pred)
+        return acc_score
 
-    def get_model(self):
-        args = params.copy()
-        args["objective"] = "multiclass"
-        args["metric"] = "multi_error"
-        return LGBMClassifier(verbosity=-1, **args), LogisticRegression(solver="saga")
+    def get_model(self, n_classes=0):
+        if n_classes < 15:
+            args = params.copy()
+            logistic_params = {"solver": "saga"}
+        else:
+            print("Using fast algos because n_classes too big")
+            args = params_fast.copy()
+            logistic_params = {"n_jobs":-1, "multi_class": "ovr", "solver": "saga"}
+        # args["objective"] = "multiclass"
+        # args["metric"] = "multi_error"
+        return LGBMClassifier(**args), LogisticRegression(**logistic_params)
 
 class MSETrainerContrastive(SimpleTrainerContrastive):
     def get_metric(self, model, x, target):
@@ -283,7 +288,8 @@ class MSETrainerContrastive(SimpleTrainerContrastive):
         score = mean_squared_error(target, pred)
         return score
 
-    def get_model(self):
+    def get_model(self, n_classes=0):
         args = params.copy()
         args["objective"] = "regression"
-        return LGBMRegressor(verbosity=-1, **args), LinearRegression()
+        args['verbosity'] = -1
+        return LGBMRegressor(**args), LinearRegression()

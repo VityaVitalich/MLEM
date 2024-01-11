@@ -12,7 +12,7 @@ figs/
 .vscode/
 .vim
 experiments/example.db
-
+logs_coord/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

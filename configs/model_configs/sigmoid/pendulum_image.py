@@ -65,7 +65,7 @@ def model_configs():
     config.l1_weight = 0.001  # l1 loss H
     config.gen_emb_weight = 1
     config.reconstruction_weight = 1
-    config.contrastive_weight = 100
+    config.contrastive_weight = 10
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"
@@ -152,6 +152,7 @@ def contrastive_configs():
     loss.angular_margin = 0.3  # InfoNCELoss only
     loss.q = 0.03  # RINCELoss only
     loss.lam = 0.01  # RINCELoss only
+
 
     ### DEVICE + OPTIMIZER ###
     config.device = "cuda"

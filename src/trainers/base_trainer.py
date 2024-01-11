@@ -256,7 +256,7 @@ class BaseTrainer:
             ckpt_fname: path to checkpoint.
         """
 
-        ckpt = torch.load(ckpt_fname)
+        ckpt = torch.load(ckpt_fname, map_location=self._device)
 
         if "model" in ckpt:
             msg = self._model.load_state_dict(ckpt["model"], strict=False)
@@ -315,7 +315,7 @@ class BaseTrainer:
             pbar.set_postfix_str(f"Loss: {loss_ema:.4g}")
 
             # CLIP GRADIENTS
-          #  torch.nn.utils.clip_grad_norm_(self._model.parameters(), 5)
+            # torch.nn.utils.clip_grad_norm_(self._model.parameters(), 5)
             self._opt.step()
 
             self._last_iter += 1

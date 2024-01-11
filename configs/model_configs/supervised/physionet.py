@@ -29,11 +29,11 @@ def model_configs():
 
     ### TIME DELTA ###
     config.use_deltas = True
-    config.time_embedding = 2
+    config.time_embedding = 0
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
-    config.post_encoder_norm = "Identity"
+    config.post_encoder_norm = "LayerNorm"
     config.encoder_norm = "Identity"
     # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 

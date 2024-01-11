@@ -28,7 +28,9 @@ from experiments.pipeline_supervised import (
 )
 from src.trainers.randomness import seed_everything
 
-
+from functools import partialmethod
+from tqdm import tqdm
+tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
 class GenerativePipeline(Pipeline):
     def __init__(
@@ -255,14 +257,16 @@ class GenerativePipeline(Pipeline):
     def run_finetuning(self, run_name, resume_path, ckpt_dir):
         self.data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
         self.data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
+        self.data_conf.load_distributed = False
         train = pd.read_parquet(self.data_conf.FT_train_path)
         train = train[~train[self.data_conf.features.target_col].isna()]
 
         ### Create Valid Loader to use in every run ###
-        num_valid_rows = int(len(train) * 0.1)
+        num_valid_rows = int(len(train) * self.data_conf.valid_size)
         valid = train.tail(num_valid_rows)
         valid_path = ckpt_dir / f"{run_name}" / "valid_subset.parquet"
         valid.to_parquet(valid_path)
+        data_conf = self.data_conf
         data_conf.valid_size = 0.0
         data_conf.train_path = valid_path
         valid_loader, _ = create_data_loaders(
@@ -385,8 +389,8 @@ if __name__ == "__main__":
         FT_on_labeled=args.FT,
     )
     request = {"classifier_gru_hidden_dim": 16}
-    metrics = pipeline.run_experiment()
-   # metrics = pipeline.do_n_runs()
+    #metrics = pipeline.run_experiment(seed=1)
+    metrics = pipeline.do_n_runs()
     # metrics = pipeline.optuna_setup(
     #     "val_metric",
     #     request_list=[request],

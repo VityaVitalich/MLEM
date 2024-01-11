@@ -55,7 +55,7 @@ class EmbeddingPredictor(nn.Module):
                 shifted_labels = padded_batch.payload[name].long()  # [:, 1:]
                 embed_losses[name] = (
                     self.criterion(dist.permute(0, 2, 1), shifted_labels)
-                    .sum(dim=1)
+                    .sum(dim=1) # changed to mean
                     .mean()
                 )
 

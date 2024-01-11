@@ -130,10 +130,13 @@ class SigmoidTrainer(GenTrainer):
                 input_batch
             ).detach()
 
-        z_recon = F.normalize(model_output["latent"])
-        z_contrastive = F.normalize(contrastive_output)
-       # z_recon = model_output['latent']
-        #z_contrastive = contrastive_output
+        if ('rosbank' in str(self._data_conf.train_path)) or ('physionet' in str(self._data_conf.train_path)):
+            z_recon = model_output['latent']
+            z_contrastive = contrastive_output
+        else:
+            z_recon = F.normalize(model_output["latent"])
+            z_contrastive = F.normalize(contrastive_output)
+       
 
         logits = (z_recon @ z_contrastive.T) * self.temp + self.bias
         m1_diag1 = -torch.ones_like(logits) + 2 * torch.eye(logits.size(0)).to(

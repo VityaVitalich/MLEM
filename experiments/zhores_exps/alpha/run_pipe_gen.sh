@@ -2,7 +2,7 @@
 
 EPOCHS=40
 DEVICE="cuda:0"
-NAME='GEN_GRU512-TR128-3l-2h'
+NAME='GEN-NO-CLIP'
 DATA_C="../configs/data_configs/alpha.py"
 MODEL_C="../configs/model_configs/gen/alpha.py"
 LOG_D="./alpha/logs/"
@@ -11,7 +11,7 @@ GENVAL_EPOCH=10
 RECON_VAL=0
 RECON_VAL_EPOCH=10
 DRAW=0
-FT=1
+FT=0
 
 
 python pipeline_gen.py \

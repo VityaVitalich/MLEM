@@ -2,8 +2,8 @@
 
 EPOCHS=100
 DEVICE="cuda:0"
-NAME='Sigmoid_GRU512_TR128-3l-2h'
-DATA_C="../configs/data_configs/age.py"
+NAME='Sigmoid'
+DATA_C="../configs/data_configs/sigmoid/age.py"
 MODEL_C="../configs/model_configs/sigmoid/age.py"
 LOG_D="./age/logs/"
 FT=1
