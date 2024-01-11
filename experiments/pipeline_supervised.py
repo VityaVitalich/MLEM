@@ -18,7 +18,9 @@ from src.trainers.trainer_supervised import (
 )
 from experiments.utils import get_parser, read_config
 from experiments.pipeline import Pipeline
-
+from functools import partialmethod
+from tqdm import tqdm
+tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
 class SupervisedPipeline(Pipeline):
     def _train_eval(self, run_name, data_conf, model_conf):
