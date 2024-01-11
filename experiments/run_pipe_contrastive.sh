@@ -21,13 +21,13 @@ esac
 # DATA_C="../configs/data_configs/contrastive/$DATASET.py"
 # MODEL_C="../configs/model_configs/contrastive/$DATASET.py"
 # LOG_D="./$DATASET/logs/"
-EPOCHS=100
+EPOCHS=70
 DEVICE='cuda'
-NAME='NEW_CONTRASTIVE-GRU512-4emb'
-DATA_C="../configs/data_configs/contrastive/pendulum.py"
-MODEL_C="../configs/model_configs/contrastive/pendulum.py"
-LOG_D="./pendulum/logs/"
-GRID_NAME=''
+NAME='COORD_100K_CONTRASTIVE'
+DATA_C="../configs/data_configs/contrastive/pendulum_coord.py"
+MODEL_C="../configs/model_configs/contrastive/pendulum_coord.py"
+LOG_D="./pendulum/logs_coord/"
+FT=0
 
 python pipeline_contrastive.py \
     --run-name=$NAME \
@@ -36,5 +36,5 @@ python pipeline_contrastive.py \
     --device=$DEVICE \
     --log-dir=$LOG_D \
     --total-epochs=$EPOCHS \
-    --grid-name=$GRID_NAME \
-    --console-lvl="info" 
+    --console-lvl="info" \
+    --FT=$FT 

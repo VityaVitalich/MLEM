@@ -182,6 +182,14 @@ def get_parser():
         default=3,
         type=int,
     )
+    parser.add_argument(
+        "--resume_list",
+        action='append',
+        help='list of checkpoints',
+        default=None,
+        type=str
+    )
+    print(parser)
     return parser
 
 

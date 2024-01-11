@@ -231,7 +231,7 @@ class GenTrainer(BaseTrainer):
             params = params_strong.copy()
             logist_params = {"solver": "saga"}
         else:
-            params = {params_fast}
+            params = params_fast
             logist_params = {"n_jobs":-1, "multi_class": "ovr", "solver": "saga"}
         if metric == "roc_auc":
             params["objective"] = "binary"

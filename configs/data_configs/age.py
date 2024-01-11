@@ -38,7 +38,7 @@ def data_configs():
     # )
     config.load_distributed = False
     config.FT_number_objects = [1000, "all"]
-    config.post_gen_FT_epochs = 20
+    config.post_gen_FT_epochs = 10
     config.pre_trained_contrastive_path = "age/logs/CONTRASTIVE_GRU512-32emb/seed_2/ckpt/CONTRASTIVE_GRU512-32emb/seed_2/epoch__0100.ckpt"
     config.track_metric = "accuracy"
 
@@ -111,9 +111,9 @@ def data_configs():
     # seq len
     config.min_seq_len = 25
     config.use_constant_pad = False
-    train.max_seq_len = 1200
-    val.max_seq_len = 1200
-    test.max_seq_len = 1200
+    train.max_seq_len = 1000
+    val.max_seq_len = 1000
+    test.max_seq_len = 1000
 
     train.num_workers = 1
     val.num_workers = 1

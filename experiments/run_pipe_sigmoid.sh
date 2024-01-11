@@ -1,11 +1,11 @@
 #!/bin/bash
 
-EPOCHS=250
+EPOCHS=0
 DEVICE="cuda"
-NAME='SIGMOID_10s_1r_512BATCH_LONG'
-DATA_C="../configs/data_configs/rosbank.py"
-MODEL_C="../configs/model_configs/sigmoid/rosbank.py"
-LOG_D="./rosbank/logs/"
+NAME='COORD_100k_SIGMOID_10s_1r'
+DATA_C="../configs/data_configs/pendulum_coord.py"
+MODEL_C="../configs/model_configs/sigmoid/pendulum_coord.py"
+LOG_D="./pendulum/logs_coord/"
 FT=0
 
 

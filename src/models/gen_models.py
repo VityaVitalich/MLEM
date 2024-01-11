@@ -276,7 +276,7 @@ class BaseMixin(nn.Module):
                 mask = gt_val != 0
                 masked_mse = mse_loss * mask
                 total_mse_loss += (
-                    masked_mse.sum(dim=1)  # / (mask != 0).sum(dim=1)
+                    masked_mse.sum(dim=1) # / (mask != 0).sum(dim=1)
                 ).mean()
 
         return total_mse_loss

@@ -291,4 +291,5 @@ class MSETrainerContrastive(SimpleTrainerContrastive):
     def get_model(self, n_classes=0):
         args = params.copy()
         args["objective"] = "regression"
-        return LGBMRegressor(verbosity=-1, **args), LinearRegression()
+        args['verbosity'] = -1
+        return LGBMRegressor(**args), LinearRegression()

@@ -177,15 +177,26 @@ def run_tpp(setting, checkpoint_path, data_conf, model_conf):
     data_conf.train_path = init_train_path.with_name("tpp_" + init_train_path.name)
     data_conf.test_path = init_test_path.with_name("tpp_" + init_test_path.name)
 
+    if ('physionet' in str(init_train_path)) or ('pendulum' in str(init_train_path)):
+        targets = ["time"]
+    else:
+        targets = ["event", "time"]
+
     res = pd.DataFrame({})
     if "age" in str(init_train_path):
-        Ns = [1, 10, 30, 100]
+        Ns = [1, 2]
     elif "alpha" in str(init_train_path):
-        Ns = [1, 5]
+        Ns = [1, 2]
+    elif "rosbank" in str(init_train_path):
+        Ns = [1, 2]
+    elif "physionet" in str(init_train_path):
+        Ns = [1, 2]
+    elif "pendulum" in str(init_train_path):
+        Ns = [1, 2]
     else:
         raise NotImplementedError
     for n in Ns:
-        for target in ["event", "time"]:
+        for target in targets:
             data_conf.track_metric = "accuracy" if target == "event" else "mse"
             data_conf.features.target_col = f"{n}_{target}"
             trainer = prepare_trainer(setting, checkpoint_path, data_conf, model_conf)
@@ -236,20 +247,29 @@ def parse_seeds(pathes):
     return new_df
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("device", default="cuda:0")
-    parser.add_argument("configuration", default=0, type=int)
+    parser.add_argument("--device", default="cuda:0")
+    parser.add_argument("--configuration", type=str)
+    parser.add_argument('--ckpt_0', type=str)
+    parser.add_argument('--ckpt_1', type=str)
+    parser.add_argument('--ckpt_2', type=str)
+    parser.add_argument('--model_config', type=str)
+    parser.add_argument('--data_config', type=str)
     args = parser.parse_args()
     configurations = []
     configurations += [
-        ["../configs/data_configs/contrastive/age.py",
-        "../configs/model_configs/contrastive/age.py",
+        [args.data_config,
+        args.model_config,
         args.device,
-        "contrastive",
-        f"age/logs/CONTRASTIVE_GRU512-32emb/seed_{i}/ckpt/CONTRASTIVE_GRU512-32emb/seed_{i}/epoch__0100.ckpt",
+        args.configuration,
+        eval(f'args.ckpt_{i}'),
         ] for i in range(3)
     ]
     res = []
     for i in range(3):
         res += [run_all(*configurations[i])]
     print(res)
-    parse_seeds([f"age/logs/CONTRASTIVE_GRU512-32emb/seed_{i}/ckpt/CONTRASTIVE_GRU512-32emb/seed_{i}/tpp_noise.csv" for i in range(3)])
+    paths = [Path(eval(f'args.ckpt_{i}')).parent / 'tpp_noise.csv' for i in range(3)]
+    df = parse_seeds(paths)
+
+    save_path = Path(eval(f'args.ckpt_{0}')).parent / 'result.csv'
+    df.to_csv(save_path)

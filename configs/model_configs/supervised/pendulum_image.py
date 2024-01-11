@@ -13,9 +13,9 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 32
-    config.use_numeric_emb = True
-    config.numeric_emb_size = 32
+    config.features_emb_dim = 4
+    config.use_numeric_emb = False
+    config.numeric_emb_size = 4
     config.encoder_feature_mixer = False
 
     ### ENCODER ###
@@ -33,7 +33,7 @@ def model_configs():
 
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
-    config.post_encoder_norm = "LayerNorm"
+    config.post_encoder_norm = "Identity"
     config.encoder_norm = "Identity"
     # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
@@ -51,7 +51,7 @@ def model_configs():
     ### LOSS ###
     loss = config.loss = ml_collections.ConfigDict()
     loss.sampling_strategy = "HardNegativePair"
-    loss.loss_fn = "CrossEntropy"
+    loss.loss_fn = "MSE"
     loss.margin = 0.5  # ContrastiveLoss only
     loss.neg_count = 5
     loss.projector = "Identity"  # all losses
@@ -68,7 +68,6 @@ def model_configs():
     config.weight_decay = 0.0
 
     config.comments = ""
-    return config
 
     ### CKCONV ###
     ckconv = config.ckconv = ml_collections.ConfigDict()
@@ -81,4 +80,10 @@ def model_configs():
     ckconv.dropout = 0.1
     ckconv.weight_dropout = 0.0
     ckconv.use_real_time = True
+
+    ### GRU D ###
+    GRUD = config.GRUD = ml_collections.ConfigDict()
+    GRUD.hidden_dim = 64
+    GRUD.num_layers = 1
+    GRUD.dropout = 0.2
     return config

@@ -37,6 +37,7 @@ class Pipeline:
         grid_name="",
         console_lvl="warning",
         file_lvl="info",
+        resume_list=None
     ):
         """
         TrainerClass - class from src.trainers
@@ -54,6 +55,7 @@ class Pipeline:
         self.grid_name = grid_name
         self.console_lvl = console_lvl
         self.file_lvl = file_lvl
+        self.resume_list = resume_list
         """
         TrainerClass - class from src.trainers
         """
@@ -87,8 +89,8 @@ class Pipeline:
         torch.cuda.empty_cache()
         torch.cuda.init()
         torch.cuda.reset_peak_memory_stats(self.device)
-        print(f"Sleeping for {args[-1]} minutes")
-        time.sleep(60 * args[-1])
+        # print(f"Sleeping for {args[-1]} minutes")
+        # time.sleep(60 * args[-1])
         metrics = self.run_experiment(*args)
         metrics["memory_after"] = torch.cuda.max_memory_reserved(self.device) / (
             2**20

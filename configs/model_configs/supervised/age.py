@@ -13,10 +13,10 @@ def model_configs():
 
     ### EMBEDDINGS ###
     # features_emb_dim is dimension of nn.Embedding applied to categorical features
-    config.features_emb_dim = 16
+    config.features_emb_dim = 32
     config.use_numeric_emb = True
-    config.numeric_emb_size = 16
-    config.encoder_feature_mixer = True
+    config.numeric_emb_size = 32
+    config.encoder_feature_mixer = False
 
     ### ENCODER ###
     config.encoder = "GRU"  # GRU LSTM TR
@@ -38,7 +38,7 @@ def model_configs():
     # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
     ### DROPOUT ###
-    config.after_enc_dropout = 0.05
+    config.after_enc_dropout = 0.03
 
     ### ACTIVATION ###
     config.activation = "LeakyReLU"

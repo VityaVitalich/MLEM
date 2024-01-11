@@ -1,9 +1,8 @@
-import pyspark
 from argparse import ArgumentParser
 from pathlib import Path
-from pyspark.sql import SparkSession
 import pandas as pd
 import numpy as np
+import os
 import pyarrow as pa
 
 def row_drop(row, drop_rate):   
@@ -26,16 +25,18 @@ def reload_with_new_targets(train_path, test_path, event_column, Ns=[1]):
         df = pd.read_parquet(path)
         print("Data loaded")
         cut_n = max(Ns)
+        df = df[df['trx_count'] > cut_n]
         cols_to_cut = [col for col in df if isinstance(df.iloc[0][col], np.ndarray)]
         for n in Ns:
             df[f"{n}_time"] = df["event_time"].apply(lambda x: x[-cut_n + (n - 1)])
-            df[f"{n}_event"] = df[event_column].apply(lambda x: x[-cut_n + (n - 1)])
+            if event_column:
+                df[f"{n}_event"] = df[event_column].apply(lambda x: x[-cut_n + (n - 1)])
         print("Targets added")
         for col in cols_to_cut:
             df[col] = df[col].apply(lambda x: x[:-cut_n])
             assert df[col].apply(len).min() > 0
-        print("Trunsactions cuted")
-        if str(path) == train_path and "alpha" in str(path):
+        print("Transactions cuted")
+        if str(path) == train_path:
             n_partition = 100
         else:
             n_partition = 10
@@ -92,12 +93,37 @@ if __name__ == "__main__":
         train_path = "./age/data/train_trx.parquet"
         test_path = "./age/data/test_trx.parquet"
         event_column = "small_group"
-        Ns = [1, 10, 30, 100]
+        Ns = [1, 2]
     elif args.dataset == "alpha":
-        train_path = "./alpha/data/train.parquet"
-        test_path = "./alpha/data/test.parquet"
+        train_path = "./alpha/data/train_new.parquet"
+        test_path = "./alpha/data/test_new.parquet"
         event_column = "mcc"
-        Ns = [1, 5]
+        Ns = [1, 2]
+    elif args.dataset == "rosbank":
+        train_path = "./rosbank/data/train_trx.parquet"
+        test_path = "./rosbank/data/test_trx.parquet"
+        event_column = "mcc"
+        Ns = [1, 2]
+    elif args.dataset == "physionet":
+        train_path = "./physionet/data/train_trx.parquet"
+        test_path = "./physionet/data/test_trx.parquet"
+        event_column = None
+        Ns = [1, 2]
+    elif args.dataset == "pendulum_coord":
+        train_path = "./pendulum/data/train_hawkes_coordinate.parquet"
+        test_path = "./pendulum/data/test_hawkes_coordinate.parquet"
+        event_column = None
+        Ns = [1, 2]
+    elif args.dataset == "pendulum_coord_100k":
+        train_path = "./pendulum/data/train_hawkes_coordinate_100k.parquet"
+        test_path = "./pendulum/data/test_hawkes_coordinate_100k.parquet"
+        event_column = None
+        Ns = [1, 2]
+    elif args.dataset == "pendulum_image":
+        train_path = "./pendulum/data/train_hawkes_16.parquet"
+        test_path = "./pendulum/data/test_hawkes_16.parquet"
+        event_column = None
+        Ns = [1, 2]
     else:
         raise NotImplementedError
 

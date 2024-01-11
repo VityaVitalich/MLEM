@@ -37,6 +37,13 @@ class SupervisedPipeline(Pipeline):
         opt = torch.optim.Adam(
             net.parameters(), model_conf.lr, weight_decay=model_conf.weight_decay
         )
+
+        if self.resume_list:
+            seed = int(run_name.split('/')[-1].replace('seed_', ''))
+            resume = self.resume_list[seed]
+        else:
+            resume = self.resume
+
         trainer = self.TrainerClass(
             model=net,
             optimizer=opt,
@@ -45,7 +52,7 @@ class SupervisedPipeline(Pipeline):
             run_name=run_name,
             ckpt_dir=Path(self.log_dir).parent / "ckpt",
             ckpt_replace=True,
-            ckpt_resume=self.resume,
+            ckpt_resume=resume,
             ckpt_track_metric=data_conf.track_metric,
             metrics_on_train=False,
             total_epochs=self.total_epochs,
@@ -281,10 +288,11 @@ if __name__ == "__main__":
         log_dir=args.log_dir,
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
+        resume_list=args.resume_list
     )
     request = {"classifier_gru_hidden_dim": 800}
-    metrics = pipeline.run_experiment()
-    # metrics = pipeline.do_n_runs()
+    #metrics = pipeline.run_experiment()
+    metrics = pipeline.do_n_runs()
     # metrics = pipeline.optuna_setup(
     #     "val_metric",
     #     request_list=[request],

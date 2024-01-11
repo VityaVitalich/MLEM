@@ -2,9 +2,9 @@
 
 EPOCHS=3
 DEVICE="cuda"
-NAME='DEBUG_RUN_GEN_WITH_SIGMOID_CONFIG_AND_TRAINER_LOAD_CONTR_FIX_SEED'
+NAME='MEAN_L_GEN'
 DATA_C="../configs/data_configs/rosbank.py"
-MODEL_C="../configs/model_configs/sigmoid/rosbank.py"
+MODEL_C="../configs/model_configs/gen/rosbank.py"
 LOG_D="./rosbank/logs/"
 GENVAL=0
 GENVAL_EPOCH=10

@@ -28,7 +28,7 @@ def data_configs():
     config.gen_limit = 10000
     config.predict_limit = 100000
     config.FT_number_objects = [1000, 100000]
-    config.post_gen_FT_epochs = 10
+    config.post_gen_FT_epochs = 5
     config.pre_trained_contrastive_path = "alpha/logs/CONTRASTIVE_GRU512-32emb/seed_0/ckpt/CONTRASTIVE_GRU512-32emb/seed_0/epoch__0040.ckpt"
     config.track_metric = "roc_auc"
 
