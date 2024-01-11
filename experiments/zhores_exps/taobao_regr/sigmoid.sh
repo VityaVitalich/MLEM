@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/tao_regr_sigmoid.txt
+#SBATCH --output=outputs/tao_regr/sigmoid.txt
 
 #SBATCH --time=6-00
 
