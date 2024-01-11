@@ -1,4 +1,4 @@
-metric: "acc"
+metric: "accuracy"
 classification: true
 data_path: "/data/#Representation_learning/age/data.csv"
 index_column: "client_id"
