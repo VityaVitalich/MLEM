@@ -20,16 +20,17 @@
 
 #SBATCH --gpus=1
 
-srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c '
+srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c "
     cd /home/event_seq/experiments;
     nvidia-smi;
     python pipeline_sigmoid.py \
         --run-name=Sigmoid \
-        --data-conf="../configs/data_configs/sigmoid/taobao.py" \
-        --model-conf="../configs/model_configs/sigmoid/age.py" \
-        --device="cuda:0" \
-        --log-dir="./taobao/logs/" \
+        --data-conf='../configs/data_configs/sigmoid/taobao.py' \
+        --model-conf='../configs/model_configs/sigmoid/age.py' \
+        --device='cuda:0' \
+        --log-dir='./taobao/logs/' \
         --total-epochs=100 \
+        --console-lvl='info' \
         --FT=0 &
     wait
-'
+"

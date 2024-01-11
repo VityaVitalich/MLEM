@@ -20,17 +20,16 @@
 
 #SBATCH --gpus=1
 
-srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c '
+srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c "
     cd /home/event_seq/experiments;
     nvidia-smi;
     python pipeline_supervised.py \
-        --run-name='Contrastive' \
-        --data-conf="../configs/data_configs/contrastive/taobao_regr.py" \
-        --model-conf="../configs/model_configs/contrastive/age.py" \
+        --run-name='Super' \
+        --data-conf='../configs/data_configs/taobao_regr.py' \
+        --model-conf='../configs/model_configs/supervised/taobao_regr.py' \
         --device='cuda:0' \
-        --log-dir="./taobao_regr/logs/" \
-        --total-epochs=100 \
-        --grid-name='' \
-        --console-lvl="info" &
+        --log-dir='./taobao_regr/logs/' \
+        --console-lvl='info' \
+        --total-epochs=100 &
     wait
-'
+"

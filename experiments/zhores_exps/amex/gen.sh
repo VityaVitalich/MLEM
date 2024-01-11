@@ -20,21 +20,22 @@
 
 #SBATCH --gpus=1
 
-srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c '
+srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c "
     cd /home/event_seq/experiments;
     nvidia-smi;
     python pipeline_gen.py \
         --run-name="Gen" \
-        --data-conf="../configs/data_configs/amex.py" \
-        --model-conf="../configs/model_configs/gen/amex.py" \
-        --device="cuda:0" \
-        --log-dir="./amex/logs/" \
+        --data-conf='../configs/data_configs/amex.py' \
+        --model-conf='../configs/model_configs/gen/amex.py' \
+        --device='cuda:0' \
+        --log-dir='./amex/logs/' \
         --total-epochs=30 \
         --gen-val=0 \
         --gen-val-epoch=10 \
         --recon-val=0 \
         --recon-val-epoch=10  \
         --draw=0 \
+        --console-lvl='info' \
         --FT=0 &
     wait
-'
+"

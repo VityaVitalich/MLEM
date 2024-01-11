@@ -12,7 +12,7 @@
 
 #SBATCH --time=6-00
 
-#SBATCH --mem=200G
+#SBATCH --mem=100G
 
 #SBATCH --nodes=1
 
@@ -20,17 +20,17 @@
 
 #SBATCH --gpus=1
 
-srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c '
+srun singularity exec --bind /gpfs/gpfs0/d.osin/:/home -f --nv event_seq.sif bash -c "
     cd /home/event_seq/experiments;
     nvidia-smi;
     python pipeline_contrastive.py \
         --run-name='Contrastive' \
-        --data-conf="../configs/data_configs/contrastive/amex.py" \
-        --model-conf="../configs/model_configs/contrastive/amex.py" \
+        --data-conf='../configs/data_configs/contrastive/amex.py' \
+        --model-conf='../configs/model_configs/contrastive/amex.py' \
         --device='cuda:0' \
-        --log-dir="./amex/logs/" \
+        --log-dir='./amex/logs/' \
         --total-epochs=30 \
         --grid-name='' \
-        --console-lvl="info" &
+        --console-lvl='info' &
     wait
-'
+"
