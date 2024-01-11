@@ -9,14 +9,14 @@ def data_configs():
     ########## DATA ##############
 
     config.train_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parents[3]
         / "experiments"
         / "amex"
         / "data"
         / "train.parquet"
     )
     config.test_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parents[3]
         / "experiments"
         / "amex"
         / "data"
