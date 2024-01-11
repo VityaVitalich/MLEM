@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/amex_sigmoid.txt
+#SBATCH --output=outputs/amex/sigmoid.txt
 
 #SBATCH --time=6-00
 

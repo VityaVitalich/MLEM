@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/amex_gen.txt
+#SBATCH --output=outputs/amex/gen.txt
 
 #SBATCH --time=6-00
 

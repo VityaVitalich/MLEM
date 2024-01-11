@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/tao_super.txt
+#SBATCH --output=outputs/tao/super.txt
 
 #SBATCH --time=6-00
 

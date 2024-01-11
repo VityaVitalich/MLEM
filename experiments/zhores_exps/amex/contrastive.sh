@@ -8,7 +8,7 @@
 
 #SBATCH --mail-user=d.osin@skoltech.ru
 
-#SBATCH --output=outputs/amex_contrastive.txt
+#SBATCH --output=outputs/amex/contrastive.txt
 
 #SBATCH --time=6-00
 
