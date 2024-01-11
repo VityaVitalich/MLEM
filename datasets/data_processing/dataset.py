@@ -29,7 +29,9 @@ class SequenceDataset(Dataset):
         data_path = self.cfg["data_path"]
         self.train_path = Path(data_path).parent / "train.parquet"
         self.test_path = Path(data_path).parent / "test.parquet"
-        assert isinstance(self.cfg["target_columns"], list), "target_columns has to be a list"
+        assert isinstance(
+            self.cfg["target_columns"], list
+        ), "target_columns has to be a list"
 
     def get_dataset(self, split="train", labeled_only=False):
         assert split in ["train", "test"]
@@ -39,10 +41,14 @@ class SequenceDataset(Dataset):
             )
             if labeled_only:
                 data = (
-                    rec for rec in data if rec[self.cfg["target_columns"][0]] is not None
+                    rec
+                    for rec in data
+                    if rec[self.cfg["target_columns"][0]] is not None
                 )
                 data = (
-                    rec for rec in data if not np.isnan(rec[self.cfg["target_columns"][0]])
+                    rec
+                    for rec in data
+                    if not np.isnan(rec[self.cfg["target_columns"][0]])
                 )
         elif split == "test":
             data = read_pyarrow_file(
@@ -63,21 +69,22 @@ class SequenceDataset(Dataset):
             print(f"{str(test_path)} already exists.")
             return self
         if self.spark is None or self.spark._jsc.sc().isStopped():
-            self.spark = SparkSession.builder \
-                .config("spark.driver.extraJavaOptions", "-Xss512m") \
-                .config("spark.executor.extraJavaOptions", "-Xss512m") \
-                .config("spark.driver.memory", "64g") \
-                .config("spark.executor.memory", "64g") \
-                .config("spark.driver.memoryOverhead", "16g") \
-                .config("spark.executor.memoryOverhead", "16g") \
+            self.spark = (
+                SparkSession.builder.config("spark.driver.extraJavaOptions", "-Xss512m")
+                .config("spark.executor.extraJavaOptions", "-Xss512m")
+                .config("spark.driver.memory", "64g")
+                .config("spark.executor.memory", "64g")
+                .config("spark.driver.memoryOverhead", "16g")
+                .config("spark.executor.memoryOverhead", "16g")
                 .getOrCreate()
+            )
         train_data = self.read_preprocessed_data(data_path)
         test_data = None
         if self.cfg.get("test_path") and Path(self.cfg["test_path"]).exists():
             print("Using separate test.")
             test_data = self.read_preprocessed_data(self.cfg["test_path"])
         train_data, test_data = self.process_time([train_data, test_data])
-        train_data.show()
+        test_data.show(3)
         if not self.is_collected_list(train_data):
             print("Collecting lists...")
             train_data = self.collect_lists(train_data)
@@ -159,21 +166,24 @@ class SequenceDataset(Dataset):
         # Output: pyspark df, each row - one sequence
         col_id = self.cfg["index_column"]
         target_cols = self.cfg["target_columns"]
-        col_list = [col for col in df.columns if col not in [col_id, *target_cols]]
-        df = df.withColumn(
-            "trx_count", F.count(F.lit(1)).over(Window.partitionBy(col_id))
-        ).withColumn(
-            "_rn",
-            F.row_number().over(
-                Window.partitionBy(col_id).orderBy(self.cfg["time_column"])
-            ),
-        )
+        time_col = self.cfg["time_column"]
+        features = [
+            col for col in df.columns if col not in [col_id, *target_cols, time_col]
+        ]
 
-        for col in col_list:
-            df = df.withColumn(
-                col, F.collect_list(col).over(Window.partitionBy(col_id).orderBy("_rn"))
+        df = (
+            df.select(
+                col_id, *target_cols, F.struct(time_col, *features).alias("features")
             )
-        df = df.filter("_rn = trx_count").drop("_rn")
+            .groupBy(col_id, *target_cols)
+            .agg(F.sort_array(F.collect_list("features")).alias("features"))
+            .select(
+                col_id,
+                *target_cols,
+                *map(lambda s: "features." + s, [time_col] + features),
+                F.size("features").alias("trx_count"),
+            )
+        )
         return df
 
     def process_time(self, dfs):
@@ -185,18 +195,25 @@ class SequenceDataset(Dataset):
                 df = df.withColumnRenamed(self.cfg["time_column"], "event_time")
                 if isinstance(df.schema["event_time"].dataType, types.StringType):
                     raise TypeError("Bad time type(str)")
-                    df = df.withColumn("event_time", F.unix_timestamp(
-                        "event_time", "yyyy-MM-dd").cast(types.FloatType())
+                    df = df.withColumn(
+                        "event_time",
+                        F.unix_timestamp("event_time", "yyyy-MM-dd").cast(
+                            types.FloatType()
+                        ),
                     )
                 dfs[i] = df
-        self.cfg['time_column'] = "event_time"
+        self.cfg["time_column"] = "event_time"
         self.print_stats(dfs)
         return dfs
-    
+
     def print_stats(self, dfs):
         for df in dfs:
-            if df:
-                print("Min/Max time:", df.agg(F.min(self.cfg['time_column']), F.max(self.cfg['time_column'])).first())
+            if df is None:
+                continue
+            min_max = df.agg(
+                F.min(self.cfg["time_column"]), F.max(self.cfg["time_column"])
+            ).first()
+            print("Min/Max time:", min_max)
         return dfs
 
     def explode_list(self, df):

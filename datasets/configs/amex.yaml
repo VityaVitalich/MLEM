@@ -1,7 +1,7 @@
 metric: accuracy
 classification: False
 data_path: /home/dev/data_main/NAS/#Representation_learning/amex/amex/train_stretched.parquet
-test_path: /home/dev/data_main/NAS/#Representation_learning/amex/amex/test_stretched.parquet
+test_path: /home/dev/data_main/NAS/#Representation_learning/amex/amex/val_stretched.parquet
 index_column: seq_id
 time_column: S_2
 target_columns: ["target"]
