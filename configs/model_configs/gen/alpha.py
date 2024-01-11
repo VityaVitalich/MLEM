@@ -37,6 +37,7 @@ def model_configs():
     config.decoder_heads = 2
     config.decoder_dim_ff = 256
 
+
     ### NORMALIZATIONS ###
     config.pre_encoder_norm = "Identity"
     config.post_encoder_norm = "LayerNorm"

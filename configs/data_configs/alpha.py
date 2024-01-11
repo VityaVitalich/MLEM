@@ -22,19 +22,6 @@ def data_configs():
         / "data"
         / "test.parquet"
     )
-    # config.pre_trained_contrastive_path = (
-    #     Path(__file__).parent.parent.parent
-    #     / "experiments"
-    #     / "alpha"
-    #     / "logs"
-    #     / "GRU512-32emb-2"
-    #     / "seed_0"
-    #     / "ckpt"
-    #     / "GRU512-32emb-2"
-    #     / "seed_0"
-    #     / "epoch__0030.ckpt"
-    #     # /home/event_seq/experiments/age/logs/GRU512-32emb-2/seed_0/ckpt/GRU512-32emb-2/seed_0/epoch__0100.ckpt
-    # )
 
     config.load_distributed = True
     config.recon_limit = 10000

@@ -54,7 +54,7 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "small_group": {"in": 202, "out": 203, "max_value": 252},
+        "small_group": {"in": 250, "out": 250, "max_value": 252},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
