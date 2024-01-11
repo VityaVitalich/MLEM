@@ -11,14 +11,14 @@ def data_configs():
     config.train_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "alpha"
+        / "amex"
         / "data"
         / "train.parquet"
     )
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
-        / "alpha"
+        / "amex"
         / "data"
         / "test.parquet"
     )
@@ -29,7 +29,7 @@ def data_configs():
     config.predict_limit = 100000
     config.FT_number_objects = [1000, 100000]
     config.post_gen_FT_epochs = 10
-    # config.pre_trained_contrastive_path = "alpha/logs/CONTRASTIVE_GRU512-32emb/seed_0/ckpt/CONTRASTIVE_GRU512-32emb/seed_0/epoch__0040.ckpt"
+    # config.pre_trained_contrastive_path = "amex/logs/CONTRASTIVE_GRU512-32emb/seed_0/ckpt/CONTRASTIVE_GRU512-32emb/seed_0/epoch__0040.ckpt"
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
