@@ -30,7 +30,7 @@ def data_configs():
     config.FT_number_objects = [1000, 100000]
     config.post_gen_FT_epochs = 10
     # config.pre_trained_contrastive_path = "alpha/logs/CONTRASTIVE_GRU512-32emb/seed_0/ckpt/CONTRASTIVE_GRU512-32emb/seed_0/epoch__0040.ckpt"
-    config.track_metric = "acc"
+    config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
