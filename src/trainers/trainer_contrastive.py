@@ -258,6 +258,7 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
         return auc_score
 
     def get_model(self, n_classes=2):
+        assert n_classes == 2
         args = params.copy()
         args["objective"] = "binary"
         args["metric"] = "auc"
@@ -278,8 +279,6 @@ class AccuracyTrainerContrastive(SimpleTrainerContrastive):
             print("Using fast algos because n_classes too big")
             args = params_fast.copy()
             logistic_params = {"n_jobs":-1, "multi_class": "ovr", "solver": "saga"}
-        # args["objective"] = "multiclass"
-        # args["metric"] = "multi_error"
         return LGBMClassifier(**args), LogisticRegression(**logistic_params)
 
 class MSETrainerContrastive(SimpleTrainerContrastive):
