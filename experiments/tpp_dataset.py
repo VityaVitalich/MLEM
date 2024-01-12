@@ -124,6 +124,16 @@ if __name__ == "__main__":
         test_path = "./pendulum/data/test_hawkes_16.parquet"
         event_column = None
         Ns = [1, 2]
+    elif args.dataset == "amex":
+        train_path = "./amex/data/train.parquet"
+        test_path = "./amex/data/test.parquet"
+        event_column = "D_120"
+        Ns = [1, 2]
+    elif args.dataset == "taobao":
+        train_path = "./taobao/data/train.parquet"
+        test_path = "./taobao/data/test.parquet"
+        event_column = "item_category"
+        Ns = [1, 2]
     else:
         raise NotImplementedError
 
