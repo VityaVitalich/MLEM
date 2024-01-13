@@ -36,7 +36,7 @@ def reload_with_new_targets(train_path, test_path, event_column, Ns=[1]):
             df[col] = df[col].apply(lambda x: x[:-cut_n])
             assert df[col].apply(len).min() > 0
         print("Transactions cuted")
-        if str(path) == train_path and "alpha" in str(path):
+        if str(path) == train_path:
             n_partition = 100
         else:
             n_partition = 10
@@ -64,7 +64,6 @@ def reload_drop(train_path, test_path):
             df["partition_idx"] = np.random.choice(range(n_partition), size=df.shape[0])
             table = pa.Table.from_pandas(df, preserve_index=False)
             pa.parquet.write_to_dataset(table, root_path=new_path, partition_cols=["partition_idx"])
-
 
 def reload_permute(train_path, test_path):
     for path in [train_path, test_path]:
@@ -124,6 +123,16 @@ if __name__ == "__main__":
         train_path = "./pendulum/data/train_hawkes_16.parquet"
         test_path = "./pendulum/data/test_hawkes_16.parquet"
         event_column = None
+        Ns = [1, 2]
+    elif args.dataset == "amex":
+        train_path = "./amex/data/train.parquet"
+        test_path = "./amex/data/test.parquet"
+        event_column = "D_120"
+        Ns = [1, 2]
+    elif args.dataset == "taobao":
+        train_path = "./taobao/data/train.parquet"
+        test_path = "./taobao/data/test.parquet"
+        event_column = "item_category"
         Ns = [1, 2]
     else:
         raise NotImplementedError

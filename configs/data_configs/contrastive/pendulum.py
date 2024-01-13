@@ -11,70 +11,53 @@ def data_configs():
     config.train_path = (
         Path(__file__).parent.parent.parent.parent
         / "experiments"
-        / "alpha"
+        / "pendulum"
         / "data"
-        / "train.parquet"
+        / "train_hawkes_16.parquet"  # "train_trx.parquet"
     )
     config.test_path = (
         Path(__file__).parent.parent.parent.parent
         / "experiments"
-        / "alpha"
+        / "pendulum"
         / "data"
-        / "test.parquet"
+        / "test_hawkes_16.parquet"
     )
-    config.load_distributed = True
-    config.recon_limit = 1000
-    config.gen_limit = 1000
-    config.predict_limit = 100000
-    config.FT_number_objects = [1000, 100000]
-    config.post_gen_FT_epochs = 5
+    config.load_distributed = False
+    config.recon_limit = 100
+    config.gen_limit = 100
+    config.num_plots = 15
 
-    config.track_metric = "roc_auc"
+    config.FT_number_objects = [1000, 'all']
+    config.post_gen_FT_epochs = 10
+
+    config.track_metric = "mse"
 
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
-    config.col_id = "seq_id"  # column defining ids. used for sorting data
+    config.col_id = "pendulum_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
-    config.shift_embedding = False  # embeddings start with 1
     features.embeddings = {
-        "currency": {"in": 12, "out": 12, "max_value": 12},
-        "operation_kind": {"in": 8, "out": 8, "max_value": 8},
-        "card_type": {"in": 174, "out": 174, "max_value": 174},
-        "operation_type": {"in": 23, "out": 23, "max_value": 23},
-        "operation_type_group": {"in": 5, "out": 5, "max_value": 5},
-        "ecommerce_flag": {"in": 4, "out": 4, "max_value": 4},
-        "payment_system": {"in": 8, "out": 8, "max_value": 8},
-        "income_flag": {"in": 4, "out": 4, "max_value": 4},
-        "mcc": {"in": 109, "out": 109, "max_value": 109},
-        "country": {"in": 25, "out": 25, "max_value": 25},
-        "city": {"in": 164, "out": 164, "max_value": 164},
-        "mcc_category": {"in": 29, "out": 29, "max_value": 29},
-        "day_of_week": {"in": 8, "out": 8, "max_value": 8},
-        "hour": {"in": 25, "out": 25, "max_value": 25},
-        "weekofyear": {"in": 54, "out": 54, "max_value": 54},
-        "product": {"in": 6, "out": 6, "max_value": 6},
+        str(i): {"in": 2, "out": 1, "max_value": 2}
+        for i in range(0, 256)
+        # "pad_category": {"in": 2, "out": 1, "max_value": 2},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
-    features.numeric_values = {
-        "amnt": "identity",
-        "hour_diff": "identity",
-        "days_before": "identity",
-    }
+    features.numeric_values = {}  # {str(i): "identity" for i in range(0, 256)}
 
     # name of target col
     features.target_col = "flag"
-    config.num_classes = 2
+    config.num_classes = 1
 
     ### TIME ###
-    config.max_time = 1.0
+    config.max_time = 5.0
     config.min_time = 0.0
 
     # train specific parameters
@@ -83,7 +66,7 @@ def data_configs():
     val = config.val = ml_collections.ConfigDict()
     test = config.test = ml_collections.ConfigDict()
 
-    # splitters
+    #splitters
     train.split_strategy = {
         "split_strategy": "SampleSlices",
         "split_count": 5,
@@ -104,9 +87,9 @@ def data_configs():
     # dropout
     train.dropout = 0.0
     config.use_constant_pad = False
-    train.max_seq_len = 200
-    test.max_seq_len = 200
-    val.max_seq_len = 200
+    train.max_seq_len = 100
+    test.max_seq_len = 100
+    val.max_seq_len = 100
 
     train.num_workers = 1
     val.num_workers = 1

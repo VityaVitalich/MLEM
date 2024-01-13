@@ -26,8 +26,9 @@ def data_configs():
     config.load_distributed = False
     config.FT_number_objects = [1000, "all"]
     config.post_gen_FT_epochs = 20
+    config.pre_trained_contrastive_path = "taobao_regr/logs/Contrastive/seed_2/ckpt/Contrastive/seed_2/epoch__0100.ckpt"
 
-    config.track_metric = "roc_auc"
+    config.track_metric = "mse"
 
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
@@ -51,8 +52,8 @@ def data_configs():
     config.ckpt_path = ()
 
     # name of target col
-    features.target_col = "payment_next_7_days"
-    config.num_classes = 2
+    features.target_col = "n_payment_next_7_days"
+    config.num_classes = 1
 
     ### TIME ###
     config.max_time = 1.0
@@ -65,19 +66,8 @@ def data_configs():
     # test params
     test = config.test = ml_collections.ConfigDict()
 
-    # splitters
-    train.split_strategy = {
-        "split_strategy": "SampleSlices",
-        "split_count": 5,
-        "cnt_min": 25,
-        "cnt_max": 200,
-    }
-    val.split_strategy = {
-        "split_strategy": "SampleSlices",
-        "split_count": 5,
-        "cnt_min": 25,
-        "cnt_max": 100,
-    }
+    train.split_strategy = {"split_strategy": "NoSplit"}
+    val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout

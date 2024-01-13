@@ -193,6 +193,10 @@ def run_tpp(setting, checkpoint_path, data_conf, model_conf):
         Ns = [1, 2]
     elif "pendulum" in str(init_train_path):
         Ns = [1, 2]
+    elif "taobao" in str(init_train_path):
+        Ns = [1, 2]
+    elif "amex" in str(init_train_path):
+        Ns = [1, 2]
     else:
         raise NotImplementedError
     for n in Ns:
@@ -216,13 +220,14 @@ def run_tpp(setting, checkpoint_path, data_conf, model_conf):
                 res.loc[k, f"{n}_{target}"] = metrics[k]
     return res
 
-def run_all(DATA_C, MODEL_C, device, setting, checkpoint_path):
+def run_all(DATA_C, MODEL_C, device, setting, checkpoint_path, noise_only=False):
     print("START", DATA_C, MODEL_C, device, setting, checkpoint_path)
     data_conf = read_config(DATA_C, "data_configs")
     model_conf = read_config(MODEL_C, "model_configs")
     model_conf.device = device
     res = []
-    for func in [run_tpp, run_noise]: 
+    funcs = [run_noise] if noise_only else [run_tpp, run_noise]
+    for func in funcs: 
         with log_to_file("/dev/null", file_lvl="info", cons_lvl="info"):
             res += [func(
                 setting, 
@@ -254,6 +259,7 @@ if __name__ == "__main__":
     parser.add_argument('--ckpt_2', type=str)
     parser.add_argument('--model_config', type=str)
     parser.add_argument('--data_config', type=str)
+    parser.add_argument('--noise_only', default=False)
     args = parser.parse_args()
     configurations = []
     configurations += [
@@ -266,7 +272,7 @@ if __name__ == "__main__":
     ]
     res = []
     for i in range(3):
-        res += [run_all(*configurations[i])]
+        res += [run_all(*configurations[i], noise_only=args.noise_only)]
     print(res)
     paths = [Path(eval(f'args.ckpt_{i}')).parent / 'tpp_noise.csv' for i in range(3)]
     df = parse_seeds(paths)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EPOCHS=100
+EPOCHS=3
 DEVICE="cuda"
 NAME='MEAN_L_GEN'
 DATA_C="../configs/data_configs/rosbank.py"

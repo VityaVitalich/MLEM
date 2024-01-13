@@ -1,9 +1,9 @@
 metric: "auc"
 classification: True
-data_path: '/data/#Representation_learning/taobao/data.csv'
+data_path: '/home/dev/data_main/NAS/#Representation_learning/taobao/taobao.csv'
 index_column: "Index"
 time_column: "event_time"
-target_column: "payment_next_7_days"
+target_columns: ["payment_next_7_days", "n_payment_next_7_days"]
 categorical_columns: ["behavior_type", "item_category"]
 numerical_columns:  []
 seq_len_limit: 500 # params.train.max_seq_len
