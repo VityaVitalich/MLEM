@@ -1,0 +1,11 @@
+name: Syntax and type checking
+on: [push]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: pip install -r requirements.txt
+      - uses: chartboost/ruff-action@v1
+      - uses: jakebailey/pyright-action@v1
+      - uses: psf/black@stable

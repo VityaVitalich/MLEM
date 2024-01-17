@@ -1,0 +1,16 @@
+metric: mse 
+classification: false
+data_path: 'data/synthetic/processed/data.csv'
+index_column: "index"
+time_column: "event_time"
+target_column: "pl"
+categorical_columns: ["trx_country", "mcc_code", "trans_type","card_cat_cd", "ipt_name", "iso_crncy_cd", "ecom_fl","trx_direction"]
+numerical_columns:  ["amt", "report_date"]
+seq_len_limit:  # params.train.max_seq_len
+seq_len_trunc_type: "last"
+split_sizes:
+  test: 0.2
+  train: 0.8
+seed: 42
+output_size: 
+# [0, 1] scaled for all period
