@@ -1,6 +1,10 @@
 # Data Files
 data
 logs/
+test_logs/
+ckpt_test/
+ckpt_dima/
+logs_dima/
 ckpt/
 checkpoints/
 test/
@@ -8,7 +12,7 @@ figs/
 .vscode/
 .vim
 experiments/example.db
-
+logs_coord/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

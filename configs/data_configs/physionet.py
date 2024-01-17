@@ -22,6 +22,22 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
+    config.pre_trained_contrastive_path = '/home/event_seq/experiments/physionet/logs/NEW_CONTRASTIVE_GRU512-4emb/seed_0/ckpt/NEW_CONTRASTIVE_GRU512-4emb/seed_0/epoch__0100.ckpt'
+    #     Path(__file__).parent.parent.parent
+    #     / "experiments"
+    #     / "physionet"
+    #     / "logs"
+    #     / "CONTRASTIVE-GRU512-4emb"
+    #     / "seed_0"
+    #     / "ckpt"
+    #     / "CONTRASTIVE-GRU512-4emb"
+    #     / "seed_0"
+    #     / "epoch__0100.ckpt"
+    #     # /home/event_seq/experiments/rosbank/logs/CONTRASTIVE-GRU512-32emb/seed_0/ckpt/CONTRASTIVE-GRU512-32emb/seed_0/epoch__0100.ckpt
+    # )
+    config.load_distributed = False
+    config.FT_number_objects = [1000, 'all']
+    config.post_gen_FT_epochs = 25
 
     config.track_metric = "roc_auc"
 
@@ -29,6 +45,7 @@ def data_configs():
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.1  # validation size
+    config.test_size = 0.0  # pinch_test size
     config.col_id = "user"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -125,7 +142,7 @@ def data_configs():
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.01
 
     # seq len
     config.use_constant_pad = False

@@ -9,7 +9,7 @@ def data_configs():
     ########## DATA ##############
 
     config.train_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parents[2]
         / "experiments"
         / "taobao"
         / "data"
@@ -17,19 +17,23 @@ def data_configs():
     )
 
     config.test_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parents[2]
         / "experiments"
         / "taobao"
         / "data"
         / "test.parquet"
     )
+    config.load_distributed = False
+    config.FT_number_objects = [1000, "all"]
+    config.post_gen_FT_epochs = 20
 
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
         0  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
+    config.test_size = 0.0
     config.col_id = "Index"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -66,9 +70,11 @@ def data_configs():
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.01
 
     # seq len
+    config.min_seq_len = 25
+    config.use_constant_pad = False
     train.max_seq_len = 500
     val.max_seq_len = 500
     test.max_seq_len = 500

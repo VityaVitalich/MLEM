@@ -1,40 +1,40 @@
 import logging
-from typing import Any, Dict, List, Literal, Union, Tuple
-from torch.utils.data import DataLoader
-from lightgbm import LGBMClassifier
+from typing import Any, Dict, List, Literal, Tuple, Union
 
 import numpy as np
 import torch
+from lightgbm import LGBMClassifier, LGBMRegressor
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.metrics import accuracy_score, roc_auc_score, mean_squared_error
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import MaxAbsScaler
+from torch.utils.data import DataLoader
 
+from ..models.model_utils import calc_anisotropy, calc_intrinsic_dimension
 from ..models.mTAND.model import MegaNetCE
 from .base_trainer import BaseTrainer
-from sklearn.metrics import roc_auc_score, accuracy_score
-from sklearn.preprocessing import MaxAbsScaler
-from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger("event_seq")
 
-# params = {
-#     "n_estimators": 500,
-#     "boosting_type": "gbdt",
-#     # "objective": "binary",
-#     # "metric": "auc",
-#     "subsample": 0.5,
-#     "subsample_freq": 1,
-#     "learning_rate": 0.02,
-#     "feature_fraction": 0.75,
-#     "max_depth": 6,
-#     "lambda_l1": 1,
-#     "lambda_l2": 1,
-#     "min_data_in_leaf": 50,
-#     "random_state": 42,
-#     "n_jobs": 8,
-#     "reg_alpha": None,
-#     "reg_lambda": None,
-#     "colsample_bytree": None,
-#     "min_child_samples": None,
-# }
-
+params_fast = {
+    "n_estimators": 200,
+    "boosting_type": "gbdt",
+    "subsample": 0.5,
+    "subsample_freq": 1,
+    "learning_rate": 0.02,
+    "feature_fraction": 0.75,
+    "max_depth": 6,
+    "lambda_l1": 1,
+    "lambda_l2": 1,
+    "min_data_in_leaf": 50,
+    "random_state": 42,
+    "n_jobs": 16,
+    "reg_alpha": None,
+    "reg_lambda": None,
+    "colsample_bytree": None,
+    "min_child_samples": None,
+    "verbosity": -1,
+}
 # taken from coles age
 params = {
     "n_estimators": 1000,
@@ -50,12 +50,13 @@ params = {
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
     "random_state": 42,
-    "n_jobs": 8,
+    "n_jobs": 16,
     "num_leaves": 50,
     "reg_alpha": None,
     "reg_lambda": None,
     "colsample_bytree": None,
     "min_child_samples": None,
+    "verbosity":-1,
 }
 
 
@@ -82,7 +83,8 @@ class SimpleTrainerContrastive(BaseTrainer):
         # assert isinstance(self.model, MegaNetCE)
         with torch.no_grad():
             loss_dicts = [
-                self.model.loss(it, gt) for it, gt in zip(model_outputs, ground_truths)
+                self.model.loss(it.to(self._device), gt.to(self._device))
+                for it, gt in zip(model_outputs, ground_truths)
             ]
         losses_dict = {
             k: np.mean([d[k].item() for d in loss_dicts]) for k in loss_dicts[0]
@@ -146,26 +148,45 @@ class SimpleTrainerContrastive(BaseTrainer):
         """
 
         logger.info("Test started")
-        train_embeddings, train_gts = self.predict(train_supervised_loader)
+        predict_limit = self._data_conf.get("predict_limit", None)
+        train_embeddings, train_gts = self.predict(
+            train_supervised_loader, predict_limit
+        )
         other_embeddings, other_gts = [], []
         for loader in other_loaders:
             other_embedding, other_gt = (
-                self.predict(loader) if len(loader) > 0 else (None, None)
+                self.predict(loader, predict_limit) if len(loader) > 0 else (None, None)
             )
             other_embeddings.append(other_embedding), other_gts.append(other_gt)
 
-        train_metric, other_metrics = self.compute_test_metric(
-            train_embeddings=train_embeddings,
-            train_gts=train_gts,
-            other_embeddings=other_embeddings,
-            other_gts=other_gts,
-            # cv=cv,
+        anisotropy = calc_anisotropy(train_embeddings, other_embeddings).item()
+        logger.info("Anisotropy: %s", str(anisotropy))
+
+        intrinsic_dimension = calc_intrinsic_dimension(
+            train_embeddings, other_embeddings
+        )
+        logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
+
+        (
+            train_metric,
+            other_metrics,
+            train_logist,
+            other_logist,
+        ) = self.compute_test_metric(
+            train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
         logger.info("Other metrics: %s", str(other_metrics))
+        logger.info("Logist Other metrics: %s", str(other_logist))
         logger.info("Test finished")
-
-        return train_metric, other_metrics
+        return (
+            train_metric,
+            other_metrics,
+            train_logist,
+            other_logist,
+            anisotropy,
+            intrinsic_dimension,
+        )
 
     def compute_test_metric(
         self,
@@ -173,12 +194,10 @@ class SimpleTrainerContrastive(BaseTrainer):
         train_gts,
         other_embeddings,
         other_gts,
-        # cv=False,
     ):
-        # cv = False
-        # skf = StratifiedKFold(n_splits=self._model_conf.cv_splits)
         train_labels = torch.cat([gt[1].cpu() for gt in train_gts]).numpy()
         train_embeddings = torch.cat(train_embeddings).cpu().numpy()
+
         other_labels, other_embeddings_new = [], []
         for other_gt in other_gts:
             other_labels.append(
@@ -193,25 +212,23 @@ class SimpleTrainerContrastive(BaseTrainer):
                 else None
             )
 
-        # split_ids = (
-        #     skf.split(train_embeddings, train_labels)
-        #     if cv
-        #     else [(range(train_embeddings.shape[0]), None)]
-        # )
-        # train_metric = []
-        other_metrics = []  # [[] * len(other_embeddings_new)]
-        # for i, (train_index, test_index) in enumerate(split_ids):
-        train_emb_subset = train_embeddings  # [train_index]
-        train_labels_subset = train_labels  # [train_index]
+        train_emb_subset = train_embeddings
+        train_labels_subset = train_labels
 
-        model = self.get_model()
+        model, log_model = self.get_model(np.unique(train_labels).shape[0])
         preprocessor = MaxAbsScaler()
 
         train_emb_subset = preprocessor.fit_transform(train_emb_subset)
+        logger.info("Started lgbm")
         model.fit(train_emb_subset, train_labels_subset)
-
+        logger.info("Finished lgbm")
+        log_model.fit(train_emb_subset, train_labels_subset)
+        logger.info("Finished logistic")
         train_metric = self.get_metric(model, train_emb_subset, train_labels_subset)
+        train_logist = self.get_metric(log_model, train_emb_subset, train_labels_subset)
 
+        other_metrics = []
+        other_logist = []
         for i, (other_embedding, other_label) in enumerate(
             zip(other_embeddings_new, other_labels)
         ):
@@ -220,9 +237,18 @@ class SimpleTrainerContrastive(BaseTrainer):
                 other_metrics.append(
                     self.get_metric(model, other_embedding_proccesed, other_label)
                 )
+                other_logist.append(
+                    self.get_metric(log_model, other_embedding_proccesed, other_label)
+                )
             else:
                 other_metrics.append(0)
-        return train_metric, other_metrics
+                other_logist.append(0)
+        return (
+            train_metric,
+            other_metrics,
+            train_logist,
+            other_logist,
+        )
 
 
 class AucTrainerContrastive(SimpleTrainerContrastive):
@@ -231,21 +257,38 @@ class AucTrainerContrastive(SimpleTrainerContrastive):
         auc_score = roc_auc_score(target, pred[:, 1])
         return auc_score
 
-    def get_model(self):
+    def get_model(self, n_classes=2):
+        assert n_classes == 2
         args = params.copy()
         args["objective"] = "binary"
         args["metric"] = "auc"
-        return LGBMClassifier(verbosity=-1, **args)
+        return LGBMClassifier(**args), LogisticRegression(solver="saga")
 
 
 class AccuracyTrainerContrastive(SimpleTrainerContrastive):
     def get_metric(self, model, x, target):
         pred = model.predict(x)
-        auc_score = accuracy_score(target, pred)
-        return auc_score
+        acc_score = accuracy_score(target, pred)
+        return acc_score
 
-    def get_model(self):
+    def get_model(self, n_classes=0):
+        if n_classes < 15:
+            args = params.copy()
+            logistic_params = {"solver": "saga"}
+        else:
+            print("Using fast algos because n_classes too big")
+            args = params_fast.copy()
+            logistic_params = {"n_jobs":-1, "multi_class": "ovr", "solver": "saga"}
+        return LGBMClassifier(**args), LogisticRegression(**logistic_params)
+
+class MSETrainerContrastive(SimpleTrainerContrastive):
+    def get_metric(self, model, x, target):
+        pred = model.predict(x)
+        score = mean_squared_error(target, pred)
+        return score
+
+    def get_model(self, n_classes=0):
         args = params.copy()
-        args["objective"] = "multiclass"
-        args["metric"] = "multi_error"
-        return LGBMClassifier(verbosity=-1, **args)
+        args["objective"] = "regression"
+        args['verbosity'] = -1
+        return LGBMRegressor(**args), LinearRegression()

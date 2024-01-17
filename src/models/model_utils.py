@@ -34,14 +34,12 @@ class EmbeddingPredictor(nn.Module):
 
     def forward(self, x_recon):
         batch_size, seq_len, out_dim = x_recon.size()
-
         resized_x = x_recon[:, :, : self.categorical_len].view(
             batch_size,
             seq_len,
             self.num_embeds,
             self.model_conf.features_emb_dim,
         )
-
         embeddings_distribution = {}
         for i, name in enumerate(self.emb_names):
             embeddings_distribution[name] = self.embed_predictors[name](
@@ -57,7 +55,7 @@ class EmbeddingPredictor(nn.Module):
                 shifted_labels = padded_batch.payload[name].long()  # [:, 1:]
                 embed_losses[name] = (
                     self.criterion(dist.permute(0, 2, 1), shifted_labels)
-                    .sum(dim=1)
+                    .sum(dim=1) # changed to mean
                     .mean()
                 )
 
@@ -114,7 +112,7 @@ def calc_intrinsic_dimension(train_embeddings, other_embeddings):
         if other_embedding is not None:
             all_embeddings.append(torch.cat(other_embedding).cpu())
 
-    X = torch.cat(all_embeddings, dim=0).numpy()
+    X = torch.cat(all_embeddings, dim=0)[-50000:].numpy()
 
     N = X.shape[0]
 
@@ -152,7 +150,7 @@ def calc_anisotropy(train_embeddings, other_embeddings):
         if other_embedding is not None:
             all_embeddings.append(torch.cat(other_embedding).cpu())
 
-    all_embeddings = torch.cat(all_embeddings, dim=0)
+    all_embeddings = torch.cat(all_embeddings, dim=0)[-50000:]
 
     U, S, Vt = torch.linalg.svd(all_embeddings, full_matrices=False)
 

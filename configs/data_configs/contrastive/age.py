@@ -23,11 +23,14 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
+    config.load_distributed = False
+    config.FT_number_objects = [1000, "all"]
+    config.post_gen_FT_epochs = 20
 
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        42  # 0xAB0BA  # seed for splitting data to train and validation
+        0  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0
@@ -72,16 +75,14 @@ def data_configs():
 
     # splitters
     train.split_strategy = {
-        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_strategy": "SampleSlices",
         "split_count": 5,
-        # "seq_len": 25,
         "cnt_min": 25,
         "cnt_max": 200,
     }
     val.split_strategy = {
-        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_strategy": "SampleSlices",
         "split_count": 5,
-        #  "seq_len": 50,
         "cnt_min": 25,
         "cnt_max": 100,
     }
@@ -92,6 +93,7 @@ def data_configs():
 
     # seq len
     config.min_seq_len = 25
+    config.use_constant_pad = False
     train.max_seq_len = 1200
     val.max_seq_len = 1200
     test.max_seq_len = 1200

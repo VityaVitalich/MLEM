@@ -219,7 +219,7 @@ class TimeEncoder(nn.Module):
         self.model_conf = model_conf
         self.data_conf = data_conf
 
-        if self.model_conf.time_embedding:
+        if self.model_conf.time_embedding and self.model_conf.use_deltas:
             self.alpha = nn.Parameter(torch.rand(self.model_conf.time_embedding))
 
     def forward(self, x, time_steps):
@@ -233,7 +233,6 @@ class TimeEncoder(nn.Module):
         time_emb = self.create_emb(delta_feature)
 
         x = torch.cat([x, time_emb], dim=-1)
-
         return x
 
     def create_emb(self, delta_feature):

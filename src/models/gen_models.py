@@ -17,6 +17,8 @@ from functools import partial
 from einops import repeat
 from .timevae import TimeVAE
 from .seq2seq import Seq2Seq
+from .tpp_vae import TPPVAE
+from .tpp_ddpm import TPPDDPM
 
 
 class BaseMixin(nn.Module):
@@ -147,6 +149,7 @@ class BaseMixin(nn.Module):
                 # d_model=self.input_dim,
                 nhead=self.model_conf.encoder_num_heads,
                 batch_first=True,
+                dim_feedforward=self.model_conf.encoder_dim_ff,
             )
 
             self.encoder = nn.TransformerEncoder(
@@ -178,6 +181,7 @@ class BaseMixin(nn.Module):
                 num_layers=self.model_conf.decoder_num_layers,
                 norm=self.decoder_norm,
                 pos_encoding=self.dec_pos_encoding,
+                dim_feedforward=self.model_conf.decoder_dim_ff,
             )
             self.decoder_proj = nn.Linear(
                 self.input_dim, self.model_conf.decoder_hidden
@@ -259,10 +263,9 @@ class BaseMixin(nn.Module):
 
     def numerical_loss(self, output):
         # MSE
-        total_mse_loss = 0
+        total_mse_loss = torch.tensor(0.0, device=self.model_conf.device)
         for key, values in output["gt"]["input_batch"].payload.items():
             if key in self.processor.numeric_names:
-                gt_val = values.float()
                 gt_val = values.float()
                 pred_val = output["pred"][key].squeeze(-1)
 
@@ -273,7 +276,7 @@ class BaseMixin(nn.Module):
                 mask = gt_val != 0
                 masked_mse = mse_loss * mask
                 total_mse_loss += (
-                    masked_mse.sum(dim=1)  # / (mask != 0).sum(dim=1)
+                    masked_mse.sum(dim=1) # / (mask != 0).sum(dim=1)
                 ).mean()
 
         return total_mse_loss
@@ -474,7 +477,7 @@ class SeqGen(BaseMixin):
         pred = self.embedding_predictor(out)
         pred.update(self.numeric_projector(out))
         if self.model_conf.use_deltas:
-            pred["delta"] = out[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(out[:, :, -1].squeeze(-1))
 
         return pred
 
@@ -493,13 +496,82 @@ class SeqGen(BaseMixin):
         pred = self.embedding_predictor(gens)
         pred.update(self.numeric_projector(gens))
         if self.model_conf.use_deltas:
-            pred["delta"] = gens[:, :, -1].squeeze(-1)
+            pred["delta"] = torch.abs(gens[:, :, -1].squeeze(-1))
 
         return pred
 
     def generate(self, padded_batch, lens):
         all_hid, global_hidden, time_steps = self.encode(padded_batch)
         return {"pred": self.generate_sequence(global_hidden, lens)}
+
+
+class GenContrastive(SeqGen):
+    def __init__(self, model_conf, data_conf):
+        super().__init__(model_conf=model_conf, data_conf=data_conf)
+        self.contrastive_loss_fn = get_loss(self.model_conf)
+
+    def loss(self, output, ground_truth):
+        """
+        output: Dict that is outputed from forward method
+        """
+        ### MSE ###
+        total_mse_loss = self.numerical_loss(output)
+        delta_mse_loss = self.delta_mse_loss(output)
+
+        ### CROSS ENTROPY ###
+        cross_entropy_losses = self.embedding_predictor.loss(
+            output["pred"], output["gt"]["input_batch"]
+        )
+        total_ce_loss = torch.sum(
+            torch.cat([value.unsqueeze(0) for _, value in cross_entropy_losses.items()])
+        )
+
+        ### SPARCE EMBEDDINGS ###
+        sparce_loss = torch.mean(torch.sum(torch.abs(output["latent"]), dim=1))
+
+        ### GENERATED EMBEDDINGS DISTANCE ###
+        gen_embeddings_loss = self.generative_embedding_loss(output)
+
+        losses_dict = {
+            "total_mse_loss": total_mse_loss,
+            "total_CE_loss": total_ce_loss,
+            "delta_loss": self.model_conf.delta_weight * delta_mse_loss,
+            "sparcity_loss": sparce_loss,
+            "gen_embedding_loss": gen_embeddings_loss,
+        }
+        losses_dict.update(cross_entropy_losses)
+
+        ### CONTRASTIVE LOSS ###
+        contrastive_loss = (
+            self.model_conf.loss.contrastive_weight
+            * self.contrastive_loss_fn(
+                output["latent"], ground_truth[0].to(output["latent"].device)
+            )
+        )
+        losses_dict["contrastive_loss"] = contrastive_loss
+
+        total_loss = (
+            self.model_conf.mse_weight * losses_dict["total_mse_loss"]
+            + self.model_conf.CE_weight * total_ce_loss
+            + self.model_conf.delta_weight * delta_mse_loss
+            + self.model_conf.l1_weight * sparce_loss
+            + self.model_conf.gen_emb_weight * gen_embeddings_loss
+        )
+        losses_dict["total_loss"] = (
+            self.model_conf.loss.reconstruction_weight * total_loss + contrastive_loss
+        )
+
+        return losses_dict
+
+
+class GenSigmoid(SeqGen):
+    def __init__(self, model_conf, data_conf):
+        super().__init__(model_conf=model_conf, data_conf=data_conf)
+
+        init_temp = torch.tensor(10.0)
+        init_bias = torch.tensor(-10.0)
+        self.sigmoid_temp = nn.Parameter(torch.log(init_temp))
+        self.sigmoid_bias = nn.Parameter(init_bias)
 
 
 class GRUCell(nn.Module):
@@ -532,7 +604,7 @@ class GRUCell(nn.Module):
             hx = Variable(input.new_zeros(input.size(0), self.hidden_size))
 
         hx = hx
-        #  hx = self.act(self.mix_global(torch.cat([global_hidden, hx], dim=-1)))
+        hx = self.act(self.mix_global(torch.cat([global_hidden, hx], dim=-1)))
         x_t = self.x2h(input)
         h_t = self.h2h(hx)
 
@@ -652,12 +724,13 @@ class DecoderGRU(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, d_model, nhead, num_layers, norm, pos_encoding):
+    def __init__(self, d_model, nhead, num_layers, norm, pos_encoding, dim_feedforward):
         super().__init__()
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=d_model,
             nhead=nhead,
             batch_first=True,
+            dim_feedforward=dim_feedforward,
         )
         self.decoder = nn.TransformerDecoder(
             decoder_layer,

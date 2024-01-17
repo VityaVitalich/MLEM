@@ -13,7 +13,7 @@ def data_configs():
         / "experiments"
         / "rosbank"
         / "data"
-        / "train_trx.parquet"
+        / "train_trx.parquet"  # "train_trx.parquet"
     )
     # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/generated_data/delta100_2023-10-31_16:32:20'
     # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/reconstructed_data/delta100_2023-10-31_16:32:20'
@@ -24,13 +24,33 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
+    config.pre_trained_contrastive_path = '/home/event_seq/experiments/rosbank/logs/NEW_CONTRASTIVE_GRU512-32emb/seed_1/ckpt/NEW_CONTRASTIVE_GRU512-32emb/seed_1/epoch__0100.ckpt'
+    # (
+    #     Path(__file__).parent.parent.parent
+    #     / "experiments"
+    #     / "rosbank"
+    #     / "logs"
+    #     / "CONTRASTIVE-GRU512-32emb"
+    #     / "seed_0"
+    #     / "ckpt"
+    #     / "CONTRASTIVE-GRU512-32emb"
+    #     / "seed_0"
+    #     / "epoch__0100.ckpt"
+    #     # /home/event_seq/experiments/rosbank/logs/CONTRASTIVE-GRU512-32emb/seed_0/ckpt/CONTRASTIVE-GRU512-32emb/seed_0/epoch__0100.ckpt
+    # )
+    config.load_distributed = False
+    config.recon_limit = 100
+    config.gen_limit = 100
+    config.predict_limit = 1000
+    config.FT_number_objects = [1000, "all"]
+    config.post_gen_FT_epochs = 20
 
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
     config.col_id = "cl_id"  # column defining ids. used for sorting data
 

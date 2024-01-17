@@ -9,26 +9,30 @@ def data_configs():
     ########## DATA ##############
 
     config.train_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "rosbank"
         / "data"
         / "train_trx.parquet"
     )
     config.test_path = (
-        Path(__file__).parent.parent.parent
+        Path(__file__).parent.parent.parent.parent
         / "experiments"
         / "rosbank"
         / "data"
         / "test_trx.parquet"
     )
-
+    config.load_distributed = False
+    config.FT_number_objects = [1000, 'all']
+    config.post_gen_FT_epochs = 25
+    
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
         0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.0  # validation size
+    config.valid_size = 0.05  # validation size
+    config.test_size = 0.0  # pinch_test size
     config.col_id = "cl_id"  # column defining ids. used for sorting data
 
     features = config.features = ml_collections.ConfigDict()
@@ -61,23 +65,24 @@ def data_configs():
 
     # splitters
     train.split_strategy = {
-        "split_strategy": "SampleUniform",  # SampleSlices
-        "split_count": 4,
-        "seq_len": 50,
-        # "cnt_min": 15,
-        # "cnt_max": 150,
+        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_count": 5,
+        # "seq_len": 50,
+        "cnt_min": 15,
+        "cnt_max": 150,
     }
     val.split_strategy = {
-        "split_strategy": "SampleUniform",  # SampleSlices
-        "split_count": 4,
-        "seq_len": 50,
-        # "cnt_min": 15,
-        # "cnt_max": 150,
+        "split_strategy": "SampleSlices",  # SampleSlices
+        "split_count": 5,
+        # "seq_len": 50,
+        "cnt_min": 15,
+        "cnt_max": 150,
     }
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.01
+    config.use_constant_pad = False
     train.max_seq_len = 200
     test.max_seq_len = 200
     val.max_seq_len = 200

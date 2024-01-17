@@ -176,7 +176,7 @@ class BaseTrainer:
                 kv = it.split("__")
                 assert len(kv) == 2, f"Failed to parse filename: {p.name}"
                 k = kv[0]
-                v = -float(kv[1]) if "loss" in k else float(kv[1])
+                v = -float(kv[1]) if ("loss" in k) or ("mse" in k) else float(kv[1])
                 metrics[k] = v
             return metrics[key]
 
@@ -256,10 +256,11 @@ class BaseTrainer:
             ckpt_fname: path to checkpoint.
         """
 
-        ckpt = torch.load(ckpt_fname)
+        ckpt = torch.load(ckpt_fname, map_location=self._device)
 
         if "model" in ckpt:
-            self._model.load_state_dict(ckpt["model"])
+            msg = self._model.load_state_dict(ckpt["model"], strict=False)
+            print(msg)
         if "opt" in ckpt:
             if self._opt is None:
                 logger.warning(
@@ -267,7 +268,10 @@ class BaseTrainer:
                     "in the checkpoint"
                 )
             else:
-                self._opt.load_state_dict(ckpt["opt"])
+                logger.warning(
+                    "optimizer is not loaded now due to problems in FineTUning stage"
+                )
+                # self._opt.load_state_dict(ckpt["opt"])
         if "sched" in ckpt:
             if self._sched is None:
                 logger.warning(
@@ -275,9 +279,12 @@ class BaseTrainer:
                     "in the checkpoint"
                 )
             else:
-                self._sched.load_state_dict(ckpt["sched"])
-        self._last_iter = ckpt["last_iter"]
-        self._last_epoch = ckpt["last_epoch"]
+                logger.warning(
+                    "scheduller is not loaded now due to problems in FineTUning stage"
+                )
+                # self._sched.load_state_dict(ckpt["sched"])
+        # self._last_iter = ckpt["last_iter"]
+        # self._last_epoch = ckpt["last_epoch"]
 
     def train(self, iters: int) -> None:
         assert self._opt is not None, "Set an optimizer first"
@@ -296,8 +303,8 @@ class BaseTrainer:
 
             pred = self._model(inp)
             if self._metrics_on_train:
-                preds.append(pred)
-                gts.append(gt)
+                preds.append(pred.to("cpu"))
+                gts.append(gt.to("cpu"))
 
             loss = self.compute_loss(pred, gt)
             loss.backward()
@@ -307,6 +314,8 @@ class BaseTrainer:
             loss_ema = loss_np if i == 0 else 0.9 * loss_ema + 0.1 * loss_np
             pbar.set_postfix_str(f"Loss: {loss_ema:.4g}")
 
+            # CLIP GRADIENTS
+            # torch.nn.utils.clip_grad_norm_(self._model.parameters(), 5)
             self._opt.step()
 
             self._last_iter += 1
@@ -352,15 +361,19 @@ class BaseTrainer:
         )
         logger.info("Epoch %04d: validation finished", self._last_epoch + 1)
 
-    def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+    def predict(self, loader: DataLoader, limit=None) -> Tuple[List[Any], List[Any]]:
         self._model.eval()
         preds, gts = [], []
+        i = 0
         with torch.no_grad():
             for inp, gt in tqdm(loader):
-                gts.append(gt.to(self._device))
+                gts.append(gt.to("cpu"))
                 inp = inp.to(self._device)
                 pred = self._model(inp)
-                preds.append(pred)
+                preds.append(pred.to("cpu"))
+                i += loader.batch_size
+                if limit and i > limit:
+                    break
 
         return preds, gts
 
@@ -495,11 +508,10 @@ class BaseTrainer:
 
         logger.info("run '%s' finished successfully", self._run_name)
 
-    def load_best_model(self) -> None:
+    def best_checkpoint(self) -> str:
         """
-        Loads the best model to self._model according to the track metric.
+        Return the path to the best checkpoint
         """
-
         assert self._ckpt_dir is not None
         ckpt_path = Path(self._ckpt_dir) / self._run_name
 
@@ -507,7 +519,15 @@ class BaseTrainer:
 
         all_ckpt = list(ckpt_path.glob("*.ckpt"))
         best_ckpt = max(all_ckpt, key=self._make_key_extractor(self._ckpt_track_metric))
-        print(best_ckpt)
+
+        return best_ckpt
+
+    def load_best_model(self) -> None:
+        """
+        Loads the best model to self._model according to the track metric.
+        """
+
+        best_ckpt = self.best_checkpoint()
         self.load_ckpt(best_ckpt)
 
     def test(self, test_loader: DataLoader) -> None:

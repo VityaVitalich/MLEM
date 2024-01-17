@@ -12,7 +12,7 @@ import src.models.base_models
 from src.data_load.dataloader import create_data_loaders, create_test_loader
 from src.trainers.trainer_timegan import TGTrainer
 from src.models.TimeGan import TG
-from experiments.utils import get_parser, read_config
+from experiments.utils import get_parser, read_config, draw_generated
 from experiments.pipeline import Pipeline
 from experiments.pipeline_supervised import (
     GenSupervisedPipeline,
@@ -40,6 +40,7 @@ class GenerativePipeline(Pipeline):
         recon_val_epoch,
         console_lvl="warning",
         file_lvl="info",
+        draw=False,
     ):
         super().__init__(
             run_name,
@@ -60,6 +61,7 @@ class GenerativePipeline(Pipeline):
         self.gen_val_epoch = gen_val_epoch
         self.recon_val = recon_val
         self.recon_val_epoch = recon_val_epoch
+        self.draw = draw
 
     def _train_eval(self, run_name, data_conf, model_conf):
         """
@@ -70,7 +72,7 @@ class GenerativePipeline(Pipeline):
         train_loader, valid_loader, _ = create_data_loaders(
             data_conf, supervised=False, pinch_test=True
         )
-        another_test_loader = create_test_loader(data_conf)
+        fixed_test_loader = create_test_loader(data_conf)
 
         data_conf.train.split_strategy = {"split_strategy": "NoSplit"}
         data_conf.val.split_strategy = {"split_strategy": "NoSplit"}
@@ -130,17 +132,23 @@ class GenerativePipeline(Pipeline):
         trainer.run()
 
         # trainer.load_best_model()
-        train_metric, (val_metric, test_metric, another_test_metric) = trainer.test(
+        (
+            train_metric,
+            (supervised_val_metric, supervised_test_metric, fixed_test_metric),
+            lin_prob_test,
+        ) = trainer.test(
             train_supervised_loader,
-            (valid_supervised_loader, test_supervised_loader, another_test_loader),
+            (valid_supervised_loader, test_supervised_loader, fixed_test_loader),
         )
         metrics = {
             "train_metric": train_metric,
-            "val_metric": val_metric,
-            "test_metric": test_metric,
-            "another_test_metric": another_test_metric,
+            "val_metric": supervised_val_metric,
+            "test_metric": supervised_test_metric,
+            "other_test_metric": fixed_test_metric,
+            "lin_prob_test": lin_prob_test,
         }
 
+        true_train_path = data_conf.train_path
         if self.recon_val:
             reconstructed_data_path = trainer.reconstruct_data(train_supervised_loader)
             data_conf.train_path = reconstructed_data_path
@@ -172,6 +180,7 @@ class GenerativePipeline(Pipeline):
             generated_data_path = trainer.generate_data(train_supervised_loader)
             data_conf.train_path = generated_data_path
             data_conf.valid_size = 0.1
+            data_conf.load_distributed = False
 
             total_epochs = self.gen_val_epoch
             model_conf_genval = model_conf.genval
@@ -191,10 +200,20 @@ class GenerativePipeline(Pipeline):
                 valid_supervised_loader=valid_supervised_loader,
             )
             super_df = super_pipe.do_n_runs(
-                n_runs=3, max_workers=1
+                n_runs=3, max_workers=3
             )  # if you short in gpu, change max_workers=1
             for k in super_df:
                 metrics[f"generation_mean_{k}"] = super_df.loc["mean", k]
+
+        if self.draw:
+            save_path = self.log_dir / run_name / "distributions.png"
+            draw_generated(
+                generated_path=generated_data_path,
+                true_path=true_train_path,
+                reconstructed_path=reconstructed_data_path,
+                data_conf=self.data_conf,
+                out_path=save_path,
+            )
         return metrics
 
     def _param_grid(self, trial, model_conf, data_conf):
@@ -219,9 +238,7 @@ if __name__ == "__main__":
         "--total-epochs-joint", help="Number of joint training", default=1, type=int
     )
     parser.add_argument(
-        "--gen-val",
-        help="Whether to perform generated validation",
-        default=False,
+        "--gen-val", help="Whether to perform generated validation", default=0, type=int
     )
     parser.add_argument(
         "--gen-val-epoch",
@@ -232,12 +249,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--recon-val",
         help="Whether to perform generated validation",
-        default=False,
+        default=0,
+        type=int,
     )
     parser.add_argument(
         "--recon-val-epoch",
         help="How many epochs to perform on generated samples",
         default=25,
+        type=int,
+    )
+    parser.add_argument(
+        "--draw",
+        help="if to draw distributions of gen and recon",
+        default=0,
         type=int,
     )
     args = parser.parse_args()
@@ -263,6 +287,7 @@ if __name__ == "__main__":
         recon_val_epoch=args.recon_val_epoch,
         console_lvl=args.console_lvl,
         file_lvl=args.file_lvl,
+        draw=args.draw,
     )
     request = {"classifier_gru_hidden_dim": 16}
     metrics = pipeline.run_experiment()

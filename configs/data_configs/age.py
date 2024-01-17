@@ -23,13 +23,29 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
-
+    # config.pre_trained_contrastive_path = (
+    #     Path(__file__).parent.parent.parent
+    #     / "experiments"
+    #     / "age"
+    #     / "logs"
+    #     / "GRU512-32emb-2"
+    #     / "seed_0"
+    #     / "ckpt"
+    #     / "GRU512-32emb-2"
+    #     / "seed_0"
+    #     / "epoch__0100.ckpt"
+    #     # /home/event_seq/experiments/age/logs/GRU512-32emb-2/seed_0/ckpt/GRU512-32emb-2/seed_0/epoch__0100.ckpt
+    # )
+    config.load_distributed = False
+    config.FT_number_objects = [1000, "all"]
+    config.post_gen_FT_epochs = 10
+    config.pre_trained_contrastive_path = "age/logs/CONTRASTIVE_GRU512-32emb/seed_2/ckpt/CONTRASTIVE_GRU512-32emb/seed_2/epoch__0100.ckpt"
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation
+        1  # 0xAB0BA  # seed for splitting data to train and validation
     )
-    config.valid_size = 0.1  # validation size
+    config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
     config.col_id = "client_id"  # column defining ids. used for sorting data
 
@@ -38,7 +54,7 @@ def data_configs():
     # "in" parameter is used to clip values at the input.
     # have not figured out the purpose of "out"
     features.embeddings = {
-        "small_group": {"in": 202, "out": 203, "max_value": 203},
+        "small_group": {"in": 250, "out": 250, "max_value": 252},
     }
     # all numeric features are defined here as keys
     # seem like its value is technical and is not used anywhere
@@ -70,14 +86,30 @@ def data_configs():
     # test params
     test = config.test = ml_collections.ConfigDict()
 
+    # # splitters
+    # train.split_strategy = {
+    #     "split_strategy": "SampleSlices",  # SampleSlices
+    #     "split_count": 5,
+    #     # "seq_len": 25,
+    #     "cnt_min": 25,
+    #     "cnt_max": 200,
+    # }
+    # val.split_strategy = {
+    #     "split_strategy": "SampleSlices",  # SampleSlices
+    #     "split_count": 5,
+    #     #  "seq_len": 50,
+    #     "cnt_min": 25,
+    #     "cnt_max": 100,
+    # }
     train.split_strategy = {"split_strategy": "NoSplit"}
     val.split_strategy = {"split_strategy": "NoSplit"}
     test.split_strategy = {"split_strategy": "NoSplit"}
 
     # dropout
-    train.dropout = 0.05
+    train.dropout = 0.01
 
     # seq len
+    config.min_seq_len = 25
     config.use_constant_pad = False
     train.max_seq_len = 1000
     val.max_seq_len = 1000

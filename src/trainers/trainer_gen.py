@@ -11,9 +11,9 @@ import pandas as pd
 from ..models.mTAND.model import MegaNetCE
 from ..data_load.dataloader import PaddedBatch
 from .base_trainer import BaseTrainer, _CyclicalLoader
-from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.metrics import roc_auc_score, accuracy_score, mean_squared_error
 
-from lightgbm import LGBMClassifier
+from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.preprocessing import MaxAbsScaler
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
@@ -24,9 +24,10 @@ from ..models.model_utils import (
     calc_anisotropy,
     calc_intrinsic_dimension,
 )
+from sklearn.linear_model import LinearRegression, LogisticRegression
 
 
-params = {
+params_fast = {
     "n_estimators": 200,
     "boosting_type": "gbdt",
     "subsample": 0.5,
@@ -38,7 +39,7 @@ params = {
     "lambda_l2": 1,
     "min_data_in_leaf": 50,
     "random_state": 42,
-    "n_jobs": 8,
+    "n_jobs": 16,
     "reg_alpha": None,
     "reg_lambda": None,
     "colsample_bytree": None,
@@ -46,6 +47,28 @@ params = {
     "verbosity": -1,
 }
 
+params_strong = {
+    "n_estimators": 1000,
+    "boosting_type": "gbdt",
+    # "objective": "binary",
+    # "metric": "auc",
+    "subsample": 0.75,
+    "subsample_freq": 1,
+    "learning_rate": 0.02,
+    "feature_fraction": 0.75,
+    "max_depth": 12,
+    "lambda_l1": 1,
+    "lambda_l2": 1,
+    "min_data_in_leaf": 50,
+    "random_state": 42,
+    "n_jobs": 16,
+    "num_leaves": 50,
+    "reg_alpha": None,
+    "reg_lambda": None,
+    "colsample_bytree": None,
+    "min_child_samples": None,
+    "verbosity": -1,
+}
 
 logger = logging.getLogger("event_seq")
 
@@ -96,6 +119,9 @@ class GenTrainer(BaseTrainer):
         """
         # assert isinstance(self.model, MegaNet)
         losses = self.model.loss(model_output, ground_truth)
+
+        for k, v in losses.items():
+            losses[k] = torch.nan_to_num(v, nan=2000, posinf=1e8, neginf=-1e8)
         return losses["total_loss"]
 
     def log_metrics(
@@ -133,20 +159,20 @@ class GenTrainer(BaseTrainer):
         Logs test metrics with self.compute_metrics
         """
         logger.info("Test started")
-        train_out, train_gts = self.predict(train_supervised_loader)
+        predict_limit = self._data_conf.get("predict_limit", None)
+        train_out, train_gts = self.get_embeddings(train_supervised_loader, predict_limit)
         other_outs, other_gts = [], []
         for other_loader in other_loaders:
             other_out, other_gt = (
-                self.predict(other_loader) if len(other_loader) > 0 else (None, None)
+                self.get_embeddings(other_loader, predict_limit) if len(other_loader) > 0 else (None, None)
             )
             other_outs.append(other_out), other_gts.append(other_gt)
 
-        train_embeddings = [out["latent"] for out in train_out]
+        train_embeddings = train_out
         other_embeddings = [
-            [out["latent"] for out in other_out] if other_out is not None else None
+            other_out if other_out is not None else None
             for other_out in other_outs
         ]
-
         anisotropy = calc_anisotropy(train_embeddings, other_embeddings).item()
         logger.info("Anisotropy: %s", str(anisotropy))
 
@@ -155,14 +181,20 @@ class GenTrainer(BaseTrainer):
         )
         logger.info("Intrinsic Dimension: %s", str(intrinsic_dimension))
 
-        train_metric, other_metrics = self.compute_test_metric(
+        train_metric, other_metrics, lin_prob_metrics = self.compute_test_metric(
             train_embeddings, train_gts, other_embeddings, other_gts
         )
         logger.info("Train metrics: %s", str(train_metric))
-        logger.info("Other metrics: %s", str(other_metrics))
+        logger.info(
+            "Validation, supervised Test, Fixed Test Metrics: %s", str(other_metrics)
+        )
+        logger.info(
+            "LinProb Validation, supervised Test, Fixed Test Metrics: %s",
+            str(lin_prob_metrics),
+        )
 
         logger.info("Test finished")
-        return train_metric, other_metrics
+        return train_metric, other_metrics, lin_prob_metrics, intrinsic_dimension, anisotropy
 
     def compute_test_metric(
         self,
@@ -194,12 +226,29 @@ class GenTrainer(BaseTrainer):
             metric = self._data_conf.track_metric
         else:
             raise NotImplementedError("no metric name provided")
-
+        
+        if np.unique(train_labels).shape[0] < 15:
+            params = params_strong.copy()
+            logist_params = {"solver": "saga"}
+        else:
+            params = params_fast.copy()
+            logist_params = {"n_jobs":-1, "multi_class": "ovr", "solver": "saga"}
         if metric == "roc_auc":
             params["objective"] = "binary"
             params["metric"] = "auc"
+            model = LGBMClassifier(
+                **params,
+            )
+            lin_prob = LogisticRegression(**logist_params)
         elif metric == "accuracy":
-            params["objective"] = "multiclass"
+            model = LGBMClassifier(
+                **params,
+            )
+            lin_prob = LogisticRegression(**logist_params)
+        elif metric == "mse":
+            params["objective"] = "regression"
+            model = LGBMRegressor()
+            lin_prob = LinearRegression()
         else:
             raise NotImplementedError(f"Unknown objective {metric}")
 
@@ -208,18 +257,19 @@ class GenTrainer(BaseTrainer):
                 return roc_auc_score(target, model.predict_proba(x)[:, 1])
             elif metric == "accuracy":
                 return accuracy_score(target, model.predict(x))
+            elif metric == "mse":
+                return mean_squared_error(target, model.predict(x))
             else:
                 raise NotImplementedError(f"Unknown objective {metric}")
 
-        model = LGBMClassifier(
-            **params,
-        )
         preprocessor = MaxAbsScaler()
         train_embeddings_tr = preprocessor.fit_transform(train_embeddings)
         model.fit(train_embeddings_tr, train_labels)
+        lin_prob.fit(train_embeddings_tr, train_labels)
 
         train_metric = get_metric(model, train_embeddings_tr, train_labels)
         other_metrics = []
+        lin_prob_metrics = []
         for i, (other_embedding, other_label) in enumerate(
             zip(other_embeddings_new, other_labels)
         ):
@@ -228,11 +278,17 @@ class GenTrainer(BaseTrainer):
                 other_metrics.append(
                     get_metric(model, other_embedding_proccesed, other_label)
                 )
+                lin_prob_metrics.append(
+                    get_metric(lin_prob, other_embedding_proccesed, other_label)
+                )
             else:
                 other_metrics.append(0)
-        return train_metric, other_metrics
+                lin_prob_metrics.append(0)
 
-    def predict(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+        return train_metric, other_metrics, lin_prob_metrics
+    
+    def get_embeddings(self, loader, limit=None):
+        counter = 0
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
@@ -241,11 +297,30 @@ class GenTrainer(BaseTrainer):
                 inp = inp.to(self._device)
                 out = self._model(inp)
                 out = self.dict_to_cpu(out)
+                preds.append(out["latent"])
+                counter += loader.batch_size
+                if limit and counter > limit:
+                    break
+        return preds, gts
 
+    def predict(
+        self, loader: DataLoader, limit: int = None
+    ) -> Tuple[List[Any], List[Any]]:
+        counter = 0
+        self._model.eval()
+        preds, gts = [], []
+        with torch.no_grad():
+            for inp, gt in tqdm(loader):
+                gts.append(gt.to(self._device))
+                inp = inp.to(self._device)
+                out = self._model(inp)
+                out = self.dict_to_cpu(out)
                 out["gt"].pop("input_batch")
                 out.pop("all_latents", None)
                 preds.append(out)
-
+                counter += loader.batch_size
+                if limit and counter > limit:
+                    break
         return preds, gts
 
     def validate(self) -> None:
@@ -282,8 +357,10 @@ class GenTrainer(BaseTrainer):
         return out
 
     def reconstruct_data(self, train_supervised_loader):
+        limit = self._data_conf.get("recon_limit", None)
+
         logger.info("Reconstruction started")
-        train_out, train_gts = self.predict(train_supervised_loader)
+        train_out, train_gts = self.predict(train_supervised_loader, limit=limit)
         logger.info("Reconstructions convertation started")
 
         reconstructed_data = self.output_to_df(train_out, train_gts)
@@ -296,7 +373,10 @@ class GenTrainer(BaseTrainer):
         logger.info("Reconstructions saved")
         return save_path
 
-    def generate(self, loader: DataLoader) -> Tuple[List[Any], List[Any]]:
+    def generate(
+            self, loader: DataLoader, limit: int = None
+    ) -> Tuple[List[Any], List[Any]]:
+        counter = 0
         self._model.eval()
         preds, gts = [], []
         with torch.no_grad():
@@ -307,11 +387,15 @@ class GenTrainer(BaseTrainer):
                 out = self.dict_to_cpu(out)
                 preds.append(out)
 
+                counter += loader.batch_size
+                if limit and counter > limit:
+                    break
         return preds, gts
 
     def generate_data(self, train_supervised_loader):
-        logger.info("Generation started")
-        train_out, train_gts = self.generate(train_supervised_loader)
+        limit = self._data_conf.get("gen_limit", None)
+        logger.info(f"Generation started with limit {limit}")
+        train_out, train_gts = self.generate(train_supervised_loader, limit=limit)
         logger.info("Predictions convertation started")
 
         generated_data = self.output_to_df(
@@ -338,11 +422,11 @@ class GenTrainer(BaseTrainer):
 
         for feature in self._data_conf.features.numeric_values.keys():
             df_dic[feature] = []
-
+        shift = int(self._data_conf.get("shift_embedding", True))
         for out, gt in zip(outs, gts):
             for key, val in out["pred"].items():
                 if key in self._data_conf.features.embeddings.keys():
-                    df_dic[key].extend((val.cpu().argmax(dim=-1) - 1).tolist())
+                    df_dic[key].extend((val.cpu().argmax(dim=-1) - shift).tolist())
                 elif key in self._data_conf.features.numeric_values.keys():
                     df_dic[key].extend(val.cpu().squeeze(-1).tolist())
 
