@@ -24,7 +24,7 @@ Due to origin of MLEM model technique here it is named Sigmoid, after the loss f
 
 ### Running experiments
 
-All experiments are run with the sh scripts. To change the dataset for experiment you simply need to pass your dataset config to this sh script.
+All experiments run with the sh scripts. To change the dataset for experiment you simply need to pass your dataset config to this sh script.
 
 #### Supervised Learning
 
@@ -45,3 +45,13 @@ All experiments are run with the sh scripts. To change the dataset for experimen
 #### MLEM
 
 ```run_pipe_sigmoid.sh``` does MLEM modeling. However before running this script, path to contrastive checkpoint should be placed in MLEM config and pre-trained contrastive net configs should match with contrastive net configs inside MLEM model config.
+
+### TPP and Robsutness Check
+
+For evaluating TPP task and robustness of embeddings one needs first to run ```tpp_dataset.py``` with passing desired dataset as argument. Further this script will generate refactored data for evaluation. 
+
+Then one should run ```run_tpp.sh``` script with argmunets that are suitable. This means one should provide path to configs of tested model, data config of dataset, name of current model and checkpoints to test. 
+
+### Reproducing Results
+
+In the current version of repo are appropriate configs. To obtain the same results one need to just pass right configs to the desired experiment setting.
