@@ -29,7 +29,7 @@ def data_configs():
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation
+        0  # seed for splitting data to train and validation
     )
     config.valid_size = 0.1  # validation size
     config.test_size = 0.0  # pinch_test size
@@ -38,14 +38,12 @@ def data_configs():
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
-    # have not figured out the purpose of "out"
     features.embeddings = {
         "Gender": {"in": 3, "out": 24, "max_value": 4},
         "ICUType": {"in": 5, "out": 4, "max_value": 5},
         "MechVent": {"in": 2, "out": 4, "max_value": 4},
     }
     # all numeric features are defined here as keys
-    # seem like its value is technical and is not used anywhere
     features.numeric_values = {
         "Age": None,
         "Height": None,

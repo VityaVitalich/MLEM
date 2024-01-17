@@ -23,19 +23,7 @@ def data_configs():
         / "data"
         / "test_trx.parquet"
     )
-    # config.pre_trained_contrastive_path = (
-    #     Path(__file__).parent.parent.parent
-    #     / "experiments"
-    #     / "age"
-    #     / "logs"
-    #     / "GRU512-32emb-2"
-    #     / "seed_0"
-    #     / "ckpt"
-    #     / "GRU512-32emb-2"
-    #     / "seed_0"
-    #     / "epoch__0100.ckpt"
-    #     # /home/event_seq/experiments/age/logs/GRU512-32emb-2/seed_0/ckpt/GRU512-32emb-2/seed_0/epoch__0100.ckpt
-    # )
+
     config.load_distributed = False
     config.FT_number_objects = [1000, "all"]
     config.post_gen_FT_epochs = 10
@@ -43,7 +31,7 @@ def data_configs():
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        1  # 0xAB0BA  # seed for splitting data to train and validation
+        1   # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
@@ -52,12 +40,10 @@ def data_configs():
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
-    # have not figured out the purpose of "out"
     features.embeddings = {
         "small_group": {"in": 250, "out": 250, "max_value": 252},
     }
     # all numeric features are defined here as keys
-    # seem like its value is technical and is not used anywhere
     features.numeric_values = {
         "amount_rur": "Identity",
     }

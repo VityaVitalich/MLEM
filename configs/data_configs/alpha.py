@@ -22,19 +22,6 @@ def data_configs():
         / "data"
         / "test_new.parquet"
     )
-    # config.pre_trained_contrastive_path = (
-    #     Path(__file__).parent.parent.parent
-    #     / "experiments"
-    #     / "alpha"
-    #     / "logs"
-    #     / "GRU512-32emb-2"
-    #     / "seed_0"
-    #     / "ckpt"
-    #     / "GRU512-32emb-2"
-    #     / "seed_0"
-    #     / "epoch__0030.ckpt"
-    #     # /home/event_seq/experiments/age/logs/GRU512-32emb-2/seed_0/ckpt/GRU512-32emb-2/seed_0/epoch__0100.ckpt
-    # )
 
     config.load_distributed = True
     config.recon_limit = 10000
@@ -46,7 +33,7 @@ def data_configs():
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation
+        0  # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
@@ -55,7 +42,6 @@ def data_configs():
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
-    # have not figured out the purpose of "out"
     config.shift_embedding = False  # embeddings start with 1
     features.embeddings = {
         "currency": {"in": 12, "out": 12, "max_value": 12},
@@ -76,7 +62,6 @@ def data_configs():
         "product": {"in": 6, "out": 6, "max_value": 6},
     }
     # all numeric features are defined here as keys
-    # seem like its value is technical and is not used anywhere
     features.numeric_values = {
         "amnt": "identity",
         "hour_diff": "identity",

@@ -17,7 +17,7 @@ def data_configs():
     )
 
     config.client_list_shuffle_seed = (
-        0xAB0BA  # seed for splitting data to train and validation
+        0  # seed for splitting data to train and validation
     )
     config.valid_size = 0.1  # validation size
     config.col_id = "col_id"  # column defining ids. used for sorting data
@@ -25,10 +25,8 @@ def data_configs():
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
-    # have not figured out the purpose of "out"
     features.embeddings = {}
     # all numeric features are defined here as keys
-    # seem like its value is technical and is not used anywhere
     features.numeric_values = {"0": "identity", "1": "identity"}
 
     # name of target col

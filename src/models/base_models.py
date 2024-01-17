@@ -3,11 +3,6 @@ import torch.nn as nn
 from . import preprocessors as prp
 from ..trainers.losses import get_loss
 from .model_utils import L2Normalization, FeatureMixer
-from .ckconv.model import CKCONV_Classifier as ckconv
-from .grud import GRUDClassifier as GRUD
-
-CKCONV_Classifier = ckconv
-GRUDClassifier = GRUD
 
 
 class BaseMixin(nn.Module):

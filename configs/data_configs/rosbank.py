@@ -15,8 +15,6 @@ def data_configs():
         / "data"
         / "train_trx.parquet"  # "train_trx.parquet"
     )
-    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/generated_data/delta100_2023-10-31_16:32:20'
-    # config.train_path = '/home/event_seq/experiments/rosbank/gen/ckpt/reconstructed_data/delta100_2023-10-31_16:32:20'
     config.test_path = (
         Path(__file__).parent.parent.parent
         / "experiments"
@@ -25,19 +23,7 @@ def data_configs():
         / "test_trx.parquet"
     )
     config.pre_trained_contrastive_path = '/home/event_seq/experiments/rosbank/logs/NEW_CONTRASTIVE_GRU512-32emb/seed_1/ckpt/NEW_CONTRASTIVE_GRU512-32emb/seed_1/epoch__0100.ckpt'
-    # (
-    #     Path(__file__).parent.parent.parent
-    #     / "experiments"
-    #     / "rosbank"
-    #     / "logs"
-    #     / "CONTRASTIVE-GRU512-32emb"
-    #     / "seed_0"
-    #     / "ckpt"
-    #     / "CONTRASTIVE-GRU512-32emb"
-    #     / "seed_0"
-    #     / "epoch__0100.ckpt"
-    #     # /home/event_seq/experiments/rosbank/logs/CONTRASTIVE-GRU512-32emb/seed_0/ckpt/CONTRASTIVE-GRU512-32emb/seed_0/epoch__0100.ckpt
-    # )
+
     config.load_distributed = False
     config.recon_limit = 100
     config.gen_limit = 100
@@ -48,7 +34,7 @@ def data_configs():
     config.track_metric = "roc_auc"
 
     config.client_list_shuffle_seed = (
-        0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
+        0  # 0xAB0BA  # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
@@ -57,7 +43,6 @@ def data_configs():
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
-    # have not figured out the purpose of "out"
     features.embeddings = {
         "mcc": {"in": 100, "out": 24, "max_value": 100},
         "channel_type": {"in": 4, "out": 4, "max_value": 5},
@@ -65,7 +50,6 @@ def data_configs():
         "trx_category": {"in": 10, "out": 4, "max_value": 12},
     }
     # all numeric features are defined here as keys
-    # seem like its value is technical and is not used anywhere
     features.numeric_values = {"amount": "identity"}
 
     # name of target col
@@ -81,20 +65,6 @@ def data_configs():
     # validation specific
     val = config.val = ml_collections.ConfigDict()
     test = config.test = ml_collections.ConfigDict()
-
-    # splitters
-    # train.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 50,
-    #     "cnt_max": 150,
-    # }
-    # val.split_strategy = {
-    #     "split_strategy": "SampleSlices",
-    #     "split_count": 5,
-    #     "cnt_min": 15,
-    #     "cnt_max": 150,
-    # }
 
     train.split_strategy = {"split_strategy": "NoSplit"}
     val.split_strategy = {"split_strategy": "NoSplit"}

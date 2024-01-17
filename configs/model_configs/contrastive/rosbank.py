@@ -7,7 +7,6 @@ def model_configs():
     config.model_name = "GRUClassifier"
     config.predict_head = "Identity"  # Linear or Identity
 
-    # Vitya NIPS
     config.preENC_TR = False
     config.batch_first_encoder = True
 
@@ -35,7 +34,6 @@ def model_configs():
     config.pre_encoder_norm = "Identity"
     config.post_encoder_norm = "Identity"
     config.encoder_norm = "Identity"
-    # if TransformerEncoder -> LayerNorm. else Identity. TODO check this!!!
 
     ### DROPOUT ###
     config.after_enc_dropout = 0.0

@@ -33,7 +33,7 @@ def data_configs():
     config.track_metric = "mse"
 
     config.client_list_shuffle_seed = (
-        0x3AB0D  # 0xAB0BA  # seed for splitting data to train and validation
+        0   # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
@@ -42,14 +42,12 @@ def data_configs():
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
-    # have not figured out the purpose of "out"
     features.embeddings = {
         str(i): {"in": 2, "out": 1, "max_value": 2}
         for i in range(0, 256)
         # "pad_category": {"in": 2, "out": 1, "max_value": 2},
     }
     # all numeric features are defined here as keys
-    # seem like its value is technical and is not used anywhere
     features.numeric_values = {}  # {str(i): "identity" for i in range(0, 256)}
 
     # name of target col

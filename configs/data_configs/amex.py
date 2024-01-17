@@ -33,7 +33,7 @@ def data_configs():
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation
+        0 # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0  # pinch_test size
@@ -42,7 +42,6 @@ def data_configs():
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
-    # have not figured out the purpose of "out"
     config.shift_embedding = False  # embeddings start with 1
     features.embeddings = {
         "B_30": {"in": 5, "out": 5, "max_value": 5},
@@ -59,7 +58,6 @@ def data_configs():
 
     }
     # all numeric features are defined here as keys
-    # seem like its value is technical and is not used anywhere
     features.numeric_values = {
         "P_2": "identity",
         "D_39": "identity",

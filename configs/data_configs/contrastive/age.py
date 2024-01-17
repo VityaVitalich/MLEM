@@ -30,7 +30,7 @@ def data_configs():
     config.track_metric = "accuracy"
 
     config.client_list_shuffle_seed = (
-        0  # 0xAB0BA  # seed for splitting data to train and validation
+        0   # seed for splitting data to train and validation
     )
     config.valid_size = 0.05  # validation size
     config.test_size = 0.0
@@ -39,24 +39,13 @@ def data_configs():
     features = config.features = ml_collections.ConfigDict()
     # dict below should define all the features that are not numeric with names as keys.
     # "in" parameter is used to clip values at the input.
-    # have not figured out the purpose of "out"
     features.embeddings = {
         "small_group": {"in": 250, "out": 250, "max_value": 252},
     }
     # all numeric features are defined here as keys
-    # seem like its value is technical and is not used anywhere
     features.numeric_values = {
         "amount_rur": "Identity",
     }
-
-    config.ckpt_path = (
-        Path(__file__).parent.parent.parent
-        / "experiments"
-        / "physionet"
-        / "ckpt"
-        / "Tr_1l_2h_LN_GR128+LN_2023-09-20_09:32:45"
-        / "epoch: 0033 - total_loss: 0.2984 - roc_auc: 0.8421 - loss: 0.2629.ckpt"
-    )
 
     # name of target col
     features.target_col = "target"

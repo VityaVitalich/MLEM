@@ -4,10 +4,9 @@ import ml_collections
 def model_configs():
     config = ml_collections.ConfigDict()
 
-    config.model_name = "SeqGen"
+    config.model_name = "GenContrastive"
     config.predict_head = "Linear"  # Linear or Identity
 
-    # Vitya NIPS
     config.preENC_TR = False
     config.batch_first_encoder = True
 

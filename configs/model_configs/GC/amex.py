@@ -7,7 +7,6 @@ def model_configs():
     config.model_name = "GenContrastive"
     config.predict_head = "Linear"  # Linear or Identity
 
-    # Vitya NIPS
     config.preENC_TR = False
     config.batch_first_encoder = True
 
