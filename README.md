@@ -24,4 +24,24 @@ Due to origin of MLEM model technique here it is named Sigmoid, after the loss f
 
 ### Running experiments
 
+All experiments are run with the sh scripts. To change the dataset for experiment you simply need to pass your dataset config to this sh script.
 
+#### Supervised Learning
+
+```run_pipe_supervised.sh``` script will run the supervised experiment. Inside the script one could change which configs to take, how to name experiment, number of epochs and if to use checkpoints. 
+
+#### Contrastive Learning
+
+```run_pipe_contrastive.sh``` script does contrastive learning.
+
+#### Generative modeling
+
+```run_pipe_gen.sh``` does generative modeling
+
+#### Naive method
+
+```run_pipe_gen_contrastive.sh``` does the procedure described as Naive in paper
+
+#### MLEM
+
+```run_pipe_sigmoid.sh``` does MLEM modeling. However before running this script, path to contrastive checkpoint should be placed in MLEM config and pre-trained contrastive net configs should match with contrastive net configs inside MLEM model config.
