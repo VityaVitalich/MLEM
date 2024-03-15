@@ -1,5 +1,7 @@
 # Multimodal Learning Event Model
 
+This repository contains code for paper [Self-Supervised Learning in Event Sequences: A Comparative Study and Hybrid Approach of Generative Modeling and Contrastive Learning
+](https://arxiv.org/abs/2401.15935)
 
 ### Data
 Here, we provide anonymous links for downloading data
