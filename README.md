@@ -4,7 +4,7 @@ This repository contains code for paper [Self-Supervised Learning in Event Seque
 ](https://arxiv.org/abs/2401.15935)
 
 ### Data
-Here, we provide anonymous links for downloading data
+Here, we provide links for downloading data
 
 1. [ABank](https://drive.google.com/file/d/1zHDbl1UE8Rv2HlLdcqvlqvtbUYi_ju76/view?usp=sharing)
 2. [Age](https://drive.google.com/drive/folders/1Zwyc2EGEmfkbAsT5ilOZlHwNM3Y966MC?usp=sharing)
