@@ -1,7 +1,6 @@
-# Multimodal Learning Event Model
+# MLEM: Generative and Contrastive Learning as Distinct Modalities for Event Sequences
 
-This repository contains code for paper [Self-Supervised Learning in Event Sequences: A Comparative Study and Hybrid Approach of Generative Modeling and Contrastive Learning
-](https://arxiv.org/abs/2401.15935)
+This repository contains code for paper [MLEM: Generative and Contrastive Learning as Distinct Modalities for Event Sequences](https://arxiv.org/abs/2401.15935)
 
 ### Data
 Here, we provide links for downloading data
